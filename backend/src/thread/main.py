@@ -22,33 +22,10 @@ UI_STATIC = Path(__file__).resolve().parent / "ui" / "static"
 async def lifespan(app: FastAPI):
     settings = get_settings()
     apply_langsmith_env(settings)
-    print(f"[thread] Starting {settings.public_app_name} v{__version__}")
-    if settings.langgraph_enabled:
-        print(
-            f"[orchestration] LangGraph enabled — studio "
-            f"{settings.langgraph_studio_base_url} (runtime wiring in progress)"
-        )
-    elif settings.resolved_langchain_api_key:
-        print(
-            f"[orchestration] LangSmith tracing ready "
-            f"(project={settings.resolved_langchain_project}, runtime deferred)"
-        )
-    from thread.db.ready import wait_for_postgres
-    from thread.db.session import engine
-
-    if not await wait_for_postgres(engine, settings, timeout_sec=30):
-        print("[thread] Database init skipped — PostgreSQL unavailable")
-    else:
-        try:
-            await init_db()
-            print("[thread] Database tables ready")
-        except Exception as exc:
-            print(f"[thread] Database init note: {exc}")
-    if settings.enable_startup_warmup:
-        if settings.xai_api_key:
-            print(f"[warmup] Grok reasoning provider configured ({settings.reasoning_llm_model})")
-        else:
-            print("[warmup] XAI_API_KEY not set — configure for cloud-primary reasoning")
+    try:
+        await init_db()
+    except Exception as exc:
+        print(f"[thread] Database init note: {exc}")
     yield
     print("[thread] Shutting down")
 

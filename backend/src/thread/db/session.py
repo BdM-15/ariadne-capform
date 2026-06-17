@@ -11,7 +11,7 @@ engine = create_async_engine(
     _settings.database_url,
     pool_size=_settings.database_pool_size,
     pool_pre_ping=True,
-    echo=_settings.app_env == "development",
+    echo=_settings.database_echo,
 )
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 

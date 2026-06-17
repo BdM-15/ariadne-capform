@@ -36,7 +36,7 @@ async def wait_for_postgres(
         except Exception as exc:
             last_err = exc
             if attempt == 1:
-                print(f"[thread] Waiting for PostgreSQL on {host}:{port}…")
+                print(f"[thread] Waiting for PostgreSQL on {host}:{port}…", flush=True)
             await asyncio.sleep(interval_sec)
 
     print(f"[thread] ERROR: PostgreSQL not ready after {timeout_sec:.0f}s: {last_err}")

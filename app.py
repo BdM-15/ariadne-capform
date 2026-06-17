@@ -10,6 +10,7 @@ Prerequisites are installed automatically into .venv on first run by scripts/boo
 from __future__ import annotations
 
 import argparse
+import asyncio
 import logging
 import os
 import subprocess
@@ -68,22 +69,37 @@ def _sync_frontend_env() -> None:
     )
 
 
-def _docker_up(*, research: bool) -> None:
+def _docker_up(*, research: bool) -> bool:
     env = os.environ.copy()
     compose = ROOT / "docker-compose.yml"
     if research:
         cmd = ["docker", "compose", "-f", str(compose), "--profile", "research", "up", "-d", "--wait"]
     else:
         cmd = ["docker", "compose", "-f", str(compose), "up", "-d", "--wait", "postgres"]
+    quiet = {"cwd": str(ROOT), "env": env, "check": False, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+    loud = {"cwd": str(ROOT), "env": env, "check": False}
     try:
-        result = subprocess.run(cmd, cwd=str(ROOT), env=env, check=False)
+        result = subprocess.run(cmd, **quiet)
         if result.returncode != 0 and "--wait" in cmd:
-            cmd_fallback = [c for c in cmd if c != "--wait"]
-            subprocess.run(cmd_fallback, cwd=str(ROOT), env=env, check=False)
-        pg_port = env.get("THREAD_POSTGRES_PORT", "55432")
-        print(f"[thread] PostgreSQL target 127.0.0.1:{pg_port} (Thread-dedicated port)")
+            cmd = [c for c in cmd if c != "--wait"]
+            result = subprocess.run(cmd, **quiet)
+        if result.returncode != 0:
+            print("[thread] docker compose failed:")
+            subprocess.run(cmd, **loud)
+        return result.returncode == 0
     except FileNotFoundError:
         print("[thread] Docker not found — ensure PostgreSQL is running at DATABASE_URL")
+        return False
+
+
+async def _preflight_postgres(settings) -> bool:
+    """Wait for PG only when docker was skipped; dispose engine so uvicorn gets a fresh loop."""
+    from thread.db.ready import wait_for_postgres
+    from thread.db.session import engine
+
+    ok = await wait_for_postgres(engine, settings)
+    await engine.dispose()
+    return ok
 
 
 def _spawn_frontend(port: int) -> subprocess.Popen | None:
@@ -112,7 +128,6 @@ def main() -> int:
     if str(BACKEND_SRC) not in sys.path:
         sys.path.insert(0, str(BACKEND_SRC))
 
-    logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(levelname)s %(message)s")
     parser = argparse.ArgumentParser(description="Ariadne's Thread launcher")
     parser.add_argument("--api-only", action="store_true")
     parser.add_argument("--no-warmup", action="store_true")
@@ -134,37 +149,35 @@ def main() -> int:
 
     from thread.bootstrap.vault import bootstrap_vault
     from thread.config import get_settings
+    from thread.logging_config import configure_logging
 
     get_settings.cache_clear()
     settings = get_settings()
+    configure_logging(level=settings.log_level, sql_echo=settings.database_echo)
 
     from thread.orchestration.tracing import apply_langsmith_env
 
     apply_langsmith_env(settings)
-    if settings.thread_langgraph_studio_auto_start and not settings.langgraph_enabled:
-        print(
-            f"[orchestration] Studio auto-start requested for "
-            f"{settings.langgraph_studio_base_url} — enable LANGGRAPH_ENABLED when runtime lands"
-        )
 
     _sync_frontend_env()
 
+    docker_ok = True
     if not args.skip_docker:
-        _docker_up(research=settings.autostart_research_providers and not args.no_research_providers)
+        docker_ok = _docker_up(research=settings.autostart_research_providers and not args.no_research_providers)
+        if docker_ok:
+            print(f"[thread] PostgreSQL ready 127.0.0.1:{settings.thread_postgres_port}")
+        else:
+            print(f"[thread] PostgreSQL target 127.0.0.1:{settings.thread_postgres_port}")
 
-    import asyncio
-
-    from thread.db.ready import wait_for_postgres
-    from thread.db.session import engine
-
-    if not asyncio.run(wait_for_postgres(engine, settings)):
-        print("[thread] ERROR: Cannot start without PostgreSQL. Check docker compose / DATABASE_URL.")
-        return 1
+    if args.skip_docker or not docker_ok:
+        if not asyncio.run(_preflight_postgres(settings)):
+            print("[thread] ERROR: Cannot start without PostgreSQL. Check docker compose / DATABASE_URL.")
+            return 1
 
     if settings.knowledge_bootstrap_on_start:
         result = bootstrap_vault(settings)
         if result.get("bootstrapped"):
-            print(f"[thread] Knowledge vault bootstrapped at {result.get('path')}")
+            print(f"[thread] Vault bootstrapped at {result.get('path')}")
 
     from thread.intel.migration import get_migration_status, needs_migration, run_intel_migration
 
@@ -174,33 +187,26 @@ def main() -> int:
     elif needs_migration(settings) and not args.skip_intel_migrate:
         status = get_migration_status(settings)
         print(
-            "[thread] Intel migration incomplete "
-            f"({status.prime_migrated:,}/{status.prime_source_total:,} prime rows). "
-            "Run in a separate window: .\\scripts\\run-intel-migration.ps1"
+            f"[thread] Intel migration {status.prime_migrated:,}/{status.prime_source_total:,} prime — "
+            r"resume: .\scripts\run-intel-migration.ps1"
         )
-        if settings.intel_auto_migrate_on_start:
-            print(
-                "[thread] INTEL_AUTO_MIGRATE_ON_START=true is not recommended for 64M rows — "
-                "use run-intel-migration.ps1 instead."
-            )
 
     frontend_proc = None
     if settings.autostart_frontend and not args.api_only:
         print(
-            "[thread] AUTOSTART_FRONTEND=true — spawning legacy Next.js. "
-            f"HTMX command center: http://127.0.0.1:{settings.port} — "
-            "set AUTOSTART_FRONTEND=false in .env to skip Node."
+            "[thread] AUTOSTART_FRONTEND=true — legacy Next on :3000. "
+            f"HTMX UI: http://127.0.0.1:{settings.port} — set AUTOSTART_FRONTEND=false to skip Node."
         )
         frontend_proc = _spawn_frontend(settings.frontend_port)
 
     from thread.main import create_app
 
-    print(f"[thread] {settings.public_app_name} ready")
-    print(f"[thread] API http://127.0.0.1:{settings.port}")
-    if frontend_proc:
-        print(f"[thread] Legacy Next UI http://127.0.0.1:{settings.frontend_port} (transitional)")
-    else:
-        print(f"[thread] UI  http://127.0.0.1:{settings.port}")
+    ui_url = (
+        f"http://127.0.0.1:{settings.frontend_port} (legacy Next)"
+        if frontend_proc
+        else f"http://127.0.0.1:{settings.port}"
+    )
+    print(f"[thread] {settings.public_app_name} → {ui_url}")
 
     try:
         uvicorn.run(
@@ -208,6 +214,7 @@ def main() -> int:
             host=settings.host if hasattr(settings, "host") else "127.0.0.1",
             port=settings.port,
             log_level=settings.log_level.lower(),
+            access_log=False,
         )
     finally:
         if frontend_proc:
