@@ -27,7 +27,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Web research module | ❌ Not started | Config + docker profile only |
 | Skill runtime (3 skills) | ❌ Not started | SKILL.md stubs exist |
 | MCP manifests | 🟡 Partial | USAspending only; 7 more planned |
-| Frontend command center | 🟡 Foundation shell | HTMX Pulse + opp workspace tabs; **not** product-grade command center yet |
+| Frontend command center | 🟡 Foundation shell | HTMX Command Center dashboard, Pulse (`/pulse`), sidebar nav, opp workspace; Phase 12b–12j in progress |
 | Theseus visual language | ✅ Done | `frontend/styles/theseus.css` synced from proj-theseus |
 | Orchestration (LangGraph) | 🟡 Placeholder | Env + tracing bootstrap; runtime deferred |
 | Git | ✅ Done | Repo pushed; commit early/often |
@@ -426,13 +426,15 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 | Screen | Foundation | Product gap |
 |--------|------------|-------------|
-| Portfolio Pulse | Intel stats strip, recompete radar (hardcoded NAICS), track button, opp list | No active pursuits, no Data Insights, no SAM monitor, no health dashboard, no intel inbox, no quick skills |
-| Opportunity workspace | Packet (raw keys), Actions, Review, Research tabs | Not slide-deck Living Briefing Packet; no Intel Context tab |
-| Top nav | Pulse only | No Insights, Review, Knowledge, Settings |
+| Command Center (`/`) | Metric cards, lane quick-links, recent pursuits | GovDash-style widget row (12c–12h): pending reviews, phase breakdown, hot signals, health, quick actions |
+| Portfolio Pulse (`/pulse`) | Recompete radar, metric cards, track button, opp list | Morning-briefing regions only: SAM strip (12i), intel inbox (12g), active pursuits panel (12d) |
+| Opportunity workspace | Packet (raw keys), Actions, Review, Research tabs | Workspace templates (competitive / readiness); extra pills; slide-deck packet (Phase 14) |
+| Sidebar nav | Command / Identify / Capture / Win / System + Lucide icons | Studio route (Phase 21) |
+| Settings | Stub → **12b** read-only health | Editable config deferred |
 
-**Shell IA (Theseus pattern):** Left `sidebar-vibrant` = app lanes (Identify / Capture / Win / Settings bottom). Top `glass-section-bar` = **per-page** nav only (workspace tabs, refresh, back links). Main canvas = `panel-canvas` aurora.
+**Shell IA (Theseus pattern):** `topbar-vibrant` = brand + health (no route links). Left `sidebar-vibrant` = app lanes (Command / Identify / Capture / Win / System). Top `glass-section-bar` = **per-page** nav only (workspace tabs, refresh, back links). Main canvas = `panel-canvas` aurora.
 
-**Target nav (product):** Sidebar: Pulse, Insights, Knowledge, Review, Settings · Workspace tabs on opportunity header · Briefing Packet slide deck (Phase 14).
+**Target nav (product):** Sidebar: Dashboard, Pulse, Insights, Knowledge, Review, Studio (soon), Settings · Workspace tabs on opportunity header · Briefing Packet slide deck (Phase 14).
 
 **Solo operator model:** one user; technology produces **pWin artifacts** (BLUF, PTW, win themes, eval mapping) for external humans — not multi-user CRM, not post-award.
 
@@ -488,22 +490,69 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | Grok/xAI | cloud-primary | `model_synthesis` packet fields, vault polish, narratives | 20 |
 | Ollama | admin offload | Summaries, lint — not capture-critical path | ongoing |
 
+### GovDash inspiration (captured 2026-06)
+
+Competitor review ([GovDash](https://www.govdash.com/) marketing + capture dashboard videos). **Adopt patterns, not enterprise CRM scope** — solo operator, review-gated, no team assignees / SharePoint / post-award.
+
+| GovDash surface | Thread translation | Anti-patterns (skip) |
+|-----------------|-------------------|----------------------|
+| Discover saved profiles + alerts | **Saved lenses** on Data Insights (named facets) | 2M-opportunity freemium search engine |
+| Capture dashboard widgets | Command Center widget row (solo) | Team-customizable widget builder |
+| Gate reviews needing attention | Review queue + dashboard widget | Multi-reviewer color reviews |
+| Opportunity card templates | Workspace templates (capture / competitive / readiness) | Per-team custom field CRM builder |
+| Proposal Cloud | **Studio** lane (pWin artifacts) | Word add-in / compliance matrix product |
+| Kanban / Gantt pipeline | Optional phase-band board (deferred) | Team task Gantt |
+
 ### Phase 12 — Command center shell (incremental)
 
-Shell first, then Pulse regions. One slice per PR.
+Shell first, then region widgets. One slice per PR. Concrete targets below — do not drop during implementation.
 
 | Slice | Scope | Done when |
 |-------|--------|-----------|
-| **12a** | Top nav + stubs: `/insights`, `/review`, `/knowledge`, `/settings` | Nav + placeholder pages mapped to three lanes; `active_nav` highlight |
-| **12b** | Settings / health (read-only) | PG, migration %, providers, vault path, env flags |
-| **12c** | Global review queue | `/review` human titles (`review_display`); approve works |
-| **12d** | Pulse — active pursuits | Lifecycle-filtered bidding opps; urgency, pending review, gate |
-| **12e** | Pulse — health strip | Migration, `/api/intel/health`, providers, vault bootstrap |
-| **12f** | Recompete radar v2 | **Saved lenses** (multi-facet); drop NAICS-only default in `portfolio.py` |
-| **12g** | Intel inbox | Recent candidates → review |
-| **12h** | Quick actions | Skills, research, insights, vault shortcuts |
-| **12i** | SAM monitor stub → live | Pulse panel until SAM adapter |
-| **12j** | Knowledge digest on Pulse | `domain_intel` highlights |
+| **12a** | Sidebar + stubs + Command Center shell | ✅ Dashboard `/`, Pulse `/pulse`, sidebar lanes, Theseus topbar |
+| **12b** | Settings / health (read-only) | Accordion page: PG, migration %, intel stats, Grok/Ollama, research providers, vault path, MCP/skills counts, env flags (no secrets) |
+| **12c** | Global review queue | `/review` human titles (`review_display`); approve works; **widget on Command Center**: pending count → `/review` |
+| **12d** | Pulse — active pursuits | Lifecycle-filtered bidding opps; urgency, pending review, gate; **widget on Command Center**: pursuits by `phase_band` mini breakdown |
+| **12e** | Intel / migration health | Settings + **Command Center widget**: migration %, `/api/intel/health`, vault bootstrap status |
+| **12f** | Recompete radar v2 | **Saved lenses** (agency + NAICS + incumbent combos); drop NAICS-only default in `portfolio.py`; **Command Center widget**: hot signals ≤6 mo |
+| **12g** | Intel inbox | Recent candidates → review — **Pulse region** (morning briefing), not dashboard home |
+| **12h** | Quick actions | **Command Center strip**: track signal, run research, open insights lens, vault shortcut |
+| **12i** | SAM monitor | **Pulse region**: new-opportunity strip (stub → live SAM adapter) |
+| **12j** | Knowledge digest | **Pulse region**: `domain_intel` highlights |
+
+#### Command Center dashboard (`/`) — widget row (solo GovDash pattern)
+
+Not the morning briefing — that stays on **Portfolio Pulse** (`/pulse`).
+
+1. **Pending reviews** — count + link to `/review` (12c)
+2. **Active pursuits by phase band** — mini breakdown (12d)
+3. **Recompete signals (hot ≤6 mo)** — count + link to Pulse radar (12f)
+4. **Intel / migration health** — strip from 12e (also on Settings)
+5. **Quick actions** — track signal, run research, open insights lens (12h)
+
+#### Portfolio Pulse (`/pulse`) — morning briefing only
+
+- **Recompete radar** (primary — already foundation)
+- **SAM / new-opportunity strip** (12i)
+- **Intel inbox candidates** (12g)
+- Active pursuits panel moves here or stays linked from dashboard widget (12d) — not duplicate full metric grid
+
+#### Opportunity workspace — templates (no CRM bloat)
+
+- **Default:** Capture — Packet, Actions, Research, Review tabs (current)
+- **Future templates:** Competitive analysis (incumbent, PTW hints, eval mapping stubs); Proposal readiness (MS-critical %, due dates, pending reviews)
+- **Pills:** keep milestone gate, phase band, intel signal; add `pending_review`, `days_to_due` when data exists
+
+#### Studio (Win lane) — not Capture
+
+GovDash Proposal Cloud maps here. Route `/studio` deferred to Phase 21.
+
+- pWin artifacts: win themes, eval map, outline, compliance shred candidates
+- **Theseus** merge = activation produce (solicitation merge), not general CRM
+
+#### Data Insights — saved lenses (Discover pattern)
+
+Saved profiles that improve over time → **named saved lenses** with facets (agency + NAICS + incumbent, PSC combos). Not profile spam. Phase 17 primary; seed UX in 12f.
 
 ### Phase 14 — Living Briefing Packet (slide deck UX)
 
@@ -517,7 +566,7 @@ Central artifact — not “parallel afterthought.”
 
 ### Phase 17 — Data Insights
 
-`/insights` — agency, recipient, NAICS, PSC combos; saved lenses; drill-down; extend `datarepublican_intel` modes.
+`/insights` — agency, recipient, NAICS, PSC combos; **saved lenses** (named facet presets, GovDash Discover “profiles that match” pattern); drill-down; extend `datarepublican_intel` modes.
 
 ### Phase 19 — MinerU document utility
 
@@ -527,9 +576,9 @@ General parser — **not** solicitation-only. Parse API → vault wiki ingest (n
 
 `route_kind` → MCP / skill / research / Grok; data-needs panel for unanswered MS-critical fields.
 
-### Phase 21 — pWin produce + Theseus
+### Phase 21 — Studio + pWin produce + Theseus
 
-Eval ↔ win-theme map, outline, PTW; **Theseus** solicitation merge after MinerU stable.
+**Studio** (`/studio`, Win lane): eval ↔ win-theme map, outline, PTW, compliance shred candidates — artifacts for external humans. **Theseus** solicitation merge after MinerU stable (activation produce, not CRM).
 
 **Rules (anti–scope-creep):** One slice per PR. No new backend unless UI needs it. pytest before commit. Prior repos = reference only — no UI tree ports.
 
@@ -573,10 +622,10 @@ Eval ↔ win-theme map, outline, PTW; **Theseus** solicitation merge after Miner
 ## Immediate next actions
 
 1. **Intel migration** — finish in separate window; verify `Complete: True` + indexes
-2. **Phase 12a** — top nav + route stubs (Insights, Review, Knowledge, Settings)
-3. **Phase 12b** — settings/health read-only page (wire existing health endpoints)
-4. **Phase 12c** — global review queue page
-5. **Phase 12d** — Pulse active pursuits panel (first substantive Pulse upgrade)
+2. **Phase 12b** — settings/health read-only accordion (wire `/api/health`, intel migration, providers)
+3. **Phase 12c** — global review queue + Command Center pending-reviews widget
+4. **Phase 12d–12h** — dashboard widget row + Pulse morning-briefing regions (per GovDash inspiration above)
+5. **Phase 12f** — saved lenses; remove NAICS-only default
 
 ---
 
@@ -598,5 +647,6 @@ Eval ↔ win-theme map, outline, PTW; **Theseus** solicitation merge after Miner
 - [x] HTMX Research tab + actions matrix
 - [x] Retire transitional Next.js from launcher
 - [x] E2E smoke test path
-- [x] Phase 12a — nav + shell stubs (`/insights`, `/review`, `/knowledge`, `/settings`)
-- [ ] Phase 12b–12j — command center usefulness (remaining slices)
+- [x] Phase 12a — sidebar + Command Center dashboard + Pulse `/pulse` + Studio nav label
+- [x] Phase 12b — settings/health read-only page
+- [ ] Phase 12c–12j — command center widgets + Pulse regions (GovDash inspiration captured in plan)
