@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from thread import __version__
+from thread.api.intel_routes import router as intel_router
 from thread.api.routes import router
 from thread.config import get_settings
 from thread.db.session import init_db
@@ -56,6 +57,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(router, prefix="/api")
+    app.include_router(intel_router, prefix="/api")
     return app
 
 

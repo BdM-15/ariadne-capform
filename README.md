@@ -14,6 +14,14 @@ python app.py
 
 `python app.py` handles everything: `.venv` bootstrap (first run), Docker Postgres on **port 55432**, vault seed, frontend dev server, and API.
 
+**First-time intel load** (64M+ award rows from capture-insights DuckDB — resumable, may take hours):
+
+```powershell
+python backend/scripts/migrate_intel_from_duckdb.py
+# or: python app.py --migrate-intel
+# daily dev after migration: python app.py --skip-intel-migrate
+```
+
 - API: http://127.0.0.1:9622
 - UI: http://127.0.0.1:3000
 - PostgreSQL: `127.0.0.1:55432` (Thread-dedicated — not 5432)

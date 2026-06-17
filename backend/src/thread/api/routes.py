@@ -22,6 +22,7 @@ from thread.domain.schemas import (
     ReviewDecision,
     ReviewRecordOut,
 )
+from thread.intel import pg_queries as intel_queries
 from thread.services import opportunities as opp_svc
 from thread.services.review_gate import approve_review, list_pending_reviews
 
@@ -36,10 +37,19 @@ async def health(db: AsyncSession = Depends(get_db)) -> HealthOut:
         postgres_ready = True
     except Exception:
         postgres_ready = False
+    intel_row_count = None
+    if postgres_ready:
+        try:
+            stats = await intel_queries.get_intel_stats(db)
+            intel_row_count = stats.get("prime_award_count")
+        except Exception:
+            pass
+
     return HealthOut(
         status="ok" if postgres_ready else "degraded",
         version=__version__,
         postgres_ready=postgres_ready,
+        intel_row_count=intel_row_count,
         grok_configured=bool(settings.xai_api_key),
         vault_healthy=False,
         research_providers={
@@ -55,6 +65,7 @@ async def health(db: AsyncSession = Depends(get_db)) -> HealthOut:
 
 @router.get("/portfolio/pulse")
 async def portfolio_pulse(db: AsyncSession = Depends(get_db)) -> dict:
+    settings = get_settings()
     opps = await opp_svc.list_opportunities(db)
     cards = []
     for opp in opps:
@@ -69,7 +80,35 @@ async def portfolio_pulse(db: AsyncSession = Depends(get_db)) -> dict:
                 "pending_review_count": pending,
             }
         )
-    return {"opportunities": cards, "intel_signals": []}
+
+    intel_signals: list[dict] = []
+    stats = await intel_queries.get_intel_stats(db)
+    if stats["prime_awards_ready"] and stats["prime_award_count"] > 0:
+        expiring = await intel_queries.get_expiring_contracts(
+            db,
+            [settings.default_naics],
+            months_ahead=18,
+            limit=8,
+        )
+        for row in expiring:
+            intel_signals.append(
+                {
+                    "kind": "recompete_radar",
+                    "award_key": row["award_key"],
+                    "title": row["recipient"],
+                    "agency": row["agency"],
+                    "end_date": row["end_date"],
+                    "months_to_end": row["months_to_end"],
+                    "obligation": row["obligation"],
+                    "naics_code": row["naics_code"],
+                }
+            )
+
+    return {
+        "opportunities": cards,
+        "intel_signals": intel_signals,
+        "intel_stats": stats,
+    }
 
 
 @router.get("/opportunities", response_model=list[OpportunityOut])

@@ -21,8 +21,8 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Reference corpus | ✅ Done | Briefing packet, call plan, risk register, Shipley, USAspending |
 | Workflow DB models | 🟡 Partial | Opportunities, packet, actions, review; missing intel/research/capability tables |
 | Alembic migrations | ❌ Not started | Still using `create_all()` |
-| Intel migration (DuckDB→PG) | ❌ Not started | **Next critical path** |
-| `pg_queries` intel layer | ❌ Not started | Port from capture-insights |
+| Intel migration (DuckDB→PG) | 🟡 Implemented | Run `backend/scripts/migrate_intel_from_duckdb.py` (~64M rows, resumable) |
+| `pg_queries` intel layer | ✅ Done | Core queries + portfolio intel signals |
 | LLM router (Grok + Ollama) | ❌ Not started | Config only |
 | Web research module | ❌ Not started | Config + docker profile only |
 | Skill runtime (3 skills) | ❌ Not started | SKILL.md stubs exist |
@@ -31,7 +31,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Orchestration (LangGraph) | 🟡 Placeholder | Env + tracing bootstrap; runtime deferred |
 | Git | ✅ Done | Repo pushed; commit early/often |
 
-**Resume here:** Implementation order step **3** — intel migration + `pg_queries`.
+**Resume here:** Run full intel migration, then step **3** E2E smoke.
 
 ---
 
@@ -353,7 +353,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 |---|------|--------|
 | 1 | Scaffold + `app.py` + docker + `.env.example` | ✅ |
 | 2 | Config + PG schema (workflow) + models | 🟡 |
-| 3 | **Intel migration + `pg_queries`** | ❌ **← NEXT** |
+| 3 | **Intel migration + `pg_queries`** | 🟡 **← run migration script** |
 | 4 | Alembic migrations (replace `create_all`) | ❌ |
 | 5 | Vault bootstrap (full seed) | 🟡 |
 | 6 | LLM router (Grok + Ollama) | ❌ |

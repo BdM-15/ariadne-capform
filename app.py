@@ -115,6 +115,16 @@ def main() -> int:
     parser.add_argument("--no-warmup", action="store_true")
     parser.add_argument("--skip-docker", action="store_true")
     parser.add_argument("--no-research-providers", action="store_true")
+    parser.add_argument(
+        "--migrate-intel",
+        action="store_true",
+        help="Run DuckDB→PostgreSQL intel migration before starting API",
+    )
+    parser.add_argument(
+        "--skip-intel-migrate",
+        action="store_true",
+        help="Disable INTEL_AUTO_MIGRATE_ON_START for this run",
+    )
     args = parser.parse_args()
 
     import uvicorn
@@ -143,6 +153,20 @@ def main() -> int:
         result = bootstrap_vault(settings)
         if result.get("bootstrapped"):
             print(f"[thread] Knowledge vault bootstrapped at {result.get('path')}")
+
+    from thread.db.session import init_db
+    from thread.intel.migration import maybe_auto_migrate, run_intel_migration
+
+    import asyncio
+
+    asyncio.run(init_db())
+
+    if args.migrate_intel:
+        run_intel_migration(settings, force=False)
+    elif settings.intel_auto_migrate_on_start and not args.skip_intel_migrate:
+        auto = maybe_auto_migrate(settings)
+        if auto:
+            print(f"[thread] {auto.message}")
 
     frontend_proc = None
     if settings.autostart_frontend and not args.api_only:
