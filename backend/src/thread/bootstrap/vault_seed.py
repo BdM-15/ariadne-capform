@@ -27,14 +27,29 @@ REQUIRED_DIRS = (
     "reusable-insights",
     "generated-projections",
     "global",
+    "global/domain_intel",
+    "global/domain_intel/capabilities",
+    "global/domain_intel/milestones",
+    "global/domain_intel/uei",
+    "training",
+    "training/datasets",
+    "training/examples",
+    "training/prompts",
+    "education",
     "pursuits",
 )
 
+# Full capture-insights knowledge port (idempotent merge — skip existing files).
+# domain_intel = bid/no-bid fit, capabilities, UEI past-performance awareness.
+# training = SLM fine-tune scaffold (datasets/examples/prompts fill as Thread runs).
 CAPTURE_INSIGHTS_COPIES: tuple[tuple[str, str], ...] = (
     ("schema", "foundation"),
     ("global/global_wiki", "global/global_wiki"),
+    ("global/domain_intel", "global/domain_intel"),
     ("brain/agencies", "entities/agencies"),
     ("brain/competitors", "entities/competitors"),
+    ("training", "training"),
+    ("education", "education"),
 )
 
 REFERENCE_COPIES: tuple[tuple[str, str], ...] = (
@@ -177,7 +192,10 @@ Karpathy **LLM-wiki** pattern (Obsidian = IDE, LLM = programmer, `.md` = codebas
 - `foundation/` — schema + reference mirrors (Layer 3)
 - `data-elements/` — one page per briefing packet field key
 - `entities/` — agencies & competitors (`[[wikilinks]]` targets)
-- `global/global_wiki/` — evergreen capture/BD concepts (Shipley, FAR, workload)
+- `global/global_wiki/` — evergreen doctrine (Shipley, FAR, workload) — third-party patterns
+- `global/domain_intel/` — **bid fit layer**: capabilities, MS gates, UEI/PP awareness (USAspending + SAM + scrape → fit/no-fit)
+- `training/` — SLM fine-tune exports (`datasets/`, `examples/`, `prompts/`) — grows as platform runs
+- `education/` — onboarding / methodology notes
 - `pursuits/<slug>/` — per-opportunity wiki (created when opportunity tracked)
 - `milestones/` — MS1–MS4 gate context
 - `relationships/` — follow-the-money / graph notes (future `edges.jsonl`)
@@ -185,6 +203,54 @@ Karpathy **LLM-wiki** pattern (Obsidian = IDE, LLM = programmer, `.md` = codebas
 - `log.md` — append-only ingest / lint / query log
 
 Read [[capture-llm-wiki]] before maintaining this vault.
+"""
+
+
+def _ensure_training_scaffold(vault: Path, seed_root: Path, report: SeedReport) -> None:
+    """Ensure training subdirs exist even if capture-insights only has README."""
+    for sub in ("datasets", "examples", "prompts"):
+        _write_if_missing(
+            vault / "training" / sub / ".gitkeep",
+            "",
+            report,
+            vault,
+        )
+    readme_src = seed_root / "training" / "README.md"
+    if readme_src.exists():
+        _copy_file_if_missing(readme_src, vault / "training" / "README.md", report, vault)
+    else:
+        _write_if_missing(
+            vault / "training" / "README.md",
+            "# Training\n\nJSONL/Parquet for local SLM fine-tune. See foundation/capture-llm-wiki.md.\n",
+            report,
+            vault,
+        )
+
+
+def _build_domain_intel_thread_note() -> str:
+    return """---
+name: "Domain Intel — Thread Role"
+type: "meta"
+id: "domain-intel-thread-role"
+tags: ["domain-intel", "bid-no-bid", "uei"]
+---
+
+# Domain Intel in Ariadne's Thread
+
+**Tier purpose:** Company-specific bid fit — not generic doctrine (`global_wiki/`) and not per-RFP (`pursuits/`).
+
+## LLM uses this for
+- **Bid / no-bid** — match opportunity signals (USAspending, SAM.gov, web research) against `capabilities/`
+- **Past performance awareness** — crosswalk recipient UEI / award history to what we can credibly claim (`uei/`)
+- **Focus** — filter noise; large orgs cannot manually digest all contract history
+
+## Rules
+- Append new capability or UEI synthesis; do not overwrite trusted entries without review
+- Cite Layer 1: `award_key`, SAM notice ID, scrape URL, PG row
+- Promote packet fields via review gate — wiki informs, PostgreSQL executes
+
+## Related
+[[capture-llm-wiki]] [[usaspending-plain-english]]
 """
 
 
@@ -220,6 +286,8 @@ def ensure_vault_seed(settings: Settings) -> SeedReport:
 
     for src_rel, dest_rel in CAPTURE_INSIGHTS_COPIES:
         _merge_tree(seed_root / src_rel, vault / dest_rel, report, vault)
+
+    _ensure_training_scaffold(vault, seed_root, report)
 
     for src_rel, dest_rel in REFERENCE_COPIES:
         src = ref_root / src_rel
@@ -278,6 +346,12 @@ Future: import from `data/graph/edges.jsonl` with `[[wikilinks]]` back to entiti
     )
 
     _write_if_missing(vault / "pursuits" / ".gitkeep", "", report, vault)
+    _write_if_missing(
+        vault / "global" / "domain_intel" / "thread-role.md",
+        _build_domain_intel_thread_note(),
+        report,
+        vault,
+    )
     _write_if_missing(vault / "log.md", _build_log_md(), report, vault)
 
     index_path = vault / "index.md"

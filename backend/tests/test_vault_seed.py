@@ -33,6 +33,31 @@ def test_ensure_vault_seed_idempotent(tmp_path: Path):
     assert not second.changed
 
 
+def test_merge_domain_intel_and_training(tmp_path: Path):
+    vault = tmp_path / "vault"
+    seed = tmp_path / "seed"
+    ref = tmp_path / "ref"
+    _minimal_reference(ref)
+
+    cap_dir = seed / "global" / "domain_intel" / "capabilities"
+    cap_dir.mkdir(parents=True)
+    (cap_dir / "cybersecurity-capability.md").write_text("# Cyber\n", encoding="utf-8")
+    (seed / "training").mkdir(parents=True)
+    (seed / "training" / "README.md").write_text("# Training\n", encoding="utf-8")
+
+    settings = Settings(
+        knowledge_vault_path=vault,
+        knowledge_seed_source=seed,
+        reference_docs_root=ref,
+    )
+    report = ensure_vault_seed(settings)
+    assert (vault / "global" / "domain_intel" / "capabilities" / "cybersecurity-capability.md").exists()
+    assert (vault / "training" / "README.md").exists()
+    assert (vault / "training" / "datasets" / ".gitkeep").exists()
+    assert (vault / "global" / "domain_intel" / "thread-role.md").exists()
+    assert report.changed
+
+
 def test_merge_capture_insights_brain(tmp_path: Path):
     vault = tmp_path / "vault"
     seed = tmp_path / "seed"
