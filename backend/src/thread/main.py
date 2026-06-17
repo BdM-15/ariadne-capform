@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from thread import __version__
 from thread.api.intel_routes import router as intel_router
-from thread.api.routes import router
+from thread.api.routes import router as api_router
 from thread.config import get_settings
 from thread.db.session import init_db
 from thread.orchestration.tracing import apply_langsmith_env
+from thread.ui.routes import router as ui_router
+
+UI_STATIC = Path(__file__).resolve().parent / "ui" / "static"
 
 
 @asynccontextmanager
@@ -57,19 +61,10 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    @app.get("/")
-    async def root() -> JSONResponse:
-        return JSONResponse(
-            {
-                "app": settings.public_app_name,
-                "version": __version__,
-                "ui": f"http://127.0.0.1:{settings.frontend_port}",
-                "api_health": "/api/health",
-                "portfolio_pulse": "/api/portfolio/pulse",
-            }
-        )
 
-    app.include_router(router, prefix="/api")
+    app.mount("/static", StaticFiles(directory=str(UI_STATIC)), name="static")
+    app.include_router(ui_router)
+    app.include_router(api_router, prefix="/api")
     app.include_router(intel_router, prefix="/api")
     return app
 

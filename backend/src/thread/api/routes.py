@@ -24,6 +24,7 @@ from thread.domain.schemas import (
 )
 from thread.intel import pg_queries as intel_queries
 from thread.services import opportunities as opp_svc
+from thread.services.portfolio import build_portfolio_pulse
 from thread.services.review_gate import approve_review, list_pending_reviews
 
 router = APIRouter()
@@ -65,50 +66,7 @@ async def health(db: AsyncSession = Depends(get_db)) -> HealthOut:
 
 @router.get("/portfolio/pulse")
 async def portfolio_pulse(db: AsyncSession = Depends(get_db)) -> dict:
-    settings = get_settings()
-    opps = await opp_svc.list_opportunities(db)
-    cards = []
-    for opp in opps:
-        pending = await opp_svc.pending_review_count(db, opp.id)
-        cards.append(
-            {
-                "id": str(opp.id),
-                "name": opp.name,
-                "phase_band": opp.capture_phase_band,
-                "milestone_gate": opp.current_milestone_gate,
-                "urgency_score": opp.urgency_score,
-                "pending_review_count": pending,
-            }
-        )
-
-    intel_signals: list[dict] = []
-    stats = await intel_queries.get_intel_stats(db)
-    if stats["prime_awards_ready"] and stats["prime_award_count"] > 0:
-        expiring = await intel_queries.get_expiring_contracts(
-            db,
-            [settings.default_naics],
-            months_ahead=18,
-            limit=8,
-        )
-        for row in expiring:
-            intel_signals.append(
-                {
-                    "kind": "recompete_radar",
-                    "award_key": row["award_key"],
-                    "title": row["recipient"],
-                    "agency": row["agency"],
-                    "end_date": row["end_date"],
-                    "months_to_end": row["months_to_end"],
-                    "obligation": row["obligation"],
-                    "naics_code": row["naics_code"],
-                }
-            )
-
-    return {
-        "opportunities": cards,
-        "intel_signals": intel_signals,
-        "intel_stats": stats,
-    }
+    return await build_portfolio_pulse(db, get_settings())
 
 
 @router.get("/opportunities", response_model=list[OpportunityOut])

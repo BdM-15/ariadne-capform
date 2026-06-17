@@ -1,0 +1,1 @@
+"""HTMX command center shell (Theseus skin)."""

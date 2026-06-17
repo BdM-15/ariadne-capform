@@ -181,7 +181,9 @@ def main() -> int:
     print(f"[thread] {settings.public_app_name} ready")
     print(f"[thread] API http://127.0.0.1:{settings.port}")
     if frontend_proc:
-        print(f"[thread] UI  http://127.0.0.1:{settings.frontend_port}")
+        print(f"[thread] Legacy Next UI http://127.0.0.1:{settings.frontend_port} (transitional)")
+    else:
+        print(f"[thread] UI  http://127.0.0.1:{settings.port}")
 
     try:
         uvicorn.run(

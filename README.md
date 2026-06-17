@@ -29,8 +29,9 @@ python app.py
 
 Re-run `run-intel-migration.ps1` to resume after interrupt. Build indexes only: `.\scripts\run-intel-migration.ps1 -IndexesOnly`
 
-- API: http://127.0.0.1:9622
-- UI: http://127.0.0.1:3000
+- Command center UI: http://127.0.0.1:9622
+- API: http://127.0.0.1:9622/api/health
+- Legacy Next.js (optional): set `AUTOSTART_FRONTEND=true` → http://127.0.0.1:3000
 - PostgreSQL: `127.0.0.1:55432` (Thread-dedicated — not 5432)
 
 ## Reference corpus

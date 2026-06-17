@@ -27,7 +27,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Web research module | ❌ Not started | Config + docker profile only |
 | Skill runtime (3 skills) | ❌ Not started | SKILL.md stubs exist |
 | MCP manifests | 🟡 Partial | USAspending only; 7 more planned |
-| Frontend command center | 🟡 Transitional | Next.js Pulse + packet (validates API); target HTMX shell from FastAPI |
+| Frontend command center | 🟡 HTMX shell live | FastAPI serves Pulse + packet; Next.js optional (`AUTOSTART_FRONTEND`) |
 | Theseus visual language | ✅ Done | `frontend/styles/theseus.css` synced from proj-theseus |
 | Orchestration (LangGraph) | 🟡 Placeholder | Env + tracing bootstrap; runtime deferred |
 | Git | ✅ Done | Repo pushed; commit early/often |
@@ -467,7 +467,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | 7 | Research module + adapters + API | ❌ |
 | 8 | Domain services + review gates + tests | 🟡 |
 | 9 | Full API (skills, MCP, intel, capture-profile) | ❌ |
-| 10 | HTMX command center shell + Research tab (retire transitional Next) | 🟡 |
+| 10 | HTMX command center shell + Research tab (retire transitional Next) | 🟡 Pulse + packet live |
 | 11 | E2E smoke + README verification | ❌ |
 
 ---
@@ -496,6 +496,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 - [ ] Research module + `/api/research/*`
 - [ ] Skill runtime + 8 MCP manifests
 - [x] Theseus visual language (CSS + transitional Next shell)
-- [ ] HTMX command center shell + Research tab
+- [x] HTMX shell — Pulse, recompete radar, packet edit, review queue
+- [ ] HTMX Research tab + actions matrix
 - [ ] Retire transitional Next.js from launcher
 - [ ] E2E smoke test path

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ opp.name }} — {{ app_name }}{% endblock %}
+{% block subtitle %}Living briefing packet{% endblock %}
+{% block content %}
+{% set opp_id = opp.id %}
+<a href="/" class="topbar-pill inline-flex mb-6" style="text-decoration: none">← Portfolio Pulse</a>
+
+<div class="mb-7">
+  <h1 class="text-3xl font-bold tracking-tight">
+    {{ opp.name }}<span class="neon-text">.</span>
+  </h1>
+  <p class="text-sm text-slate-400 mt-1">
+    Gate <span class="text-neon-cyan font-mono">{{ opp.current_milestone_gate }}</span>
+    · {{ opp.capture_phase_band }}
+    {% if opp.intel_provenance %}
+    · <span class="pill border border-neon-magenta/40 text-neon-magenta">intel signal</span>
+    {% endif %}
+  </p>
+</div>
+
+<section class="space-y-3 mb-8">
+  {% for field in fields %}
+  {% include "partials/packet_field.html" %}
+  {% endfor %}
+</section>
+
+{% include "partials/review_queue.html" %}
+{% endblock %}

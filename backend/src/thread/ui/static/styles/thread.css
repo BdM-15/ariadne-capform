@@ -1,0 +1,27 @@
+.thread-input,
+.thread-textarea {
+  width: 100%;
+  background: var(--ink-900);
+  border: 1px solid var(--edge);
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  outline: none;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.thread-input:focus,
+.thread-textarea:focus {
+  border-color: rgba(var(--neon-cyan-rgb), 0.6);
+  box-shadow:
+    0 0 18px rgba(var(--neon-cyan-rgb), 0.25),
+    0 0 2px rgba(var(--neon-cyan-rgb), 0.5) inset;
+}
+
+.thread-textarea {
+  resize: vertical;
+  min-height: 88px;
+}

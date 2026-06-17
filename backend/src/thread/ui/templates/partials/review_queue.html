@@ -1,0 +1,22 @@
+<div id="review-queue">
+  {% if flash %}
+  <div class="card card-accent accent-amber p-3 mb-3 text-sm text-neon-amber">{{ flash }}</div>
+  {% endif %}
+  <h2 class="mb-3 text-[11px] font-mono uppercase tracking-wider text-slate-500">Review queue</h2>
+  {% if reviews|length == 0 %}
+  <div class="card p-5 text-sm text-slate-400">No pending reviews.</div>
+  {% endif %}
+  {% for r in reviews %}
+  <div class="card card-hover mb-2 p-4 flex items-center justify-between gap-3">
+    <span class="text-sm font-mono text-slate-400">Answer {{ r.entity_id[:8] }}…</span>
+    <form
+      hx-post="/review/{{ r.id }}/approve"
+      hx-target="#review-queue"
+      hx-swap="outerHTML"
+    >
+      <input type="hidden" name="opp_id" value="{{ opp_id }}" />
+      <button type="submit" class="btn btn-primary">Approve</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
