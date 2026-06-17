@@ -2,25 +2,45 @@
   {% if flash %}
   <div class="card card-accent accent-amber p-3 mb-3 text-sm text-neon-amber">{{ flash }}</div>
   {% endif %}
-  <h2 class="mb-3 text-[11px] font-mono uppercase tracking-wider text-slate-500">Pending review</h2>
-  {% if reviews|length == 0 %}
-  <div class="card p-5 text-sm text-slate-400">No pending reviews.</div>
+  <h2 class="mb-3 text-[11px] font-mono uppercase tracking-wider text-slate-500">Pending review (this opportunity)</h2>
+  {% if review_items|length == 0 %}
+  <div class="card p-5 text-sm text-slate-400">
+    Nothing waiting. Edit packet fields, run research, or invoke skills — outputs land here as candidates.
+  </div>
   {% endif %}
-  {% for r in reviews %}
-  <div class="card card-hover mb-2 p-4 flex items-center justify-between gap-3 flex-wrap">
-    <div>
-      <span class="pill border border-neon-magenta/40 text-neon-magenta text-[10px]">{{ r.entity_type }}</span>
-      <span class="text-sm font-mono text-slate-400 ml-2">{{ r.entity_id[:24] }}{% if r.entity_id|length > 24 %}…{% endif %}</span>
+  {% for item in review_items %}
+  <div class="card card-hover mb-3 p-4">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div class="flex-1 min-w-[200px]">
+        <div class="flex flex-wrap items-center gap-2 mb-1">
+          <span class="pill border border-neon-magenta/40 text-neon-magenta text-[10px]">{{ item.entity_type|replace('_', ' ') }}</span>
+          <span class="pill border border-neon-cyan/30 text-neon-cyan text-[10px]">{{ item.trust_level }}</span>
+        </div>
+        <h3 class="text-sm font-semibold text-slate-100">{{ item.title }}</h3>
+        <p class="text-[11px] font-mono text-slate-500 mt-0.5">{{ item.subtitle }}</p>
+        <p class="text-sm text-slate-300 mt-2 whitespace-pre-wrap">{{ item.excerpt }}</p>
+        {% if item.source_ref %}
+        <p class="text-[11px] mt-2 text-slate-500 break-all">
+          Source:
+          {% if item.source_ref.startswith('http') %}
+          <a href="{{ item.source_ref }}" class="text-neon-cyan hover:underline" target="_blank" rel="noopener">{{ item.source_ref[:72] }}{% if item.source_ref|length > 72 %}…{% endif %}</a>
+          {% else %}
+          <span class="text-slate-400">{{ item.source_ref }}</span>
+          {% endif %}
+        </p>
+        {% endif %}
+      </div>
+      <form
+        class="shrink-0"
+        hx-post="/review/{{ item.review_id }}/approve"
+        hx-target="#workspace-panel"
+        hx-swap="innerHTML"
+      >
+        <input type="hidden" name="opp_id" value="{{ opp_id }}" />
+        <input type="hidden" name="tab" value="review" />
+        <button type="submit" class="btn btn-primary">Approve</button>
+      </form>
     </div>
-    <form
-      hx-post="/review/{{ r.id }}/approve"
-      hx-target="#workspace-panel"
-      hx-swap="innerHTML"
-    >
-      <input type="hidden" name="opp_id" value="{{ opp_id }}" />
-      <input type="hidden" name="tab" value="review" />
-      <button type="submit" class="btn btn-primary">Approve</button>
-    </form>
   </div>
   {% endfor %}
 </div>

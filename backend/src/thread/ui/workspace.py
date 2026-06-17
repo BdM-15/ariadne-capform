@@ -11,9 +11,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.config import Settings
-from thread.db.models import ActionMatrixItem, ReviewRecord
+from thread.db.models import ActionMatrixItem
 from thread.domain.enums import ResearchLens
-from thread.services.review_gate import list_pending_reviews
+from thread.ui.review_display import ReviewQueueItem, build_review_queue
 
 
 def valid_tabs() -> tuple[str, ...]:
@@ -62,10 +62,12 @@ async def load_actions(session: AsyncSession, opp_id: uuid.UUID) -> list[ActionM
     return list(rows)
 
 
-async def load_workspace_reviews(session: AsyncSession, opp_id: uuid.UUID) -> list[ReviewRecord]:
-    pending = await list_pending_reviews(session)
-    allowed = {"packet_field_answer", "research_finding", "research_interpretation", "skill_run"}
-    return [r for r in pending if r.entity_type in allowed]
+async def load_review_queue(
+    session: AsyncSession,
+    settings: Settings,
+    opp_id: uuid.UUID,
+) -> list[ReviewQueueItem]:
+    return await build_review_queue(session, settings, opp_id)
 
 
 def research_lenses() -> list[tuple[str, str]]:

@@ -26,7 +26,7 @@ from thread.ui.formatters import format_date, format_money, urgency_label
 from thread.ui.workspace import (
     list_research_runs,
     load_actions,
-    load_workspace_reviews,
+    load_review_queue,
     normalize_tab,
     research_lenses,
 )
@@ -72,7 +72,7 @@ async def _panel_context(
     if active_tab == "actions":
         ctx["actions"] = await load_actions(db, opp_id)
     elif active_tab == "review":
-        ctx["reviews"] = await load_workspace_reviews(db, opp_id)
+        ctx["review_items"] = await load_review_queue(db, settings, opp_id)
     elif active_tab == "research":
         ctx["lenses"] = research_lenses()
         ctx["runs"] = list_research_runs(settings, opp_id)
