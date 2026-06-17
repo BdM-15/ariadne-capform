@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from thread.config import Settings
 from thread.intel import pg_queries as intel_queries
 from thread.services import opportunities as opp_svc
+from thread.services.pursuits_display import build_active_pursuits, build_phase_band_widget
 
 
 def signal_opportunity_name(*, title: str, agency: str) -> str:
@@ -18,19 +19,8 @@ def signal_opportunity_name(*, title: str, agency: str) -> str:
 
 async def build_portfolio_pulse(session: AsyncSession, settings: Settings) -> dict:
     opps = await opp_svc.list_opportunities(session)
-    cards = []
-    for opp in opps:
-        pending = await opp_svc.pending_review_count(session, opp.id)
-        cards.append(
-            {
-                "id": str(opp.id),
-                "name": opp.name,
-                "phase_band": opp.capture_phase_band,
-                "milestone_gate": opp.current_milestone_gate,
-                "urgency_score": opp.urgency_score,
-                "pending_review_count": pending,
-            }
-        )
+    cards = await build_active_pursuits(session, opps)
+    phase_band_widget = build_phase_band_widget(cards)
 
     intel_signals: list[dict] = []
     stats = await intel_queries.get_intel_stats(session)
@@ -61,6 +51,7 @@ async def build_portfolio_pulse(session: AsyncSession, settings: Settings) -> di
 
     return {
         "opportunities": cards,
+        "phase_band_widget": phase_band_widget,
         "intel_signals": intel_signals,
         "intel_stats": stats,
     }

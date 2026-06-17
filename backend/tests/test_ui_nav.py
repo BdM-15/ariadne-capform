@@ -26,6 +26,7 @@ STUB_NAV_ROUTES = (
 DB_NAV_ROUTES = (
     ("/", "Command Center"),
     ("/review", "Review Queue"),
+    ("/pulse", "Portfolio Pulse"),
 )
 
 
@@ -145,3 +146,28 @@ def test_dashboard_pending_reviews_widget():
     assert "cc-widget-pending-reviews" in html
     assert "Gate reviews need attention" in html or "Review gate clear" in html
     assert 'href="/review"' in html
+
+
+def test_dashboard_compact_layout_and_phase_band_widget():
+    """Phase 12d — widget grid + phase-band breakdown, not lazy full-width cards."""
+    client = TestClient(create_app())
+    res = client.get("/")
+    html = res.text
+    assert res.status_code == 200
+    assert "cc-widget-grid" in html
+    assert "cc-widget-phase-band" in html
+    assert "cc-stat-tile" in html
+    assert "cc-lane-grid" in html
+    assert "lane-tile" in html
+    assert "pursuit-card" in html or "No active pursuits" in html.lower() or "track a signal" in html
+
+
+def test_pulse_compact_split_layout():
+    client = TestClient(create_app())
+    res = client.get("/pulse")
+    html = res.text
+    assert res.status_code == 200
+    assert "pulse-split" in html
+    assert "pulse-rail" in html
+    assert "pursuit-grid" in html or "pursuit-card" in html
+    assert "cc-stat-tile" in html

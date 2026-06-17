@@ -1,153 +1,148 @@
-<div id="pulse-body">
+<div id="pulse-body" class="pulse-page-layout page-content">
   {% if flash %}
-  <div class="card card-accent accent-amber p-4 mb-5 text-sm text-neon-amber">{{ flash }}</div>
+  <div class="card card-accent accent-amber p-3 text-sm text-neon-amber">{{ flash }}</div>
   {% endif %}
 
   {% set stats = pulse.intel_stats %}
   {% set intel_live = stats.prime_awards_ready and stats.prime_award_count > 0 %}
   {% set signals = pulse.intel_signals %}
   {% set opps = pulse.opportunities %}
+  {% set band_widget = pulse.phase_band_widget %}
 
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-    <div class="card card-accent card-hover accent-cyan p-5">
-      <div class="flex items-start justify-between">
-        <div>
-          <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Prime awards</div>
-          <div class="mt-2 text-4xl font-semibold neon-text tabular-nums text-neon-cyan">
-            {{ "{:,}".format(stats.prime_award_count) }}
-          </div>
-          <div class="mt-1 text-xs text-slate-500">USAspending intel layer</div>
-        </div>
-        <div class="icon-tile text-neon-cyan text-sm font-bold">$</div>
-      </div>
+  <div class="cc-stat-grid">
+    <div class="cc-stat-tile">
+      <div class="cc-stat-tile-label text-neon-cyan">Prime</div>
+      <div class="cc-stat-tile-value text-neon-cyan">{{ "{:,}".format(stats.prime_award_count) }}</div>
+      <div class="cc-stat-tile-sub">Awards indexed</div>
     </div>
-    <div class="card card-accent card-hover accent-magenta p-5">
-      <div class="flex items-start justify-between">
-        <div>
-          <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Recompete radar</div>
-          <div class="mt-2 text-4xl font-semibold tabular-nums text-neon-magenta">{{ signals|length }}</div>
-          <div class="mt-1 text-xs text-slate-500">Expiring contracts · 18 mo</div>
-        </div>
-        <div class="icon-tile text-neon-magenta text-sm font-bold">◎</div>
-      </div>
+    <div class="cc-stat-tile">
+      <div class="cc-stat-tile-label text-neon-magenta">Radar</div>
+      <div class="cc-stat-tile-value text-neon-magenta">{{ signals|length }}</div>
+      <div class="cc-stat-tile-sub">18 mo expiring</div>
     </div>
-    <div class="card card-accent card-hover accent-lime p-5">
-      <div class="flex items-start justify-between">
-        <div>
-          <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Active pursuits</div>
-          <div class="mt-2 text-4xl font-semibold tabular-nums text-neon-lime">{{ opps|length }}</div>
-          <div class="mt-1 text-xs text-slate-500">Capture workspaces</div>
-        </div>
-        <div class="icon-tile text-neon-lime text-sm font-bold">→</div>
-      </div>
+    <div class="cc-stat-tile">
+      <div class="cc-stat-tile-label text-neon-lime">Pursuits</div>
+      <div class="cc-stat-tile-value text-neon-lime">{{ opps|length }}</div>
+      <div class="cc-stat-tile-sub">Active capture</div>
     </div>
-    <div class="card card-accent card-hover accent-amber p-5">
-      <div class="flex items-start justify-between">
-        <div>
-          <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Intel status</div>
-          <div class="mt-2 text-2xl font-semibold tabular-nums {% if intel_live %}text-neon-lime{% else %}text-neon-amber{% endif %}">
-            {% if intel_live %}LIVE{% else %}LOAD{% endif %}
-          </div>
-          <div class="mt-1 text-xs text-slate-500">Migration window</div>
-        </div>
-        <div class="icon-tile {% if intel_live %}text-neon-lime{% else %}text-neon-amber{% endif %} text-sm font-bold">●</div>
+    <div class="cc-stat-tile">
+      <div class="cc-stat-tile-label text-neon-amber">Intel</div>
+      <div class="cc-stat-tile-value text-base {% if intel_live %}text-neon-lime{% else %}text-neon-amber{% endif %}">
+        {% if intel_live %}LIVE{% else %}LOAD{% endif %}
       </div>
+      <div class="cc-stat-tile-sub">Migration</div>
     </div>
   </div>
 
-  <section class="card card-accent accent-cyan p-5 mb-6 flex flex-wrap items-center gap-4 text-[11px] font-mono uppercase tracking-wider text-slate-500">
-    <span class="text-slate-400">Intel layer</span>
-    <span class="pill border {% if intel_live %}border-neon-lime/40 text-neon-lime{% else %}border-neon-amber/40 text-neon-amber{% endif %}">
-      {% if intel_live %}live{% else %}loading{% endif %}
-    </span>
-    <span><span class="text-neon-cyan">{{ "{:,}".format(stats.prime_award_count) }}</span> prime</span>
-    {% if stats.subaward_count > 0 %}
-    <span><span class="text-neon-magenta">{{ "{:,}".format(stats.subaward_count) }}</span> sub</span>
-    {% endif %}
-    {% if not intel_live %}
-    <span class="normal-case tracking-normal text-slate-500">Migration window still loading rows</span>
-    {% endif %}
-  </section>
-
-  <section class="card overflow-hidden mb-6">
-    <div class="px-5 py-3 border-b border-edge flex items-center justify-between gap-3 flex-wrap">
-      <h2 class="font-semibold">Recompete radar</h2>
-      {% if intel_live %}
-      <span class="pill border border-neon-magenta/40 text-neon-magenta">{{ signals|length }} signals</span>
-      {% endif %}
-    </div>
-    <div class="p-5 space-y-3">
-      {% if not intel_live %}
-      <p class="text-sm text-slate-400">No intel rows yet. Resume migration in separate window; hit Refresh when rows land.</p>
-      {% elif signals|length == 0 %}
-      <p class="text-sm text-slate-400">Intel loaded — no expiring contracts for default NAICS in next 18 months.</p>
-      {% endif %}
-
-      {% for signal in signals %}
-      {% set hot = signal.months_to_end is not none and signal.months_to_end <= 6 %}
-      <div class="card card-hover card-accent accent-magenta p-4">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div class="min-w-0 flex-1">
-            <div class="mb-2 flex flex-wrap items-center gap-2">
-              <span class="pill border border-neon-magenta/40 text-neon-magenta">{{ signal.kind|replace('_', ' ') }}</span>
-              {% if signal.naics_code %}
-              <span class="pill text-slate-500">NAICS {{ signal.naics_code }}</span>
-              {% endif %}
-            </div>
-            <p class="font-semibold text-slate-100">{{ signal.title or 'Unknown recipient' }}</p>
-            <p class="mt-1 text-sm text-slate-400">{{ signal.agency or 'Unknown agency' }}</p>
+  <div class="pulse-split">
+    <div class="pulse-main space-y-3">
+      <section class="pulse-panel">
+        <div class="pulse-panel-head">
+          <div class="flex items-center gap-2">
+            <i data-lucide="radar" class="w-4 h-4 text-neon-magenta"></i>
+            <span>Recompete radar</span>
           </div>
-          <form hx-post="/signals/track" hx-swap="none" class="shrink-0">
-            <input type="hidden" name="award_key" value="{{ signal.award_key }}" />
-            <input type="hidden" name="title" value="{{ signal.title or '' }}" />
-            <input type="hidden" name="agency" value="{{ signal.agency or '' }}" />
-            <input type="hidden" name="naics_code" value="{{ signal.naics_code or '' }}" />
-            <button type="submit" class="btn btn-primary">Track</button>
-          </form>
-        </div>
-        <div class="mt-3 flex flex-wrap gap-4 text-[11px] font-mono text-slate-500">
-          <span>ends <span class="text-slate-300">{{ signal.end_date|datefmt }}</span></span>
-          <span class="{% if hot %}text-neon-amber{% else %}text-slate-400{% endif %}">{{ signal.months_to_end|urgency }}</span>
-          <span>obligation <span class="text-slate-300">{{ signal.obligation|money }}</span></span>
-          <span class="truncate max-w-md text-slate-600" title="{{ signal.award_key }}">{{ signal.award_key }}</span>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="card card-accent accent-lime p-5 mb-6">
-    <h2 class="font-semibold mb-3">New opportunity</h2>
-    <form hx-post="/opportunities" hx-swap="none" class="flex gap-2 flex-wrap">
-      <input class="thread-input flex-1 min-w-[240px]" name="name" placeholder="Opportunity name" required />
-      <button type="submit" class="btn-hero-cyan inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold text-ink-950">
-        Create
-      </button>
-    </form>
-  </section>
-
-  <section>
-    <h2 class="mb-3 text-[11px] font-mono uppercase tracking-wider text-slate-500">Active opportunities</h2>
-    <div class="grid gap-3">
-      {% if opps|length == 0 %}
-      <div class="card card-accent accent-amber p-5 text-sm text-slate-400">
-        No opportunities yet — track a radar signal or create one manually.
-      </div>
-      {% endif %}
-      {% for o in opps %}
-      <a href="/opportunities/{{ o.id }}" class="card card-hover card-accent accent-cyan block p-4 no-underline" style="color: inherit">
-        <div class="flex items-center justify-between gap-3">
-          <span class="font-semibold">{{ o.name }}</span>
-          <span class="pill text-slate-500">{{ o.milestone_gate }}</span>
-        </div>
-        <div class="mt-2 flex gap-3 text-[11px] font-mono text-slate-500">
-          <span>{{ o.phase_band }}</span>
-          {% if o.pending_review_count > 0 %}
-          <span class="text-neon-amber">{{ o.pending_review_count }} pending review</span>
+          {% if intel_live %}
+          <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">{{ signals|length }}</span>
           {% endif %}
         </div>
-      </a>
-      {% endfor %}
+        <div class="pulse-panel-body space-y-0">
+          {% if not intel_live %}
+          <p class="text-xs text-slate-400 py-1">No intel rows yet — resume migration, then Refresh.</p>
+          {% elif signals|length == 0 %}
+          <p class="text-xs text-slate-400 py-1">Intel loaded — no expiring contracts for default NAICS (18 mo).</p>
+          {% endif %}
+
+          {% for signal in signals %}
+          {% set hot = signal.months_to_end is not none and signal.months_to_end <= 6 %}
+          <div class="pulse-signal-row">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                  <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">{{ signal.kind|replace('_', ' ') }}</span>
+                  {% if signal.naics_code %}
+                  <span class="pill pill-compact text-slate-500">NAICS {{ signal.naics_code }}</span>
+                  {% endif %}
+                  {% if hot %}
+                  <span class="pill pill-compact border border-neon-amber/35 text-neon-amber">Hot</span>
+                  {% endif %}
+                </div>
+                <p class="text-sm font-semibold text-slate-100 truncate">{{ signal.title or 'Unknown recipient' }}</p>
+                <p class="text-xs text-slate-500 truncate">{{ signal.agency or 'Unknown agency' }}</p>
+              </div>
+              <form hx-post="/signals/track" hx-swap="none" class="shrink-0">
+                <input type="hidden" name="award_key" value="{{ signal.award_key }}" />
+                <input type="hidden" name="title" value="{{ signal.title or '' }}" />
+                <input type="hidden" name="agency" value="{{ signal.agency or '' }}" />
+                <input type="hidden" name="naics_code" value="{{ signal.naics_code or '' }}" />
+                <button type="submit" class="btn btn-primary btn-compact">Track</button>
+              </form>
+            </div>
+            <div class="mt-1.5 flex flex-wrap gap-3 text-[10px] font-mono text-slate-500">
+              <span>ends <span class="text-slate-400">{{ signal.end_date|datefmt }}</span></span>
+              <span class="{% if hot %}text-neon-amber{% endif %}">{{ signal.months_to_end|urgency }}</span>
+              <span>{{ signal.obligation|money }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section>
+        <div class="cc-section-label">Active pursuits</div>
+        {% if opps|length == 0 %}
+        <div class="pulse-rail-card text-xs text-slate-400">
+          No active pursuits — track a radar signal or create one in the rail →
+        </div>
+        {% else %}
+        <div class="pursuit-grid">
+          {% for o in opps %}
+          {% set pursuit = o %}
+          {% include "partials/pursuit_card_compact.html" %}
+          {% endfor %}
+        </div>
+        {% endif %}
+      </section>
     </div>
-  </section>
+
+    <aside class="pulse-rail">
+      <div class="pulse-rail-card">
+        <div class="flex items-center gap-2 mb-2 text-xs font-semibold">
+          <i data-lucide="folder-plus" class="w-3.5 h-3.5 text-neon-lime"></i>
+          New opportunity
+        </div>
+        <form hx-post="/opportunities" hx-swap="none" class="pulse-inline-form">
+          <input class="thread-input" name="name" placeholder="Name" required />
+          <button type="submit" class="btn-hero-cyan">Create</button>
+        </form>
+      </div>
+
+      <div class="pulse-rail-card text-[10px] font-mono uppercase tracking-wider text-slate-500 space-y-1.5">
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Intel</span>
+          <span class="pill pill-compact border {% if intel_live %}border-neon-lime/40 text-neon-lime{% else %}border-neon-amber/40 text-neon-amber{% endif %}">
+            {% if intel_live %}live{% else %}load{% endif %}
+          </span>
+        </div>
+        <div><span class="text-neon-cyan">{{ "{:,}".format(stats.prime_award_count) }}</span> prime</div>
+        {% if stats.subaward_count > 0 %}
+        <div><span class="text-neon-magenta">{{ "{:,}".format(stats.subaward_count) }}</span> sub</div>
+        {% endif %}
+      </div>
+
+      <div class="pulse-rail-card">
+        <div class="cc-section-label mb-2">Phase bands</div>
+        <div class="cc-band-grid">
+          {% for slice in band_widget.bands %}
+          <div class="cc-band-chip {% if slice.count == 0 %}cc-band-chip-empty{% endif %}">
+            <div class="cc-band-chip-head">
+              <span class="cc-band-label">{{ slice.label }}</span>
+              <span class="cc-band-count">{{ slice.count }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </aside>
+  </div>
 </div>

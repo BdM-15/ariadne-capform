@@ -1,0 +1,26 @@
+{# Dense pursuit row — Pulse grid + dashboard side panel #}
+<a
+  href="/opportunities/{{ pursuit.id }}"
+  class="pursuit-card no-underline"
+  style="color: inherit"
+>
+  <div class="pursuit-card-main">
+    <span class="pursuit-card-name truncate">{{ pursuit.name }}</span>
+    <div class="pursuit-card-meta">
+      <span class="pill pill-compact border border-edge text-slate-400">{{ pursuit.milestone_gate_label }}</span>
+      <span class="pill pill-compact border border-neon-cyan/25 text-neon-cyan/80">{{ pursuit.phase_band_label }}</span>
+      {% if pursuit.is_bidding %}
+      <span class="pill pill-compact border border-neon-magenta/30 text-neon-magenta/90">Bidding</span>
+      {% endif %}
+      {% if pursuit.urgency_tier == 'hot' %}
+      <span class="pill pill-compact border border-neon-amber/35 text-neon-amber">Hot</span>
+      {% elif pursuit.urgency_tier == 'warm' %}
+      <span class="pill pill-compact text-slate-500">Warm</span>
+      {% endif %}
+      {% if pursuit.pending_review_count > 0 %}
+      <span class="pill pill-compact border border-neon-amber/40 text-neon-amber">{{ pursuit.pending_review_count }} review</span>
+      {% endif %}
+    </div>
+  </div>
+  <i data-lucide="chevron-right" class="w-4 h-4 text-slate-600 shrink-0"></i>
+</a>

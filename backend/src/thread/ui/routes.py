@@ -23,6 +23,7 @@ from thread.services import opportunities as opp_svc
 from thread.services.portfolio import build_portfolio_pulse, signal_opportunity_name
 from thread.services.review_gate import ReviewGateError, approve_review
 from thread.ui.formatters import format_date, format_money, urgency_label
+from thread.services.pursuits_display import lifecycle_label, milestone_gate_label, phase_band_label
 from thread.ui.settings_health import build_settings_health_context
 from thread.ui.tools_context import build_mcp_tools_context, build_skills_tools_context
 from thread.ui.review_display import build_pending_reviews_widget
@@ -40,6 +41,9 @@ templates = Jinja2Templates(directory=str(UI_DIR / "templates"))
 templates.env.filters["money"] = format_money
 templates.env.filters["datefmt"] = format_date
 templates.env.filters["urgency"] = urgency_label
+templates.env.filters["phase_band_label"] = phase_band_label
+templates.env.filters["milestone_label"] = milestone_gate_label
+templates.env.filters["lifecycle_label"] = lifecycle_label
 
 router = APIRouter(tags=["ui"])
 
@@ -235,6 +239,7 @@ async def dashboard_page(
         "dashboard.html",
         {
             "pulse": pulse,
+            "phase_band_widget": pulse["phase_band_widget"],
             "pending_reviews": pending_reviews,
             "app_name": settings.public_app_name,
             "active_nav": "dashboard",

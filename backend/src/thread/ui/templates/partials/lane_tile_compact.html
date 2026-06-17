@@ -1,0 +1,11 @@
+{# Compact nav tile — icon + title + one line, not full-width hero card #}
+<a href="{{ href }}" class="lane-tile no-underline {{ accent_class }}" style="color: inherit">
+  <div class="lane-tile-icon">
+    <i data-lucide="{{ icon }}" class="w-4 h-4"></i>
+  </div>
+  <div class="lane-tile-body min-w-0">
+    <span class="lane-tile-kicker">{{ kicker }}</span>
+    <span class="lane-tile-title truncate">{{ title }}</span>
+  </div>
+  <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-600 shrink-0"></i>
+</a>
