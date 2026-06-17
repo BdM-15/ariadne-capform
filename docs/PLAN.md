@@ -342,11 +342,11 @@ python app.py
 
 **Seed from:**
 
-- `capture-insights/data/knowledge/` (schema + global wiki)
+- `capture-insights/data/knowledge/` — schema, `global_wiki`, **`domain_intel`** (capabilities + UEI/PP), `training/`, `education/`, `brain/` → `entities/`
 - ariadne-thread vault directory conventions
 - Reference docs in `docs/reference/` (commit-safe dictionaries)
 
-**Bootstrap:** [`backend/src/thread/bootstrap/vault.py`](../backend/src/thread/bootstrap/vault.py)
+**Bootstrap:** [`backend/src/thread/bootstrap/vault.py`](../backend/src/thread/bootstrap/vault.py) — idempotent; never overwrites existing wiki pages.
 
 ---
 
@@ -445,12 +445,27 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 ## Extension path (post-foundation)
 
-1. Document intake → MinerU → ExtractionBundle
-2. Theseus adapter on `:9621` for Phase 4–6 solicitation merge
-3. Full capture profile + stance/gap analysis
-4. Semantic vault search (OpenAI embeddings)
-5. Neo4j import from `edges.jsonl`
-6. LangGraph chain executor when skill chains need state/checkpointing
+**Do not build until steps 1–11 (platform MVP) are done.** Ideas below are parked here — not current sprint work.
+
+### Platform MVP first (steps 1–11)
+
+Ship intel + workflow + capability modules + HTMX shell + E2E smoke. Vault seed (`domain_intel`, `training/` scaffold) is **static content** until runtime wires it.
+
+### Deferred — knowledge & intelligence runtime (after MVP)
+
+1. **Bid/no-bid fit service** — on track/evaluate opportunity: match USAspending/SAM/research signals against `global/domain_intel/capabilities/`; output `candidate` + provenance (not auto-promote).
+2. **UEI / past-performance awareness** — crosswalk PG intel + `domain_intel/uei/` at opportunity scope so humans/LLM see claimable history without manual digest.
+3. **Training example curation** — review-approved packet/research outputs → `training/examples/` → JSONL export for local SLM fine-tune (per `capture-llm-wiki.md` workflow).
+4. **Thread-native research artifacts** — bounded raw scrape/crawl store (Thread approach; do **not** port capture-insights `copilot/` tree).
+
+### Deferred — other post-foundation
+
+5. Document intake → MinerU → ExtractionBundle
+6. Theseus adapter on `:9621` for Phase 4–6 solicitation merge
+7. Full capture profile + stance/gap analysis
+8. Semantic vault search (OpenAI embeddings)
+9. Neo4j import from `edges.jsonl`
+10. LangGraph chain executor when skill chains need state/checkpointing
 
 ---
 
@@ -461,9 +476,9 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | 1 | Scaffold + `app.py` + docker + `.env.example` | ✅ |
 | 2 | Config + PG schema (workflow) + models | 🟡 |
 | 3 | **Intel migration + `pg_queries`** | 🟡 **← run migration script** |
-| 4 | Alembic migrations (replace `create_all`) | ❌ |
-| 5 | Vault bootstrap (full seed) | 🟡 |
-| 6 | LLM router (Grok + Ollama) | ❌ |
+| 4 | Alembic migrations (replace `create_all`) | ✅ |
+| 5 | Vault bootstrap (full seed) | ✅ |
+| 6 | LLM router (Grok + Ollama) | ✅ |
 | 7 | Research module + adapters + API | ❌ |
 | 8 | Domain services + review gates + tests | 🟡 |
 | 9 | Full API (skills, MCP, intel, capture-profile) | ❌ |
@@ -475,11 +490,10 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 ## Immediate next actions
 
 1. **Intel migration** — finish in separate window; verify `Complete: True` + indexes
-2. **Capability: LLM router** — `backend/src/thread/llm/router.py`; Grok behind review gate
-3. **Capability: skills + research** — runtime + adapters; all outputs `candidate`
-4. **E2E smoke** — track signal → packet edit → review approve (API-first)
-5. **Alembic** — replace `create_all()` for workflow + intel schema
-6. **HTMX shell port** — Pulse + workspace partials; drop Node from `app.py` when parity reached
+2. **Step 7: Research module** — adapters + `/api/research/*`; outputs `candidate`
+3. **Step 8–9: Domain services + full API** — skills, MCP manifests, intel routes, review tests
+4. **Step 10: HTMX** — Research tab + actions matrix; retire Next from launcher
+5. **Step 11: E2E smoke** — track signal → packet edit → review approve
 
 ---
 
@@ -489,10 +503,11 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 - [x] Root `app.py` launcher (partial)
 - [x] Reference docs + packet field seeds
 - [x] Orchestration env placeholders
-- [ ] Alembic + full PG schema (workflow + intel + research)
+- [x] Alembic workflow migrations (intel tables still via migration script)
 - [ ] Intel migration from capture-insights DuckDB (in progress)
 - [x] `pg_queries` intel layer
-- [ ] LLM router (Grok primary)
+- [x] LLM router (Grok primary)
+- [x] Vault seed — global_wiki, domain_intel, training scaffold
 - [ ] Research module + `/api/research/*`
 - [ ] Skill runtime + 8 MCP manifests
 - [x] Theseus visual language (CSS + transitional Next shell)
