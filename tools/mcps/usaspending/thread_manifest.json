@@ -1,0 +1,7 @@
+{
+  "name": "usaspending",
+  "description": "USASpending.gov MCP (1102tools/federal-contracting-mcps)",
+  "command": ["uvx", "--from", "usaspending-gov-mcp==0.3.2", "usaspending-mcp"],
+  "env_required": [],
+  "vendored_from": "https://github.com/1102tools/federal-contracting-mcps"
+}
