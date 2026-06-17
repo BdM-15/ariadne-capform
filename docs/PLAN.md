@@ -479,7 +479,7 @@ Ship intel + workflow + capability modules + HTMX shell + E2E smoke. Vault seed 
 | 4 | Alembic migrations (replace `create_all`) | ✅ |
 | 5 | Vault bootstrap (full seed) | ✅ |
 | 6 | LLM router (Grok + Ollama) | ✅ |
-| 7 | Research module + adapters + API | ❌ |
+| 7 | Research module + adapters + API | ✅ MVP |
 | 8 | Domain services + review gates + tests | 🟡 |
 | 9 | Full API (skills, MCP, intel, capture-profile) | ❌ |
 | 10 | HTMX command center shell + Research tab (retire transitional Next) | 🟡 Pulse + packet live |
@@ -490,8 +490,7 @@ Ship intel + workflow + capability modules + HTMX shell + E2E smoke. Vault seed 
 ## Immediate next actions
 
 1. **Intel migration** — finish in separate window; verify `Complete: True` + indexes
-2. **Step 7: Research module** — adapters + `/api/research/*`; outputs `candidate`
-3. **Step 8–9: Domain services + full API** — skills, MCP manifests, intel routes, review tests
+2. **Step 8–9: Domain services + full API** — skills, MCP manifests, intel routes, review tests
 4. **Step 10: HTMX** — Research tab + actions matrix; retire Next from launcher
 5. **Step 11: E2E smoke** — track signal → packet edit → review approve
 
@@ -508,7 +507,7 @@ Ship intel + workflow + capability modules + HTMX shell + E2E smoke. Vault seed 
 - [x] `pg_queries` intel layer
 - [x] LLM router (Grok primary)
 - [x] Vault seed — global_wiki, domain_intel, training scaffold
-- [ ] Research module + `/api/research/*`
+- [x] Research module + `/api/research/*` (SearXNG + Crawl4AI + fake; paid stubs)
 - [ ] Skill runtime + 8 MCP manifests
 - [x] Theseus visual language (CSS + transitional Next shell)
 - [x] HTMX shell — Pulse, recompete radar, packet edit, review queue

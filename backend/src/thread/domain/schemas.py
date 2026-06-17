@@ -104,7 +104,28 @@ class ResearchRunCreate(BaseModel):
     opportunity_id: UUID | None = None
     lens: ResearchLens
     query: str
-    max_sources: int = 5
+    max_sources: int = Field(default=5, ge=1, le=10)
+
+
+class ResearchProviderOut(BaseModel):
+    id: str
+    name: str
+    role: str
+    priority: int
+    status: str
+    detail: str
+
+
+class ResearchRunOut(BaseModel):
+    run_id: str
+    status: str
+    lens: str
+    query: str
+    source_count: int
+    finding_count: int
+    interpretation: str | None = None
+    review_ids: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
 
 
 class HealthOut(BaseModel):

@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from thread import __version__
 from thread.api.intel_routes import router as intel_router
+from thread.api.research_routes import router as research_router
 from thread.api.routes import router as api_router
 from thread.config import get_settings
 from thread.db.session import init_db
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(ui_router)
     app.include_router(api_router, prefix="/api")
     app.include_router(intel_router, prefix="/api")
+    app.include_router(research_router, prefix="/api")
     return app
 
 
