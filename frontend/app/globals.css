@@ -2,35 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --ink-950: #05070d;
-  --neon-cyan: #00f0ff;
-  --neon-cyan-rgb: 0, 240, 255;
-  --text-primary: #e6ecff;
-  --edge: #1f2a44;
-}
+/* Synced from proj-theseus/src/ui/static/styles/theseus.css — do not fork tokens locally */
+@import "../styles/theseus.css";
 
-html,
-body {
-  background: var(--ink-950);
-  color: var(--text-primary);
-  min-height: 100vh;
-}
+@layer components {
+  .thread-input {
+    @apply w-full bg-ink-900 border border-edge rounded-xl px-4 py-2.5 text-sm outline-none transition;
+    @apply focus:border-neon-cyan/60 focus:shadow-glow;
+    color: var(--text-primary);
+  }
 
-body {
-  background-image:
-    radial-gradient(circle at 12% -10%, rgba(var(--neon-cyan-rgb), 0.08), transparent 45%),
-    linear-gradient(180deg, var(--ink-950) 0%, #070b16 100%);
-}
-
-.card {
-  @apply rounded-xl border border-edge bg-ink-card/80 p-4 shadow-glow;
-}
-
-.btn {
-  @apply rounded-lg border border-edge px-3 py-2 text-sm transition hover:border-neon-cyan/50;
-}
-
-.btn-primary {
-  @apply border-neon-cyan/40 bg-neon-cyan/10 text-neon-cyan;
+  .thread-textarea {
+    @apply thread-input resize-none min-h-[88px];
+  }
 }

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { Crosshair, FolderPlus, Radar, RefreshCw } from "lucide-react";
+import { TheseusShell } from "../components/theseus-shell";
 import { api } from "../lib/api";
 
 type Opp = {
@@ -127,78 +129,89 @@ export default function PortfolioPulse() {
   const intelLive = Boolean(stats?.prime_awards_ready && (stats?.prime_award_count ?? 0) > 0);
 
   return (
-    <main className="mx-auto max-w-5xl p-8">
-      <header className="mb-8">
-        <h1 className="text-2xl font-semibold text-neon-cyan">Ariadne&apos;s Thread</h1>
-        <p className="text-sm text-slate-400">Portfolio Pulse — command center triage</p>
-      </header>
+    <TheseusShell subtitle="Portfolio pulse" active="pulse">
+      <div className="flex items-end justify-between mb-7 flex-wrap gap-4">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight">
+            Portfolio Pulse<span className="neon-text">.</span>
+          </h1>
+          <p className="text-base text-slate-400 mt-1">
+            Intel layer holds{" "}
+            <span className="text-neon-cyan font-mono">{stats?.prime_award_count?.toLocaleString() ?? "—"}</span> prime
+            awards ·{" "}
+            <span className="text-neon-magenta font-mono">{signals.length}</span> recompete signals ·{" "}
+            <span className="text-neon-lime font-mono">{opps.length}</span> active opportunities
+          </p>
+        </div>
+        <div className="flex gap-2.5 flex-wrap">
+          <button type="button" className="btn btn-ghost border border-edge" onClick={load}>
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        </div>
+      </div>
 
-      {error && <p className="mb-4 text-neon-amber text-sm">{error}</p>}
+      {error && (
+        <div className="card card-accent accent-amber p-4 mb-5 text-sm text-neon-amber">{error}</div>
+      )}
 
       {stats && (
-        <section className="card mb-6 flex flex-wrap items-center gap-4 text-xs text-slate-400">
-          <span className="uppercase tracking-wider text-slate-500">Intel layer</span>
-          <span className={intelLive ? "text-neon-lime" : "text-neon-amber"}>
-            {intelLive ? "live" : "loading / empty"}
+        <section className="card card-accent accent-cyan p-5 mb-6 flex flex-wrap items-center gap-4 text-[11px] font-mono uppercase tracking-wider text-slate-500">
+          <span className="text-slate-400">Intel layer</span>
+          <span className={`pill border ${intelLive ? "border-neon-lime/40 text-neon-lime" : "border-neon-amber/40 text-neon-amber"}`}>
+            {intelLive ? "live" : "loading"}
           </span>
-          <span>{stats.prime_award_count.toLocaleString()} prime awards</span>
+          <span>
+            <span className="text-neon-cyan">{stats.prime_award_count.toLocaleString()}</span> prime
+          </span>
           {stats.subaward_count > 0 && (
-            <span>{stats.subaward_count.toLocaleString()} subawards</span>
-          )}
-          {!intelLive && (
-            <span className="text-slate-500">
-              Migration in progress — signals appear as rows land in PostgreSQL
+            <span>
+              <span className="text-neon-magenta">{stats.subaward_count.toLocaleString()}</span> sub
             </span>
           )}
+          {!intelLive && <span className="normal-case tracking-normal text-slate-500">Migration window still loading rows</span>}
         </section>
       )}
 
-      <section className="card mb-8">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm uppercase tracking-wider text-slate-400">Recompete radar</h2>
-            <p className="mt-1 text-xs text-slate-500">
-              Expiring contracts from USAspending intel — track as capture opportunity
-            </p>
+      <section className="card overflow-hidden mb-6">
+        <div className="px-5 py-3 border-b border-edge flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Radar className="w-4 h-4 text-neon-magenta" />
+            <h2 className="font-semibold">Recompete radar</h2>
           </div>
           {intelLive && (
-            <span className="rounded-full border border-neon-cyan/30 px-2 py-1 text-xs text-neon-cyan">
-              {signals.length} signals
-            </span>
+            <span className="pill border border-neon-magenta/40 text-neon-magenta">{signals.length} signals</span>
           )}
         </div>
-
-        {!intelLive && (
-          <p className="text-sm text-slate-500">
-            No intel rows yet. Resume migration in your separate window; pulse refreshes on reload.
-          </p>
-        )}
-
-        {intelLive && signals.length === 0 && (
-          <p className="text-sm text-slate-500">
-            Intel loaded but no expiring contracts matched default NAICS in the next 18 months.
-          </p>
-        )}
-
-        <div className="grid gap-3">
+        <div className="p-5 space-y-3">
+          {!intelLive && (
+            <p className="text-sm text-slate-400">
+              No intel rows yet. Resume migration in separate window; hit Refresh when rows land.
+            </p>
+          )}
+          {intelLive && signals.length === 0 && (
+            <p className="text-sm text-slate-400">
+              Intel loaded — no expiring contracts for default NAICS in next 18 months.
+            </p>
+          )}
           {signals.map((signal) => {
             const hot = signal.months_to_end != null && signal.months_to_end <= 6;
             return (
               <div
                 key={signal.award_key}
-                className="rounded-lg border border-edge bg-ink-900/60 p-4 hover:border-neon-magenta/30"
+                className="card card-hover card-accent accent-magenta p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex flex-wrap items-center gap-2 text-xs">
-                      <span className="rounded border border-neon-magenta/40 px-1.5 py-0.5 text-neon-magenta">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="pill border border-neon-magenta/40 text-neon-magenta">
                         {signal.kind.replace(/_/g, " ")}
                       </span>
                       {signal.naics_code && (
-                        <span className="font-mono text-slate-500">NAICS {signal.naics_code}</span>
+                        <span className="pill text-slate-500">NAICS {signal.naics_code}</span>
                       )}
                     </div>
-                    <p className="font-medium text-slate-100">{signal.title || "Unknown recipient"}</p>
+                    <p className="font-semibold text-slate-100">{signal.title || "Unknown recipient"}</p>
                     <p className="mt-1 text-sm text-slate-400">{signal.agency || "Unknown agency"}</p>
                   </div>
                   <button
@@ -207,20 +220,19 @@ export default function PortfolioPulse() {
                     disabled={trackingKey === signal.award_key}
                     onClick={() => trackSignal(signal)}
                   >
-                    {trackingKey === signal.award_key ? "Tracking…" : "Track opportunity"}
+                    <Crosshair className="w-4 h-4" />
+                    {trackingKey === signal.award_key ? "Tracking…" : "Track"}
                   </button>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
+                <div className="mt-3 flex flex-wrap gap-4 text-[11px] font-mono text-slate-500">
                   <span>
-                    Ends <span className="text-slate-300">{formatDate(signal.end_date)}</span>
+                    ends <span className="text-slate-300">{formatDate(signal.end_date)}</span>
                   </span>
-                  <span className={hot ? "text-neon-amber" : "text-slate-400"}>
-                    {urgencyLabel(signal.months_to_end)}
-                  </span>
+                  <span className={hot ? "text-neon-amber" : "text-slate-400"}>{urgencyLabel(signal.months_to_end)}</span>
                   <span>
-                    Obligation <span className="text-slate-300">{formatMoney(signal.obligation)}</span>
+                    obligation <span className="text-slate-300">{formatMoney(signal.obligation)}</span>
                   </span>
-                  <span className="font-mono text-slate-600 truncate max-w-xs" title={signal.award_key}>
+                  <span className="truncate max-w-md text-slate-600" title={signal.award_key}>
                     {signal.award_key}
                   </span>
                 </div>
@@ -230,35 +242,41 @@ export default function PortfolioPulse() {
         </div>
       </section>
 
-      <section className="card mb-8">
-        <h2 className="mb-3 text-sm uppercase tracking-wider text-slate-400">New opportunity</h2>
-        <div className="flex gap-2">
+      <section className="card card-accent accent-lime p-5 mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <FolderPlus className="w-4 h-4 text-neon-lime" />
+          <h2 className="font-semibold">New opportunity</h2>
+        </div>
+        <div className="flex gap-2 flex-wrap">
           <input
-            className="flex-1 rounded-lg border border-edge bg-ink-900 px-3 py-2 text-sm"
+            className="thread-input flex-1 min-w-[240px]"
             placeholder="Opportunity name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && create()}
           />
-          <button type="button" className="btn btn-primary" onClick={create}>
+          <button type="button" className="btn-hero-cyan inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold text-ink-950" onClick={create}>
+            <FolderPlus className="w-4 h-4" />
             Create
           </button>
         </div>
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm uppercase tracking-wider text-slate-400">Active opportunities</h2>
-        <div className="grid gap-4">
+        <h2 className="mb-3 text-[11px] font-mono uppercase tracking-wider text-slate-500">Active opportunities</h2>
+        <div className="grid gap-3">
           {opps.length === 0 && (
-            <p className="text-sm text-slate-500">No opportunities yet — track a signal or create one manually.</p>
+            <div className="card card-accent accent-amber p-5 text-sm text-slate-400">
+              No opportunities yet — track a radar signal or create one manually.
+            </div>
           )}
           {opps.map((o) => (
-            <Link key={o.id} href={`/opportunities/${o.id}`} className="card block hover:border-neon-cyan/40">
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{o.name}</span>
-                <span className="text-xs text-slate-400">{o.milestone_gate}</span>
+            <Link key={o.id} href={`/opportunities/${o.id}`} className="card card-hover card-accent accent-cyan block p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-semibold">{o.name}</span>
+                <span className="pill text-slate-500">{o.milestone_gate}</span>
               </div>
-              <div className="mt-2 flex gap-3 text-xs text-slate-500">
+              <div className="mt-2 flex gap-3 text-[11px] font-mono text-slate-500">
                 <span>{o.capture_phase_band}</span>
                 {o.pending_review_count > 0 && (
                   <span className="text-neon-amber">{o.pending_review_count} pending review</span>
@@ -268,6 +286,6 @@ export default function PortfolioPulse() {
           ))}
         </div>
       </section>
-    </main>
+    </TheseusShell>
   );
 }
