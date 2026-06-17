@@ -88,7 +88,11 @@ async def run_capture_research(
         crawl = (
             await fake_adapter.crawl(hit.url)
             if use_fake
-            else await crawl4ai_adapter.crawl(settings.crawl4ai_base_url, hit.url)
+            else await crawl4ai_adapter.crawl(
+                settings.crawl4ai_base_url,
+                hit.url,
+                api_token=settings.crawl4ai_api_token,
+            )
         )
         sources.append(
             {

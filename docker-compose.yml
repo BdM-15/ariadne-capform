@@ -25,7 +25,10 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     environment:
+      INSTANCE_NAME: "Thread local SearXNG"
       SEARXNG_BASE_URL: "http://localhost:8080/"
+    volumes:
+      - ./docker/searxng/settings.yml:/etc/searxng/settings.yml:ro
 
   crawl4ai:
     profiles: [research]

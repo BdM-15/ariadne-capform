@@ -67,6 +67,7 @@ class Settings(BaseSettings):
 
     searxng_base_url: str = "http://localhost:8080"
     crawl4ai_base_url: str = "http://localhost:11235"
+    crawl4ai_api_token: str = "test_api_code"
     serpapi_api_key: str | None = None
     olostep_api_key: str | None = None
     firecrawl_api_key: str | None = None
