@@ -2,6 +2,8 @@
 
 Shipley-aligned capture command center for a single professional managing multiple opportunities.
 
+**Full foundation plan:** [`docs/PLAN.md`](docs/PLAN.md) — vision, architecture, implementation order, and current status.
+
 ## Quick start
 
 ```powershell
