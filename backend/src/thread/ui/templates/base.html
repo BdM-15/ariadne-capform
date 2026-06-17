@@ -78,9 +78,21 @@
           </div>
         </div>
       </div>
-      <nav class="flex items-center gap-2 ml-auto">
+      <nav class="flex items-center gap-2 ml-auto flex-wrap justify-end">
         <a href="/" class="topbar-pill {% if active_nav == 'pulse' %}text-neon-cyan{% endif %}">
-          Portfolio Pulse
+          Pulse
+        </a>
+        <a href="/insights" class="topbar-pill {% if active_nav == 'insights' %}text-neon-cyan{% endif %}">
+          Insights
+        </a>
+        <a href="/review" class="topbar-pill {% if active_nav == 'review' %}text-neon-cyan{% endif %}">
+          Review
+        </a>
+        <a href="/knowledge" class="topbar-pill {% if active_nav == 'knowledge' %}text-neon-cyan{% endif %}">
+          Knowledge
+        </a>
+        <a href="/settings" class="topbar-pill {% if active_nav == 'settings' %}text-neon-cyan{% endif %}">
+          Settings
         </a>
       </nav>
     </header>

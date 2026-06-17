@@ -44,6 +44,18 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 - **Ports:** API `9622` · LangGraph Studio `9623` · UI `3000` · Postgres `55432`
 - **Philosophy:** Global opportunity command center; Shipley-aligned capture; human-in-the-loop everywhere; knowledge compounds; focused modules
 
+### Three product lanes (operator summary)
+
+Thread exists to help you do three jobs end-to-end — tailored solo-operator, review-gated, not enterprise team CRM:
+
+| Lane | What you need | Thread surfaces (build toward) |
+|------|----------------|--------------------------------|
+| **1. Opportunity identification** | Find and qualify pursuits before you invest capture | Portfolio Pulse, **Data Insights**, recompete radar, SAM monitor, track signal → opp |
+| **2. Capture development** | MS-gated strategy, intel, customer engagement, gate decisions | Living Briefing Packet (slide deck), Actions, Research, Intel Context, vault, `datarepublican_intel`, MinerU ingest |
+| **3. Winning proposals** | pWin artifacts: eval mapping, win themes, PTW, outline, compliant narrative | Activation band produce lane, Theseus solicitation merge, skills + Grok synthesis → handoff to humans |
+
+Lanes overlap on one **opportunity record** — identification feeds capture; capture feeds proposal produce. Review gate sits across all three.
+
 **Inspiration repos (patterns only — no code dependency):**
 
 | Repo | Adopt | Do **not** copy |
@@ -366,13 +378,17 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 ---
 
-## MVP scope (five pillars)
+## MVP scope
 
-1. **Command Center Shell** — Portfolio Pulse, intel signals, opportunity workspace, packet, actions, review queue
-2. **Knowledge Layer** — Obsidian vault, health/lint, mirror proposals
+**Operator lanes:** Opportunity identification · Capture development · Winning proposals (see above).
+
+**Platform pillars:**
+
+1. **Command Center Shell** — Pulse, Data Insights, opportunity workspace, review queue
+2. **Knowledge Layer** — Obsidian vault, MinerU ingest, `domain_intel`
 3. **Developer Skills** — skill-creator, datarepublican_intel, mcp_federal_tools
-4. **Data & Intel** — PG intel (10yr awards), 1102 MCPs, web research, MinerU stub, capture profile DOCX stub
-5. **Config & Stack** — FastAPI, HTMX shell (Theseus skin), PostgreSQL 18, Docker profiles; Next islands when justified
+4. **Data & Intel** — PG intel, 1102 MCPs, web research, MinerU utility
+5. **Config & Stack** — FastAPI HTMX shell, PostgreSQL, Grok-primary reasoning
 
 ---
 
@@ -476,7 +492,7 @@ Shell first, then Pulse regions. One slice per PR.
 
 | Slice | Scope | Done when |
 |-------|--------|-----------|
-| **12a** | Top nav + stubs: `/insights`, `/review`, `/knowledge`, `/settings` | Nav + placeholder pages, Theseus layout, `active_nav` highlight |
+| **12a** | Top nav + stubs: `/insights`, `/review`, `/knowledge`, `/settings` | Nav + placeholder pages mapped to three lanes; `active_nav` highlight |
 | **12b** | Settings / health (read-only) | PG, migration %, providers, vault path, env flags |
 | **12c** | Global review queue | `/review` human titles (`review_display`); approve works |
 | **12d** | Pulse — active pursuits | Lifecycle-filtered bidding opps; urgency, pending review, gate |
@@ -580,4 +596,5 @@ Eval ↔ win-theme map, outline, PTW; **Theseus** solicitation merge after Miner
 - [x] HTMX Research tab + actions matrix
 - [x] Retire transitional Next.js from launcher
 - [x] E2E smoke test path
-- [ ] Phase 12 — command center usefulness (incremental slices)
+- [x] Phase 12a — nav + shell stubs (`/insights`, `/review`, `/knowledge`, `/settings`)
+- [ ] Phase 12b–12j — command center usefulness (remaining slices)

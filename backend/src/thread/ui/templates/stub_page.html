@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} — {{ app_name }}{% endblock %}
+{% block subtitle %}{{ page_subtitle }}{% endblock %}
+{% block content %}
+<div class="mb-7">
+  <div class="flex flex-wrap items-center gap-2 mb-3">
+    <span class="pill border border-neon-cyan/40 text-neon-cyan text-[10px] font-mono uppercase">{{ product_lane }}</span>
+    <span class="pill border border-edge text-slate-500 text-[10px] font-mono">Phase {{ next_phase }}</span>
+  </div>
+  <h1 class="text-4xl font-bold tracking-tight">
+    {{ page_title }}<span class="neon-text">.</span>
+  </h1>
+  <p class="text-base text-slate-400 mt-2 max-w-2xl">{{ page_description }}</p>
+</div>
+
+<section class="card card-accent accent-cyan p-6">
+  <h2 class="font-semibold text-sm mb-2">Shell stub</h2>
+  <p class="text-sm text-slate-400">{{ stub_message }}</p>
+</section>
+{% endblock %}

@@ -46,6 +46,65 @@ WORKSPACE_TABS = [
     ("research", "Research"),
 ]
 
+SHELL_STUB_PAGES: dict[str, dict[str, str]] = {
+    "insights": {
+        "page_title": "Data Insights",
+        "page_subtitle": "Opportunity identification",
+        "product_lane": "Identify",
+        "page_description": (
+            "Market deep dives over USAspending — agency, competitor, NAICS, PSC, and combos. "
+            "Not NAICS-only. Successor to capture-insights exploration."
+        ),
+        "next_phase": "17",
+        "stub_message": "Phase 12a shell only. Phase 17 wires multi-facet queries and saved lenses.",
+    },
+    "review": {
+        "page_title": "Review Queue",
+        "page_subtitle": "Trust promotion",
+        "product_lane": "All lanes",
+        "page_description": (
+            "Global queue for candidate outputs — packet edits, research, skills. "
+            "Nothing auto-promotes to trusted."
+        ),
+        "next_phase": "12c",
+        "stub_message": "Phase 12c lists pending reviews with human titles and approve actions.",
+    },
+    "knowledge": {
+        "page_title": "Knowledge",
+        "page_subtitle": "Capture development",
+        "product_lane": "Capture",
+        "page_description": (
+            "Obsidian vault browser, domain_intel, entities. "
+            "MinerU ingest will land parsed docs and wiki drafts here."
+        ),
+        "next_phase": "15",
+        "stub_message": "Phase 15 wires vault browser. Phase 19 adds MinerU document upload.",
+    },
+    "settings": {
+        "page_title": "Settings",
+        "page_subtitle": "Platform health",
+        "product_lane": "Operate",
+        "page_description": (
+            "Postgres, intel migration, research providers, vault path, saved insight lenses."
+        ),
+        "next_phase": "12b",
+        "stub_message": "Phase 12b shows read-only health from existing /api/health and intel endpoints.",
+    },
+}
+
+
+def _render_stub_page(request: Request, settings: Settings, nav_key: str) -> HTMLResponse:
+    meta = SHELL_STUB_PAGES[nav_key]
+    return templates.TemplateResponse(
+        request,
+        "stub_page.html",
+        {
+            "app_name": settings.public_app_name,
+            "active_nav": nav_key,
+            **meta,
+        },
+    )
+
 
 def _htmx_redirect(url: str) -> Response:
     return Response(status_code=200, headers={"HX-Redirect": url})
@@ -82,6 +141,38 @@ async def _panel_context(
 
 def _render_panel(request: Request, ctx: dict) -> HTMLResponse:
     return templates.TemplateResponse(request, "partials/workspace_panel.html", ctx)
+
+
+@router.get("/insights", response_class=HTMLResponse)
+async def insights_page(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    return _render_stub_page(request, settings, "insights")
+
+
+@router.get("/review", response_class=HTMLResponse)
+async def review_page(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    return _render_stub_page(request, settings, "review")
+
+
+@router.get("/knowledge", response_class=HTMLResponse)
+async def knowledge_page(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    return _render_stub_page(request, settings, "knowledge")
+
+
+@router.get("/settings", response_class=HTMLResponse)
+async def settings_page(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    return _render_stub_page(request, settings, "settings")
 
 
 @router.get("/", response_class=HTMLResponse)
