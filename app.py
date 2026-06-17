@@ -154,12 +154,7 @@ def main() -> int:
         if result.get("bootstrapped"):
             print(f"[thread] Knowledge vault bootstrapped at {result.get('path')}")
 
-    from thread.db.session import init_db
     from thread.intel.migration import get_migration_status, needs_migration, run_intel_migration
-
-    import asyncio
-
-    asyncio.run(init_db())
 
     if args.migrate_intel:
         print("[thread] Running intel migration in this window (prefer scripts/run-intel-migration.ps1)...")

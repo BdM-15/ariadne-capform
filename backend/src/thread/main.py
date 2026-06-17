@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from thread import __version__
 from thread.api.intel_routes import router as intel_router
@@ -56,6 +57,18 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    @app.get("/")
+    async def root() -> JSONResponse:
+        return JSONResponse(
+            {
+                "app": settings.public_app_name,
+                "version": __version__,
+                "ui": f"http://127.0.0.1:{settings.frontend_port}",
+                "api_health": "/api/health",
+                "portfolio_pulse": "/api/portfolio/pulse",
+            }
+        )
+
     app.include_router(router, prefix="/api")
     app.include_router(intel_router, prefix="/api")
     return app
