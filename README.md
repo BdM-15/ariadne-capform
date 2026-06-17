@@ -14,13 +14,20 @@ python app.py
 
 `python app.py` handles everything: `.venv` bootstrap (first run), Docker Postgres on **port 55432**, vault seed, frontend dev server, and API.
 
-**First-time intel load** (64M+ award rows from capture-insights DuckDB — resumable, may take hours):
+**First-time intel load** (64M+ rows — run in a **separate PowerShell window**, resumable, ~48h OK):
 
 ```powershell
-python backend/scripts/migrate_intel_from_duckdb.py
-# or: python app.py --migrate-intel
-# daily dev after migration: python app.py --skip-intel-migrate
+# dedicated window — starts Postgres, migrates, logs to .thread/intel_migration.log
+.\scripts\run-intel-migration.ps1
+
+# check progress anytime (another window)
+.\scripts\intel-migration-status.ps1
+
+# after migration completes, normal dev (no migration on startup)
+python app.py
 ```
+
+Re-run `run-intel-migration.ps1` to resume after interrupt. Build indexes only: `.\scripts\run-intel-migration.ps1 -IndexesOnly`
 
 - API: http://127.0.0.1:9622
 - UI: http://127.0.0.1:3000

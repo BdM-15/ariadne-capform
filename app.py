@@ -155,18 +155,27 @@ def main() -> int:
             print(f"[thread] Knowledge vault bootstrapped at {result.get('path')}")
 
     from thread.db.session import init_db
-    from thread.intel.migration import maybe_auto_migrate, run_intel_migration
+    from thread.intel.migration import get_migration_status, needs_migration, run_intel_migration
 
     import asyncio
 
     asyncio.run(init_db())
 
     if args.migrate_intel:
+        print("[thread] Running intel migration in this window (prefer scripts/run-intel-migration.ps1)...")
         run_intel_migration(settings, force=False)
-    elif settings.intel_auto_migrate_on_start and not args.skip_intel_migrate:
-        auto = maybe_auto_migrate(settings)
-        if auto:
-            print(f"[thread] {auto.message}")
+    elif needs_migration(settings) and not args.skip_intel_migrate:
+        status = get_migration_status(settings)
+        print(
+            "[thread] Intel migration incomplete "
+            f"({status.prime_migrated:,}/{status.prime_source_total:,} prime rows). "
+            "Run in a separate window: .\\scripts\\run-intel-migration.ps1"
+        )
+        if settings.intel_auto_migrate_on_start:
+            print(
+                "[thread] INTEL_AUTO_MIGRATE_ON_START=true is not recommended for 64M rows — "
+                "use run-intel-migration.ps1 instead."
+            )
 
     frontend_proc = None
     if settings.autostart_frontend and not args.api_only:

@@ -6,8 +6,32 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from thread.config import get_settings
 from thread.db.session import get_db
 from thread.intel import pg_queries
+from thread.intel.migration import get_migration_status
 
 router = APIRouter(prefix="/intel", tags=["intel"])
+
+
+@router.get("/migration-status")
+async def intel_migration_status() -> dict:
+    settings = get_settings()
+    status = get_migration_status(settings)
+    return {
+        "source_path": status.source_path,
+        "source_exists": status.source_exists,
+        "prime_migrated": status.prime_migrated,
+        "prime_source_total": status.prime_source_total,
+        "prime_pct": round(
+            100 * status.prime_migrated / max(status.prime_source_total, 1), 2
+        ),
+        "sub_migrated": status.sub_migrated,
+        "sub_source_total": status.sub_source_total,
+        "phase": status.phase,
+        "indexes_built": status.indexes_built,
+        "complete": status.complete,
+        "state_path": status.state_path,
+        "log_path": status.log_path,
+        "last_updated": status.last_updated,
+    }
 
 
 @router.get("/health")

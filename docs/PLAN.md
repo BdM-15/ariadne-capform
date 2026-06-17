@@ -21,7 +21,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Reference corpus | ✅ Done | Briefing packet, call plan, risk register, Shipley, USAspending |
 | Workflow DB models | 🟡 Partial | Opportunities, packet, actions, review; missing intel/research/capability tables |
 | Alembic migrations | ❌ Not started | Still using `create_all()` |
-| Intel migration (DuckDB→PG) | 🟡 Implemented | Run `backend/scripts/migrate_intel_from_duckdb.py` (~64M rows, resumable) |
+| Intel migration (DuckDB→PG) | 🟡 Ready to run | `scripts/run-intel-migration.ps1` in separate window (~64M rows, resumable) |
 | `pg_queries` intel layer | ✅ Done | Core queries + portfolio intel signals |
 | LLM router (Grok + Ollama) | ❌ Not started | Config only |
 | Web research module | ❌ Not started | Config + docker profile only |
