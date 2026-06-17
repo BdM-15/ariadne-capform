@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-17 (foundation complete; Phase 12 planning)
+**Last updated:** 2026-06-17 (foundation complete; Product Vision v2.1 — Phase 12+)
 
 ---
 
@@ -58,11 +58,11 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 
 ## Non-negotiables
 
-1. **Cloud-primary reasoning, local data** — Grok/xAI for complex tasks; Ollama for admin/light tasks. Workflow data stays local in PostgreSQL + Obsidian vault.
+1. **Cloud-primary reasoning, self-hosted data** — Grok/xAI for capture/proposal/synthesis; Ollama for **admin offload only**. Execution data in PostgreSQL + Obsidian vault. Not “local-first AI.”
 2. **Review-gated everywhere** — Intake → Candidate → Trusted; nothing auto-promotes.
 3. **Full provenance** — evidence links, citations, MCP refs, web URLs, award_key lineage.
 4. **Phase separation** — Phase 0–3 evergreen intel vs Phase 4–6 solicitation activation.
-5. **Living Milestone Decision Briefing Packet** — gate-scoped fields, Action Matrix, risks, evidence.
+5. **Living Milestone Decision Briefing Packet** — slide-deck-shaped MS artifact; data elements from dictionary; `route_kind` drives fill (deterministic vs Grok/skills); living across MS gates and lifecycle; eventual approver export.
 6. **Two-store knowledge** — Obsidian vault (synthesis) vs PostgreSQL (execution truth).
 7. **PostgreSQL only** — single DB for workflow AND intel (DuckDB = one-time migration source only).
 8. **Theseus visual language** — ink/neon dark theme from proj-theseus (presentation layer only).
@@ -410,11 +410,13 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 | Screen | Foundation | Product gap |
 |--------|------------|-------------|
-| Portfolio Pulse | Intel stats strip, recompete radar (hardcoded NAICS), track button, opp list | No “active bids” view, no SAM monitor, no health dashboard, no intel inbox, no quick skills, no global knowledge digest |
-| Opportunity workspace | Packet (raw keys), Actions, Review, Research tabs | Packet not a Living Briefing Packet UX; no Intel Context tab |
-| Top nav | Pulse only | No Review queue, Knowledge, Settings |
+| Portfolio Pulse | Intel stats strip, recompete radar (hardcoded NAICS), track button, opp list | No active pursuits, no Data Insights, no SAM monitor, no health dashboard, no intel inbox, no quick skills |
+| Opportunity workspace | Packet (raw keys), Actions, Review, Research tabs | Not slide-deck Living Briefing Packet; no Intel Context tab |
+| Top nav | Pulse only | No Insights, Review, Knowledge, Settings |
 
-**Target screens (product):** Command center Pulse · opportunity workspace (Packet \| Actions \| Review \| Research \| Intel Context) · global review · skills panel · vault browser · settings/health.
+**Target nav (product):** Pulse · **Data Insights** · Review · Knowledge · Settings · Opportunity workspace (Briefing Packet slide deck \| Actions \| Review \| Research \| Intel Context).
+
+**Solo operator model:** one user; technology produces **pWin artifacts** (BLUF, PTW, win themes, eval mapping) for external humans — not multi-user CRM, not post-award.
 
 ---
 
@@ -455,26 +457,63 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 **Foundation (steps 1–11) is complete.** Product work proceeds in **small vertical slices** — one screen region per slice, wired to real APIs, with tests. No one-shot “rebuild the command center.”
 
-### Phase 12 — Command center usefulness (incremental)
+### Product capability map (reuse, don’t rebuild)
 
-Build order is deliberate: shell first, then Pulse regions one at a time. Each slice ships independently and must be usable without the next slice.
+| Capability | Source | Thread use | Phase |
+|------------|--------|------------|-------|
+| USAspending intel | capture-insights → PG | Data Insights, recompete, packet deterministic fields | Done / 17 |
+| Data Insights | capture-insights intent | Multi-facet market deep dives — **not NAICS-defaulted** | 17 |
+| Follow-the-money | DataRepublican + `datarepublican_intel` | Insights drill-down, incumbent, packet fields | 17, 20 |
+| 1102 MCPs | federal-contracting-mcps | Deterministic award/agency fields | 20 |
+| **MinerU** | document parser utility | Vault ingest, quick capture, PDF for DataRepublican, all uploads | 19 |
+| **Theseus** | proj-theseus | Solicitation merge, activation produce (outline, compliance) | 21+ |
+| Grok/xAI | cloud-primary | `model_synthesis` packet fields, vault polish, narratives | 20 |
+| Ollama | admin offload | Summaries, lint — not capture-critical path | ongoing |
+
+### Phase 12 — Command center shell (incremental)
+
+Shell first, then Pulse regions. One slice per PR.
 
 | Slice | Scope | Done when |
 |-------|--------|-----------|
-| **12a** | Top nav + route stubs (`/review`, `/knowledge`, `/settings`) | Nav works; pages render Theseus layout (may be placeholder) |
-| **12b** | Settings / health page | PG ready, intel migration %, research providers, vault path, key env flags (read-only) |
-| **12c** | Global review queue page | `/review` lists pending items with human titles (reuse `review_display`); approve works |
-| **12d** | Pulse — active pursuits panel | Distinct section for opportunities you are bidding; urgency, pending review, gate |
-| **12e** | Pulse — system health strip | Expand intel strip: migration status, `/api/intel/health`, provider pills, vault bootstrap |
-| **12f** | Pulse — recompete radar v2 | Configurable NAICS/agency (settings or `.env`); honest empty states |
-| **12g** | Pulse — intel inbox | Recent candidate outputs: research, tracked signals, vault pages — feed into review |
-| **12h** | Pulse — quick actions | Shortcuts to skills, research, vault — each links to a working route |
-| **12i** | SAM.gov monitor (stub → live) | Panel on Pulse; stub until SAM adapter exists |
-| **12j** | Global knowledge digest | `domain_intel` / vault highlights on Pulse (read-only first) |
+| **12a** | Top nav + stubs: `/insights`, `/review`, `/knowledge`, `/settings` | Nav + placeholder pages, Theseus layout, `active_nav` highlight |
+| **12b** | Settings / health (read-only) | PG, migration %, providers, vault path, env flags |
+| **12c** | Global review queue | `/review` human titles (`review_display`); approve works |
+| **12d** | Pulse — active pursuits | Lifecycle-filtered bidding opps; urgency, pending review, gate |
+| **12e** | Pulse — health strip | Migration, `/api/intel/health`, providers, vault bootstrap |
+| **12f** | Recompete radar v2 | **Saved lenses** (multi-facet); drop NAICS-only default in `portfolio.py` |
+| **12g** | Intel inbox | Recent candidates → review |
+| **12h** | Quick actions | Skills, research, insights, vault shortcuts |
+| **12i** | SAM monitor stub → live | Pulse panel until SAM adapter |
+| **12j** | Knowledge digest on Pulse | `domain_intel` highlights |
 
-**Parallel track (Phase 13 — workspace, not Pulse):** Living Briefing Packet UX (sections, labels, gate badges from `packet_field_seed`); Intel Context tab on opportunity workspace.
+### Phase 14 — Living Briefing Packet (slide deck UX)
 
-**Rules (anti–scope-creep):** One slice per PR/session. No new backend module unless the slice’s UI needs it. Editor monitors diffs; run pytest before commit. Inspiration from capture-insights / ariadne-thread is **reference only** — do not port their UI trees wholesale.
+Central artifact — not “parallel afterthought.”
+
+- 14a: Slide navigator (`reference_slide` from `packet_field_seed`)
+- 14b: Field cards: label, question, `route_kind`, trust, suggested fill
+- 14c: MS gate slide applicability
+- 14d: Approval criteria slides 17–18
+- 14e: Packet progression (% MS-critical, pending review)
+
+### Phase 17 — Data Insights
+
+`/insights` — agency, recipient, NAICS, PSC combos; saved lenses; drill-down; extend `datarepublican_intel` modes.
+
+### Phase 19 — MinerU document utility
+
+General parser — **not** solicitation-only. Parse API → vault wiki ingest (notes + Grok polish) → opp doc attach → DataRepublican PDF input. Optional 19e: solicitation → `ExtractionBundle` candidate fields.
+
+### Phase 20 — Route-driven fill
+
+`route_kind` → MCP / skill / research / Grok; data-needs panel for unanswered MS-critical fields.
+
+### Phase 21 — pWin produce + Theseus
+
+Eval ↔ win-theme map, outline, PTW; **Theseus** solicitation merge after MinerU stable.
+
+**Rules (anti–scope-creep):** One slice per PR. No new backend unless UI needs it. pytest before commit. Prior repos = reference only — no UI tree ports.
 
 ### Deferred — knowledge & intelligence runtime (after MVP)
 
@@ -485,8 +524,8 @@ Build order is deliberate: shell first, then Pulse regions one at a time. Each s
 
 ### Deferred — other post-foundation
 
-5. Document intake → MinerU → ExtractionBundle
-6. Theseus adapter on `:9621` for Phase 4–6 solicitation merge
+5. **MinerU document utility** — general parse → vault wiki / candidates / DataRepublican PDF; optional ExtractionBundle
+6. **Theseus** on `:9621` — solicitation merge (activation Ph 4–6), not general parsing
 7. Full capture profile + stance/gap analysis
 8. Semantic vault search (OpenAI embeddings)
 9. Neo4j import from `edges.jsonl`
@@ -516,7 +555,7 @@ Build order is deliberate: shell first, then Pulse regions one at a time. Each s
 ## Immediate next actions
 
 1. **Intel migration** — finish in separate window; verify `Complete: True` + indexes
-2. **Phase 12a** — top nav + route stubs (Review, Knowledge, Settings)
+2. **Phase 12a** — top nav + route stubs (Insights, Review, Knowledge, Settings)
 3. **Phase 12b** — settings/health read-only page (wire existing health endpoints)
 4. **Phase 12c** — global review queue page
 5. **Phase 12d** — Pulse active pursuits panel (first substantive Pulse upgrade)
