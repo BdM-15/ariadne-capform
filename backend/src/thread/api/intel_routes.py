@@ -3,10 +3,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from thread.config import get_settings
+from thread.config import Settings, get_settings
 from thread.db.session import get_db
+from thread.domain.schemas import MCPInvokeCreate, MCPInvokeOut, MCPServerOut
 from thread.intel import pg_queries
 from thread.intel.migration import get_migration_status
+from thread.mcp.service import MCPService
 
 router = APIRouter(prefix="/intel", tags=["intel"])
 
@@ -75,3 +77,41 @@ async def intel_snapshot(
         raise HTTPException(503, "Intel tables empty — run migration first")
     code = naics or get_settings().default_naics
     return await pg_queries.get_quick_opportunity_snapshot(db, code)
+
+
+@router.get("/mcp", response_model=list[MCPServerOut])
+async def mcp_catalog(settings: Settings = Depends(get_settings)) -> list[MCPServerOut]:
+    service = MCPService(settings)
+    return [MCPServerOut(**row) for row in service.list_servers()]
+
+
+@router.get("/mcp/{server_id}/tools")
+async def mcp_tools(server_id: str, settings: Settings = Depends(get_settings)) -> dict:
+    service = MCPService(settings)
+    try:
+        tools = await service.list_tools(server_id)
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(503, str(exc)) from exc
+    return {"server": server_id, "tools": tools}
+
+
+@router.post("/mcp/{server_id}/invoke", response_model=MCPInvokeOut)
+async def mcp_invoke(
+    server_id: str,
+    payload: MCPInvokeCreate,
+    settings: Settings = Depends(get_settings),
+) -> MCPInvokeOut:
+    service = MCPService(settings)
+    try:
+        result = await service.invoke(server_id, payload.tool, payload.arguments)
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return MCPInvokeOut(
+        server=result["server"],
+        tool=result["tool"],
+        ok=bool(result.get("ok")),
+        output=result.get("output"),
+        error=result.get("error"),
+    )

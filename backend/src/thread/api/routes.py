@@ -24,6 +24,8 @@ from thread.domain.schemas import (
 )
 from thread.intel import pg_queries as intel_queries
 from thread.llm.router import probe_ollama
+from thread.mcp.service import MCPService
+from thread.skills.registry import discover_skills
 from thread.services import opportunities as opp_svc
 from thread.services.portfolio import build_portfolio_pulse
 from thread.services.review_gate import approve_review, list_pending_reviews
@@ -54,6 +56,9 @@ async def health(db: AsyncSession = Depends(get_db)) -> HealthOut:
         except Exception:
             pass
 
+    vault_root = settings.resolve(settings.knowledge_vault_path)
+    vault_healthy = vault_root.is_dir() and any(vault_root.iterdir())
+
     return HealthOut(
         status="ok" if postgres_ready else "degraded",
         version=__version__,
@@ -61,11 +66,13 @@ async def health(db: AsyncSession = Depends(get_db)) -> HealthOut:
         intel_row_count=intel_row_count,
         grok_configured=bool(settings.xai_api_key),
         ollama_reachable=ollama_reachable,
-        vault_healthy=False,
+        vault_healthy=vault_healthy,
         research_providers={
             "searxng": settings.searxng_base_url,
             "crawl4ai": settings.crawl4ai_base_url,
         },
+        mcp_server_count=len(MCPService(settings).list_servers()),
+        skill_count=len(discover_skills(settings.resolve(settings.skills_root))),
         langgraph_enabled=settings.langgraph_enabled,
         langgraph_studio_port=settings.langgraph_studio_port,
         langsmith_configured=bool(settings.resolved_langchain_api_key),

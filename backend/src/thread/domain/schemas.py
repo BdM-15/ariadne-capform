@@ -128,6 +128,63 @@ class ResearchRunOut(BaseModel):
     errors: list[str] = Field(default_factory=list)
 
 
+class SkillOut(BaseModel):
+    id: str
+    description: str
+    path: str
+
+
+class SkillRunCreate(BaseModel):
+    naics: str | None = None
+    mode: str | None = None
+    months_ahead: int | None = None
+    limit: int | None = None
+    server: str | None = None
+    tool: str | None = None
+    arguments: dict[str, Any] | None = None
+
+
+class SkillRunOut(BaseModel):
+    skill_id: str
+    run_id: str
+    status: str
+    output: dict[str, Any]
+    review_id: str | None = None
+    errors: list[str] = Field(default_factory=list)
+
+
+class MCPServerOut(BaseModel):
+    id: str
+    description: str
+    env_required: list[str]
+    configured: bool
+    missing_env: list[str] = Field(default_factory=list)
+
+
+class MCPInvokeCreate(BaseModel):
+    tool: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
+class MCPInvokeOut(BaseModel):
+    server: str
+    tool: str
+    ok: bool
+    output: str | None = None
+    error: str | None = None
+
+
+class VaultListingOut(BaseModel):
+    path: str
+    dirs: list[str]
+    files: list[str]
+
+
+class VaultPageOut(BaseModel):
+    path: str
+    content: str
+
+
 class HealthOut(BaseModel):
     status: str
     version: str
@@ -137,6 +194,8 @@ class HealthOut(BaseModel):
     ollama_reachable: bool = False
     vault_healthy: bool = False
     research_providers: dict[str, str] = Field(default_factory=dict)
+    mcp_server_count: int = 0
+    skill_count: int = 0
     langgraph_enabled: bool = False
     langgraph_studio_port: int = 9623
     langsmith_configured: bool = False
