@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${THREAD_POSTGRES_PORT:-55432}:5432"
+    environment:
+      POSTGRES_USER: thread
+      POSTGRES_PASSWORD: thread
+      POSTGRES_DB: thread
+    volumes:
+      - thread_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U thread -d thread"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  searxng:
+    profiles: [research]
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SEARXNG_BASE_URL: "http://localhost:8080/"
+
+  crawl4ai:
+    profiles: [research]
+    image: unclecode/crawl4ai:basic-amd64
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:11235:11235"
+
+volumes:
+  thread_pg_data:

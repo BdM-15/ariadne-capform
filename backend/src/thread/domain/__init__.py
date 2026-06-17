@@ -1,0 +1,1 @@
+"""Domain types for Thread capture workflows."""

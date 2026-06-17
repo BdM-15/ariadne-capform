@@ -1,0 +1,163 @@
+"""Ariadne's Thread — single entry point.
+
+Usage (from repo root):
+    python app.py
+
+Prerequisites are installed automatically into .venv on first run by scripts/bootstrap.ps1
+(which this launcher invokes if the venv is missing).
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+BACKEND_SRC = ROOT / "backend" / "src"
+VENV_PYTHON = ROOT / ".venv" / "Scripts" / "python.exe"
+
+
+def _load_dotenv() -> None:
+    env_path = ROOT / ".env"
+    if not env_path.exists():
+        print("[thread] ERROR: .env not found. Contact maintainer — .env should exist at repo root.")
+        raise SystemExit(1)
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(env_path, override=False)
+    except ImportError:
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip())
+
+
+def _ensure_venv() -> None:
+    """Re-exec with root .venv Python if we're not already using it."""
+    if VENV_PYTHON.exists() and Path(sys.executable).resolve() != VENV_PYTHON.resolve():
+        os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), str(ROOT / "app.py"), *sys.argv[1:]])
+
+    bootstrap = ROOT / "scripts" / "bootstrap.ps1"
+    if not VENV_PYTHON.exists() and bootstrap.exists():
+        print("[thread] First run — creating .venv and installing dependencies...")
+        subprocess.run(
+            ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(bootstrap)],
+            cwd=str(ROOT),
+            check=True,
+        )
+        if VENV_PYTHON.exists():
+            os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), str(ROOT / "app.py"), *sys.argv[1:]])
+
+
+def _sync_frontend_env() -> None:
+    api_url = os.environ.get("NEXT_PUBLIC_API_URL", "http://127.0.0.1:9622")
+    port = os.environ.get("FRONTEND_PORT", "3000")
+    frontend_env = ROOT / "frontend" / ".env.local"
+    frontend_env.write_text(
+        f"# Auto-synced from root .env by app.py — do not edit manually\n"
+        f"NEXT_PUBLIC_API_URL={api_url}\n"
+        f"PORT={port}\n",
+        encoding="utf-8",
+    )
+
+
+def _docker_up(*, research: bool) -> None:
+    env = os.environ.copy()
+    compose = ROOT / "docker-compose.yml"
+    if research:
+        cmd = ["docker", "compose", "-f", str(compose), "--profile", "research", "up", "-d"]
+    else:
+        cmd = ["docker", "compose", "-f", str(compose), "up", "-d", "postgres"]
+    try:
+        subprocess.run(cmd, cwd=str(ROOT), env=env, check=False)
+        pg_port = env.get("THREAD_POSTGRES_PORT", "55432")
+        print(f"[thread] PostgreSQL target 127.0.0.1:{pg_port} (Thread-dedicated port)")
+    except FileNotFoundError:
+        print("[thread] Docker not found — ensure PostgreSQL is running at DATABASE_URL")
+
+
+def _spawn_frontend(port: int) -> subprocess.Popen | None:
+    frontend = ROOT / "frontend"
+    node_modules = frontend / "node_modules"
+    if not node_modules.exists():
+        print("[thread] Installing frontend dependencies (first run)...")
+        subprocess.run(["npm", "install"], cwd=str(frontend), shell=True, check=False)
+    if not (frontend / "package.json").exists():
+        return None
+    try:
+        return subprocess.Popen(
+            ["npm", "run", "dev", "--", "-p", str(port)],
+            cwd=str(frontend),
+            shell=sys.platform == "win32",
+        )
+    except Exception as exc:
+        print(f"[thread] Frontend spawn note: {exc}")
+        return None
+
+
+def main() -> int:
+    _ensure_venv()
+    _load_dotenv()
+
+    if str(BACKEND_SRC) not in sys.path:
+        sys.path.insert(0, str(BACKEND_SRC))
+
+    logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(levelname)s %(message)s")
+    parser = argparse.ArgumentParser(description="Ariadne's Thread launcher")
+    parser.add_argument("--api-only", action="store_true")
+    parser.add_argument("--no-warmup", action="store_true")
+    parser.add_argument("--skip-docker", action="store_true")
+    parser.add_argument("--no-research-providers", action="store_true")
+    args = parser.parse_args()
+
+    import uvicorn
+
+    from thread.bootstrap.vault import bootstrap_vault
+    from thread.config import get_settings
+
+    get_settings.cache_clear()
+    settings = get_settings()
+
+    _sync_frontend_env()
+
+    if not args.skip_docker:
+        _docker_up(research=settings.autostart_research_providers and not args.no_research_providers)
+
+    if settings.knowledge_bootstrap_on_start:
+        result = bootstrap_vault(settings)
+        if result.get("bootstrapped"):
+            print(f"[thread] Knowledge vault bootstrapped at {result.get('path')}")
+
+    frontend_proc = None
+    if settings.autostart_frontend and not args.api_only:
+        frontend_proc = _spawn_frontend(settings.frontend_port)
+
+    from thread.main import create_app
+
+    print(f"[thread] {settings.public_app_name} ready")
+    print(f"[thread] API http://127.0.0.1:{settings.port}")
+    if frontend_proc:
+        print(f"[thread] UI  http://127.0.0.1:{settings.frontend_port}")
+
+    try:
+        uvicorn.run(
+            create_app(),
+            host=settings.host if hasattr(settings, "host") else "127.0.0.1",
+            port=settings.port,
+            log_level=settings.log_level.lower(),
+        )
+    finally:
+        if frontend_proc:
+            frontend_proc.terminate()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
