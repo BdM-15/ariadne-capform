@@ -1,0 +1,59 @@
+<div id="global-review-queue" class="space-y-3">
+  {% if flash %}
+  <div class="card card-accent accent-amber p-3 text-sm text-neon-amber">{{ flash }}</div>
+  {% endif %}
+
+  {% if review_items|length == 0 %}
+  <div class="card card-accent accent-lime p-6 text-sm text-slate-400">
+    <div class="flex items-start gap-3">
+      <i data-lucide="shield-check" class="w-5 h-5 text-neon-lime shrink-0 mt-0.5"></i>
+      <div>
+        <p class="font-semibold text-slate-200">Review gate clear</p>
+        <p class="mt-1">Nothing waiting for promotion. Packet edits, research, and skill outputs land here as candidates.</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% for item in review_items %}
+  <div class="card card-hover card-accent accent-magenta p-4">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div class="flex-1 min-w-[240px]">
+        <div class="flex flex-wrap items-center gap-2 mb-1">
+          <span class="pill border border-neon-magenta/40 text-neon-magenta text-[10px]">{{ item.entity_type|replace('_', ' ') }}</span>
+          <span class="pill border border-neon-cyan/30 text-neon-cyan text-[10px]">{{ item.trust_level }}</span>
+          {% if item.opportunity_id %}
+          <a href="/opportunities/{{ item.opportunity_id }}?tab=review" class="pill border border-neon-lime/35 text-neon-lime text-[10px] no-underline hover:underline">
+            {{ item.opportunity_name or 'Pursuit' }}
+          </a>
+          {% else %}
+          <span class="pill border border-edge text-slate-500 text-[10px]">Portfolio-wide</span>
+          {% endif %}
+        </div>
+        <h3 class="text-sm font-semibold text-slate-100">{{ item.title }}</h3>
+        <p class="text-[11px] font-mono text-slate-500 mt-0.5">{{ item.subtitle }}</p>
+        <p class="text-sm text-slate-300 mt-2 whitespace-pre-wrap">{{ item.excerpt }}</p>
+        {% if item.source_ref %}
+        <p class="text-[11px] mt-2 text-slate-500 break-all">
+          Source:
+          {% if item.source_ref.startswith('http') %}
+          <a href="{{ item.source_ref }}" class="text-neon-cyan hover:underline" target="_blank" rel="noopener">{{ item.source_ref[:72] }}{% if item.source_ref|length > 72 %}…{% endif %}</a>
+          {% else %}
+          <span class="text-slate-400">{{ item.source_ref }}</span>
+          {% endif %}
+        </p>
+        {% endif %}
+      </div>
+      <form
+        class="shrink-0"
+        hx-post="/review/{{ item.review_id }}/approve"
+        hx-target="#global-review-queue"
+        hx-swap="outerHTML"
+      >
+        <input type="hidden" name="return_scope" value="global" />
+        <button type="submit" class="btn btn-primary">Approve</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>

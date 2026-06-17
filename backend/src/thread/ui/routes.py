@@ -25,9 +25,11 @@ from thread.services.review_gate import ReviewGateError, approve_review
 from thread.ui.formatters import format_date, format_money, urgency_label
 from thread.ui.settings_health import build_settings_health_context
 from thread.ui.tools_context import build_mcp_tools_context, build_skills_tools_context
+from thread.ui.review_display import build_pending_reviews_widget
 from thread.ui.workspace import (
     list_research_runs,
     load_actions,
+    load_global_review_queue,
     load_review_queue,
     normalize_tab,
     research_lenses,
@@ -59,17 +61,6 @@ SHELL_STUB_PAGES: dict[str, dict[str, str]] = {
         ),
         "next_phase": "17",
         "stub_message": "Phase 12a shell only. Phase 17 wires multi-facet queries and saved lenses.",
-    },
-    "review": {
-        "page_title": "Review Queue",
-        "page_subtitle": "Trust promotion",
-        "product_lane": "All lanes",
-        "page_description": (
-            "Global queue for candidate outputs — packet edits, research, skills. "
-            "Nothing auto-promotes to trusted."
-        ),
-        "next_phase": "12c",
-        "stub_message": "Phase 12c lists pending reviews with human titles and approve actions.",
     },
     "knowledge": {
         "page_title": "Knowledge",
@@ -156,9 +147,21 @@ async def insights_page(
 @router.get("/review", response_class=HTMLResponse)
 async def review_page(
     request: Request,
+    db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    return _render_stub_page(request, settings, "review")
+    review_items = await load_global_review_queue(db, settings)
+    return templates.TemplateResponse(
+        request,
+        "review.html",
+        {
+            "app_name": settings.public_app_name,
+            "active_nav": "review",
+            "review_items": review_items,
+            "pending_count": len(review_items),
+            "flash": None,
+        },
+    )
 
 
 @router.get("/knowledge", response_class=HTMLResponse)
@@ -226,11 +229,13 @@ async def dashboard_page(
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
     pulse = await build_portfolio_pulse(db, settings)
+    pending_reviews = await build_pending_reviews_widget(db, settings)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
         {
             "pulse": pulse,
+            "pending_reviews": pending_reviews,
             "app_name": settings.public_app_name,
             "active_nav": "dashboard",
             "flash": None,
@@ -437,8 +442,9 @@ async def run_research_form(
 async def approve_review_form(
     request: Request,
     review_id: uuid.UUID,
-    opp_id: uuid.UUID = Form(...),
+    opp_id: str | None = Form(None),
     tab: str = Form("review"),
+    return_scope: str = Form("workspace"),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
@@ -450,5 +456,20 @@ async def approve_review_form(
         await db.rollback()
         flash = str(exc)
 
-    ctx = await _panel_context(db, settings, opp_id, tab=tab, flash=flash)
+    if return_scope == "global":
+        review_items = await load_global_review_queue(db, settings)
+        return templates.TemplateResponse(
+            request,
+            "partials/global_review_queue.html",
+            {
+                "review_items": review_items,
+                "flash": flash,
+            },
+        )
+
+    if not opp_id:
+        return HTMLResponse("opp_id required for workspace approve", status_code=400)
+
+    parsed_opp_id = uuid.UUID(opp_id)
+    ctx = await _panel_context(db, settings, parsed_opp_id, tab=tab, flash=flash)
     return _render_panel(request, ctx)

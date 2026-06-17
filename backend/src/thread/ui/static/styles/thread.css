@@ -217,3 +217,59 @@
 .tuning-guide-list li {
   margin-bottom: 0.35rem;
 }
+
+/* Command Center widgets (GovDash gate-reviews pattern) */
+.cc-widget {
+  border-radius: 1rem;
+  border: 1px solid var(--edge-strong);
+  padding: 1rem 1.25rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 55%),
+    rgba(var(--ink-900-rgb), 0.55);
+}
+
+.cc-widget-attention {
+  border-color: rgba(var(--neon-amber-rgb), 0.45);
+  box-shadow:
+    0 0 24px -8px rgba(var(--neon-amber-rgb), 0.45),
+    inset 0 0 0 1px rgba(var(--neon-amber-rgb), 0.12);
+}
+
+.cc-widget-clear {
+  border-color: rgba(var(--neon-lime-rgb), 0.3);
+}
+
+.cc-widget-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cc-widget-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.cc-widget-sub {
+  margin-top: 0.5rem;
+}
+
+.cc-widget-preview {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.cc-widget-preview-item {
+  font-size: 0.8125rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+}

@@ -517,7 +517,7 @@ Shell first, then region widgets. One slice per PR. Concrete targets below — d
 | **12b** | Settings / health (read-only) | ✅ Platform accordion; links to Tools for MCP/skills inventory |
 | **12k** | Tools — MCP ops | `/tools/mcp`: test connection, .env key save (Theseus settings-mcp pattern); guides already on page |
 | **12l** | Tools — Agent Skills UX | `/tools/skills`: run from page, detail drawer — **not** settings-skills-retrieval |
-| **12c** | Global review queue | `/review` human titles (`review_display`); approve works; **widget on Command Center**: pending count → `/review` |
+| **12c** | Global review queue | ✅ `/review` human titles (`review_display`); approve works; **widget on Command Center**: pending count → `/review` |
 | **12d** | Pulse — active pursuits | Lifecycle-filtered bidding opps; urgency, pending review, gate; **widget on Command Center**: pursuits by `phase_band` mini breakdown |
 | **12e** | Intel / migration health | Settings + **Command Center widget**: migration %, `/api/intel/health`, vault bootstrap status |
 | **12f** | Recompete radar v2 | **Saved lenses** (agency + NAICS + incumbent combos); drop NAICS-only default in `portfolio.py`; **Command Center widget**: hot signals ≤6 mo |
@@ -656,5 +656,6 @@ General parser — **not** solicitation-only. Parse API → vault wiki ingest (n
 - [x] Phase 12a — sidebar + Command Center dashboard + Pulse `/pulse` + Studio nav label
 - [x] Phase 12b — settings/health read-only page
 - [x] Tools lane — `/tools/mcp` (guides) + `/tools/skills` (card grid); Settings slimmed
-- [ ] Phase 12c–12j — command center widgets + Pulse regions (GovDash inspiration captured in plan)
+- [x] Phase 12c — global review queue + Command Center pending-reviews widget
+- [ ] Phase 12d–12j — command center widgets + Pulse regions (GovDash inspiration captured in plan)
 - [ ] Phase 12k–12l — MCP test/key editor; Agent Skills run UX

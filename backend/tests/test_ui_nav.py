@@ -17,14 +17,16 @@ async def _dispose_app_engine_after_ui_test():
 
 STUB_NAV_ROUTES = (
     ("/insights", "Data Insights"),
-    ("/review", "Review Queue"),
     ("/knowledge", "Knowledge"),
     ("/settings", "Settings"),
     ("/tools/mcp", "MCP Servers"),
     ("/tools/skills", "Agent Skills"),
 )
 
-DB_NAV_ROUTES = (("/", "Command Center"),)
+DB_NAV_ROUTES = (
+    ("/", "Command Center"),
+    ("/review", "Review Queue"),
+)
 
 
 def test_shell_stub_nav_routes_return_200():
@@ -119,3 +121,27 @@ def test_tools_skills_page_lists_skills():
     html = res.text
     assert res.status_code == 200
     assert "datarepublican_intel" in html or "skill-creator" in html
+
+
+def test_review_page_global_queue_not_stub():
+    """Phase 12c — global review queue with human titles."""
+    client = TestClient(create_app())
+    res = client.get("/review")
+    html = res.text
+    assert res.status_code == 200
+    assert "Review Queue" in html
+    assert "global-review-queue" in html
+    assert "Shell stub" not in html
+    assert "Phase 12c" not in html
+    assert "Review gate clear" in html or "pending" in html
+
+
+def test_dashboard_pending_reviews_widget():
+    """Phase 12c — GovDash gate-reviews attention widget on Command Center."""
+    client = TestClient(create_app())
+    res = client.get("/")
+    html = res.text
+    assert res.status_code == 200
+    assert "cc-widget-pending-reviews" in html
+    assert "Gate reviews need attention" in html or "Review gate clear" in html
+    assert 'href="/review"' in html

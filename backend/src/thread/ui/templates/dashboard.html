@@ -14,6 +14,11 @@
 {% set signals = pulse.intel_signals %}
 {% set opps = pulse.opportunities %}
 
+<section class="mb-6">
+  <h2 class="mb-3 text-[11px] font-mono uppercase tracking-[0.2em] text-slate-500">Attention</h2>
+  {% include "partials/dashboard_pending_reviews_widget.html" %}
+</section>
+
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
   <div class="card card-accent card-hover accent-cyan p-5">
     <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Intel layer</div>

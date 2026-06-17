@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Review Queue — {{ app_name }}{% endblock %}
+{% block page_header %}
+<header class="page-nav-bar glass-section-bar h-12 shrink-0 flex items-center px-6 justify-between gap-4">
+  <div class="flex items-center gap-3 min-w-0">
+    <h1 class="text-base font-semibold tracking-tight h1-gradient shrink-0">Review Queue</h1>
+    <span class="text-[11px] font-mono text-slate-500 truncate">Trust promotion · global gate</span>
+  </div>
+  <span class="pill border {% if pending_count > 0 %}border-neon-amber/40 text-neon-amber{% else %}border-neon-lime/40 text-neon-lime{% endif %} text-[10px] font-mono tabular-nums">
+    {{ pending_count }} pending
+  </span>
+</header>
+{% endblock %}
+{% block content %}
+<div class="page-content space-y-5">
+  <div class="settings-tip-box">
+    Candidate outputs from packet edits, bounded research, and agent skills.
+    Nothing auto-promotes to trusted — approve here or from an opportunity workspace Review tab.
+    <span class="settings-label-tip" title="Review gate is the solo-operator equivalent of GovDash gate reviews — one approver, full provenance.">?</span>
+  </div>
+
+  {% include "partials/global_review_queue.html" %}
+</div>
+{% endblock %}

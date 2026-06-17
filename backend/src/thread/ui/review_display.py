@@ -1,4 +1,4 @@
-"""Human-readable review queue — titles, excerpts, opp-scoped."""
+"""Human-readable review queue — titles, excerpts, opp-scoped and global."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.config import Settings
-from thread.db.models import CapabilityRun, PacketFieldAnswer, PacketFieldDefinition, ReviewRecord
+from thread.db.models import CapabilityRun, Opportunity, PacketFieldAnswer, PacketFieldDefinition, ReviewRecord
 from thread.services.review_gate import list_pending_reviews
 
 
@@ -25,6 +25,15 @@ class ReviewQueueItem:
     excerpt: str
     source_ref: str | None = None
     trust_level: str = "candidate"
+    opportunity_id: uuid.UUID | None = None
+    opportunity_name: str | None = None
+
+
+@dataclass(frozen=True)
+class PendingReviewsWidget:
+    count: int
+    preview: tuple[ReviewQueueItem, ...]
+    needs_attention: bool
 
 
 def _clip(text: str | None, limit: int = 320) -> str:
@@ -67,12 +76,21 @@ def _load_research_run(settings: Settings, run_id: str) -> dict[str, Any] | None
         return None
 
 
-def _run_for_opportunity(run: dict[str, Any], opp_id: uuid.UUID) -> bool:
-    opp_str = str(opp_id)
+def _opportunity_id_from_run(run: dict[str, Any]) -> uuid.UUID | None:
     for src in run.get("sources", []):
-        if isinstance(src, dict) and src.get("meta") == "opportunity_id" and src.get("value") == opp_str:
-            return True
-    return False
+        if not isinstance(src, dict):
+            continue
+        if src.get("meta") == "opportunity_id" and src.get("value"):
+            try:
+                return uuid.UUID(str(src["value"]))
+            except ValueError:
+                continue
+    return None
+
+
+def _run_for_opportunity(run: dict[str, Any], opp_id: uuid.UUID) -> bool:
+    resolved = _opportunity_id_from_run(run)
+    return resolved == opp_id
 
 
 def _parse_research_entity(entity_id: str) -> tuple[str | None, str | None, int | None]:
@@ -96,35 +114,139 @@ def _entity_type_label(entity_type: str) -> str:
     }.get(entity_type, entity_type.replace("_", " ").title())
 
 
+async def _field_labels(session: AsyncSession) -> dict[str, str]:
+    return {
+        row.key: row.label
+        for row in (await session.execute(select(PacketFieldDefinition))).scalars().all()
+    }
+
+
+async def _attach_opportunity(
+    session: AsyncSession,
+    item: ReviewQueueItem,
+    opportunity_id: uuid.UUID | None,
+) -> ReviewQueueItem:
+    if opportunity_id is None:
+        return item
+    opp = await session.get(Opportunity, opportunity_id)
+    if opp is None:
+        return item
+    return ReviewQueueItem(
+        review_id=item.review_id,
+        entity_type=item.entity_type,
+        title=item.title,
+        subtitle=item.subtitle,
+        excerpt=item.excerpt,
+        source_ref=item.source_ref,
+        trust_level=item.trust_level,
+        opportunity_id=opportunity_id,
+        opportunity_name=opp.name,
+    )
+
+
+async def _resolve_opportunity_id(
+    session: AsyncSession,
+    settings: Settings,
+    record: ReviewRecord,
+) -> uuid.UUID | None:
+    if record.entity_type == "packet_field_answer":
+        try:
+            answer_id = uuid.UUID(record.entity_id)
+        except ValueError:
+            return None
+        answer = await session.get(PacketFieldAnswer, answer_id)
+        return answer.opportunity_id if answer else None
+
+    if record.entity_type in ("research_finding", "research_interpretation"):
+        run_id, _, _ = _parse_research_entity(record.entity_id)
+        if not run_id:
+            return None
+        run = _load_research_run(settings, run_id)
+        return _opportunity_id_from_run(run) if run else None
+
+    return None
+
+
 async def build_review_queue(
     session: AsyncSession,
     settings: Settings,
     opp_id: uuid.UUID,
 ) -> list[ReviewQueueItem]:
-    pending = await list_pending_reviews(session)
-    field_labels = {
-        row.key: row.label
-        for row in (await session.execute(select(PacketFieldDefinition))).scalars().all()
-    }
+    field_labels = await _field_labels(session)
     items: list[ReviewQueueItem] = []
 
-    for record in pending:
-        item = await _enrich_review(session, settings, opp_id, record, field_labels)
+    for record in await list_pending_reviews(session):
+        item = await _enrich_review(
+            session,
+            settings,
+            record,
+            field_labels,
+            scoped_opp_id=opp_id,
+        )
         if item:
             items.append(item)
 
     return sorted(items, key=lambda i: (i.entity_type, i.title))
 
 
+async def build_global_review_queue(
+    session: AsyncSession,
+    settings: Settings,
+) -> list[ReviewQueueItem]:
+    field_labels = await _field_labels(session)
+    pending = await list_pending_reviews(session)
+    pending.sort(key=lambda r: r.created_at, reverse=True)
+    items: list[ReviewQueueItem] = []
+
+    for record in pending:
+        item = await _enrich_review(session, settings, record, field_labels)
+        if item:
+            items.append(item)
+
+    return items
+
+
+async def build_pending_reviews_widget(
+    session: AsyncSession,
+    settings: Settings,
+    *,
+    preview_limit: int = 3,
+) -> PendingReviewsWidget:
+    items = await build_global_review_queue(session, settings)
+    count = len(items)
+    return PendingReviewsWidget(
+        count=count,
+        preview=tuple(items[:preview_limit]),
+        needs_attention=count > 0,
+    )
+
+
 async def _enrich_review(
     session: AsyncSession,
     settings: Settings,
-    opp_id: uuid.UUID,
     record: ReviewRecord,
     field_labels: dict[str, str],
+    *,
+    scoped_opp_id: uuid.UUID | None = None,
 ) -> ReviewQueueItem | None:
     prov_ref, prov_excerpt = _provenance_excerpt(record.provenance)
     type_label = _entity_type_label(record.entity_type)
+    resolved_opp = await _resolve_opportunity_id(session, settings, record)
+
+    if scoped_opp_id is not None:
+        if record.entity_type == "packet_field_answer":
+            if resolved_opp != scoped_opp_id:
+                return None
+        elif record.entity_type in ("research_finding", "research_interpretation"):
+            run_id, _, _ = _parse_research_entity(record.entity_id)
+            if not run_id:
+                return None
+            run = _load_research_run(settings, run_id)
+            if not run or not _run_for_opportunity(run, scoped_opp_id):
+                return None
+        elif record.entity_type == "skill_run":
+            if resolved_opp is not None and resolved_opp != scoped_opp_id:
+                return None
 
     if record.entity_type == "packet_field_answer":
         try:
@@ -132,10 +254,10 @@ async def _enrich_review(
         except ValueError:
             return None
         answer = await session.get(PacketFieldAnswer, answer_id)
-        if not answer or answer.opportunity_id != opp_id:
+        if not answer:
             return None
         label = field_labels.get(answer.field_key, answer.field_key.replace("_", " ").title())
-        return ReviewQueueItem(
+        item = ReviewQueueItem(
             review_id=record.id,
             entity_type=record.entity_type,
             title=label,
@@ -144,20 +266,24 @@ async def _enrich_review(
             source_ref=prov_ref or "manual edit",
             trust_level=record.trust_level,
         )
+        return await _attach_opportunity(session, item, answer.opportunity_id)
 
     if record.entity_type in ("research_finding", "research_interpretation"):
         run_id, kind, idx = _parse_research_entity(record.entity_id)
         if not run_id:
             return None
         run = _load_research_run(settings, run_id)
-        if not run or not _run_for_opportunity(run, opp_id):
+        if not run:
+            return None
+        if scoped_opp_id is not None and not _run_for_opportunity(run, scoped_opp_id):
             return None
         lens = str(run.get("lens", "research")).replace("_", " ")
         query = str(run.get("query", ""))
+        opp_id = _opportunity_id_from_run(run)
 
         if kind == "interpretation":
             text = str(run.get("interpretation") or prov_excerpt or "")
-            return ReviewQueueItem(
+            item = ReviewQueueItem(
                 review_id=record.id,
                 entity_type=record.entity_type,
                 title=f"Synthesis: {query[:80]}",
@@ -166,6 +292,7 @@ async def _enrich_review(
                 source_ref=prov_ref or f"research run {run_id[:8]}",
                 trust_level=record.trust_level,
             )
+            return await _attach_opportunity(session, item, opp_id)
 
         findings = run.get("findings") or []
         finding: dict[str, Any] = {}
@@ -178,7 +305,7 @@ async def _enrich_review(
             if isinstance(link, dict) and str(link.get("ref", "")).startswith("http"):
                 url = str(link["ref"])
                 break
-        return ReviewQueueItem(
+        item = ReviewQueueItem(
             review_id=record.id,
             entity_type=record.entity_type,
             title=title,
@@ -187,6 +314,7 @@ async def _enrich_review(
             source_ref=url or prov_ref,
             trust_level=record.trust_level,
         )
+        return await _attach_opportunity(session, item, opp_id)
 
     if record.entity_type == "skill_run":
         run_key, _, skill_id = record.entity_id.partition(":")
@@ -210,7 +338,7 @@ async def _enrich_review(
                 excerpt = _clip(str(output["message"]))
             else:
                 excerpt = _clip(str(output))
-        return ReviewQueueItem(
+        item = ReviewQueueItem(
             review_id=record.id,
             entity_type=record.entity_type,
             title=f"Skill: {skill_id}",
@@ -219,5 +347,15 @@ async def _enrich_review(
             source_ref=prov_ref,
             trust_level=record.trust_level,
         )
+        return await _attach_opportunity(session, item, resolved_opp)
 
-    return None
+    item = ReviewQueueItem(
+        review_id=record.id,
+        entity_type=record.entity_type,
+        title=type_label,
+        subtitle=record.entity_id[:48],
+        excerpt=prov_excerpt or "(no preview)",
+        source_ref=prov_ref,
+        trust_level=record.trust_level,
+    )
+    return await _attach_opportunity(session, item, resolved_opp)

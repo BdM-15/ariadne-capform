@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from thread.config import Settings
 from thread.db.models import ActionMatrixItem
 from thread.domain.enums import ResearchLens
-from thread.ui.review_display import ReviewQueueItem, build_review_queue
+from thread.ui.review_display import ReviewQueueItem, build_global_review_queue, build_review_queue
 
 
 def valid_tabs() -> tuple[str, ...]:
@@ -68,6 +68,13 @@ async def load_review_queue(
     opp_id: uuid.UUID,
 ) -> list[ReviewQueueItem]:
     return await build_review_queue(session, settings, opp_id)
+
+
+async def load_global_review_queue(
+    session: AsyncSession,
+    settings: Settings,
+) -> list[ReviewQueueItem]:
+    return await build_global_review_queue(session, settings)
 
 
 def research_lenses() -> list[tuple[str, str]]:
