@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-17 (foundation complete; Product Vision v2.1 — Phase 12+)
+**Last updated:** 2026-06-17 (foundation complete; Product Vision v2.2 — C&C doctrine + data composition)
 
 ---
 
@@ -81,6 +81,57 @@ Lanes overlap on one **opportunity record** — identification feeds capture; ca
 9. **One command to run** — `python app.py` from root `.venv` (single Python process at steady state).
 10. **Web research enrichment** — bounded, approval-gated; free/local providers first.
 11. **Server-owned truth** — UI renders and commands; domain rules live in Python `services/`, never in the client.
+12. **Command & control ≠ metrics dump** — Dashboard is for **visibility + efficient action** under limited time and resources; deep analytics belong on **Data Insights**, not vanity counters on `/`.
+
+---
+
+## Command & control doctrine (solo operator)
+
+**Command Center (`/`) is not a BI dashboard.** It answers: *What needs my attention right now? What can I do in one click?* GovDash-style widgets are **action surfaces**, not report pages.
+
+| Principle | Do | Don't |
+|-----------|-----|-------|
+| **Attention over volume** | Gate reviews, hot signals, pursuits by phase, migration health when blocking | Row counts, charts, or tables that only prove data exists |
+| **Action over display** | Every widget links to a queue, workspace tab, or pre-filled tool run | Full-width metric cards with no next step |
+| **Thin home, deep elsewhere** | Pulse = morning briefing; Insights = trends; workspace = capture work | Duplicate radar, analytics, or inbox on both `/` and `/pulse` |
+| **AI as copilot** | Grok/skills draft, summarize, chain lookups; human approves via review gate | Auto-promote LLM output; bury actions behind chat-only UX |
+| **Tool-fed UI** | Widgets/regions declare which capability feeds them (MCP, skill, PG intel, research) | Hand-rolled placeholders that look live but aren't wired |
+
+**Widget acceptance test:** Can the operator **act** (review, track, open opp, run research, open lens) in ≤2 clicks without reading a paragraph? If not, it doesn't belong on Command Center.
+
+**LLM/supporting role:** Thread should make capture **easier**, not busier — bounded research, suggested fills on `route_kind`, chained retrieval so the operator passes names/keys once and the platform gathers context. Orchestration (LangGraph / skill chains) serves **composition**, not autonomous busywork.
+
+---
+
+## Federal data composition (sources + chaining)
+
+Thread uses **multiple federal data layers** with distinct jobs. Do not collapse them into one “intel number” on the dashboard.
+
+| Source | Role | Primary surfaces | Notes |
+|--------|------|------------------|-------|
+| **USAspending (PG intel)** | Historical — trends, analytics, incumbent context, recompete radar, saved lenses | **Data Insights** `/insights`, Pulse radar, Insights drill-down | Migrated prime/subaward tables; not live SAM |
+| **USAspending MCP** | On-demand queries, snapshots, supplemental pulls | Skills, workspace research, Insights actions | Same domain, different access pattern than PG analytics |
+| **SAM.gov MCP** | Entity/opportunity detail — UEI, certs, solicitations | Pulse SAM strip (12i), competitive workspace, chain steps | Live supplement to historical spend |
+| **eCFR / FPDS / other 1102 MCPs** | Deterministic reg/award lookups | Tools lane, skill chains, packet `route_kind` | Vendored under `tools/mcps/` |
+| **Web research** | Enrichment after structured IDs/names exist | Research tab, capture_research | SearXNG/Crawl4AI first; review-gated |
+
+### Retrieval chains (outputs → inputs)
+
+Tool and MCP outputs are **composable**. One retrieval's `candidate` result becomes the next step's input — with full provenance for review.
+
+**Example chain (target pattern):**
+
+```
+Recompete signal (USAspending PG / radar)
+  → incumbent awardee name
+    → SAM MCP (entity, UEI, business facts)
+      → web research (positioning, news, customer context)
+        → review gate → packet field / vault mirror
+```
+
+Same pattern for: `award_key` → prime award detail → agency/NAICS lens → saved insight profile → Pulse alert. Skills and future orchestration should **encode these chains** as named recipes, not one-off UI hacks.
+
+**Implementation rule:** New dashboard/Pulse regions must document **feed capability** (which MCP/skill/query) and support **drill-down into chain** (e.g. signal row → open workspace Research with context pre-filled). Phase 12 widgets are scaffolding until wired; wire them before adding more counters.
 
 ---
 
@@ -426,8 +477,9 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 | Screen | Foundation | Product gap |
 |--------|------------|-------------|
-| Command Center (`/`) | Metric cards, lane quick-links, recent pursuits | GovDash-style widget row (12c–12h): pending reviews, phase breakdown, hot signals, health, quick actions |
-| Portfolio Pulse (`/pulse`) | Recompete radar, metric cards, track button, opp list | Morning-briefing regions only: SAM strip (12i), intel inbox (12g), active pursuits panel (12d) |
+| Command Center (`/`) | Attention widgets, compact nav, pursuit rail — **not** analytics home | Widget row (12c–12h): reviews, phase band, hot signals, health strip, **quick actions**; anti-pattern: metrics dump |
+| Portfolio Pulse (`/pulse`) | Morning briefing: radar + pursuits + rail actions | SAM strip (12i), intel inbox (12g), active pursuits (12d); USAspending historical signals, not deep analytics |
+| Data Insights (`/insights`) | — | Trends, saved lenses, multi-facet USAspending analytics; incumbent/agency/NAICS combos |
 | Opportunity workspace | Packet (raw keys), Actions, Review, Research tabs | Workspace templates (competitive / readiness); extra pills; slide-deck packet (Phase 14) |
 | Sidebar nav | Command / Identify / Capture / **Tools** / Win / System + Lucide icons | Studio route (Phase 21) |
 | Settings (`/settings`) | ✅ Read-only platform health | Editable keys deferred to Tools/MCP (12k) |
@@ -528,13 +580,15 @@ Shell first, then region widgets. One slice per PR. Concrete targets below — d
 
 #### Command Center dashboard (`/`) — widget row (solo GovDash pattern)
 
-Not the morning briefing — that stays on **Portfolio Pulse** (`/pulse`).
+Not the morning briefing — that stays on **Portfolio Pulse** (`/pulse`). Not analytics — that stays on **Data Insights** (`/insights`). See **Command & control doctrine** above.
 
-1. **Pending reviews** — count + link to `/review` (12c)
-2. **Active pursuits by phase band** — mini breakdown (12d)
-3. **Recompete signals (hot ≤6 mo)** — count + link to Pulse radar (12f)
-4. **Intel / migration health** — strip from 12e (also on Settings)
-5. **Quick actions** — track signal, run research, open insights lens (12h)
+1. **Pending reviews** — count + link to `/review` (12c) ✅
+2. **Active pursuits by phase band** — mini breakdown + drill to Pulse/opp (12d) ✅
+3. **Recompete signals (hot ≤6 mo)** — count + link to Pulse radar; chain to incumbent/SAM when wired (12f)
+4. **Intel / migration health** — **blocking status only** (migration %, intel ready) — not award analytics (12e)
+5. **Quick actions** — track signal, run research, open insights lens, vault shortcut (12h) — highest priority for C&C usefulness
+
+**Anti-patterns on `/`:** prime award totals as hero metrics, full recompete tables, NAICS analytics, anything that belongs on Insights or Pulse body.
 
 #### Portfolio Pulse (`/pulse`) — morning briefing only
 
@@ -558,7 +612,7 @@ GovDash Proposal Cloud maps here. Route `/studio` deferred to Phase 21.
 
 #### Data Insights — saved lenses (Discover pattern)
 
-Saved profiles that improve over time → **named saved lenses** with facets (agency + NAICS + incumbent, PSC combos). Not profile spam. Phase 17 primary; seed UX in 12f.
+**Home for USAspending historical analytics** — trends, combos, incumbent spend patterns, agency/recipient/NAICS/PSC lenses. Saved profiles that improve over time → **named saved lenses** with facets (agency + NAICS + incumbent, PSC combos). Not profile spam. Phase 17 primary; seed UX in 12f. Insights actions may invoke MCP/skill chains; results stay `candidate` until review.
 
 ### Phase 14 — Living Briefing Packet (slide deck UX)
 
@@ -628,10 +682,10 @@ General parser — **not** solicitation-only. Parse API → vault wiki ingest (n
 ## Immediate next actions
 
 1. **Intel migration** — finish in separate window; verify `Complete: True` + indexes
-2. **Phase 12b** — settings/health read-only accordion (wire `/api/health`, intel migration, providers)
-3. **Phase 12c** — global review queue + Command Center pending-reviews widget
-4. **Phase 12d–12h** — dashboard widget row + Pulse morning-briefing regions (per GovDash inspiration above)
-5. **Phase 12f** — saved lenses; remove NAICS-only default
+2. **Phase 12e–12h** — remaining C&C widgets + **quick actions** strip (prioritize action over new metrics)
+3. **Phase 12f** — saved lenses; hot-signal widget; remove NAICS-only default; wire chain entry from radar
+4. **Phase 12i** — SAM strip on Pulse (live supplement; chain from incumbent/name)
+5. **Phase 17 seed** — Data Insights stub → first saved lens + USAspending analytics drill-down
 
 ---
 
