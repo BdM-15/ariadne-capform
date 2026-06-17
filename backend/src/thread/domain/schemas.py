@@ -60,6 +60,7 @@ class PacketFieldDefinitionOut(BaseModel):
 
 
 class PacketFieldAnswerOut(BaseModel):
+    id: UUID | None = None
     field_key: str
     value: str | None = None
     status: PacketFieldAnswerStatus

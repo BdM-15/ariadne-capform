@@ -480,10 +480,10 @@ Ship intel + workflow + capability modules + HTMX shell + E2E smoke. Vault seed 
 | 5 | Vault bootstrap (full seed) | ✅ |
 | 6 | LLM router (Grok + Ollama) | ✅ |
 | 7 | Research module + adapters + API | ✅ MVP |
-| 8 | Domain services + review gates + tests | 🟡 |
-| 9 | Full API (skills, MCP, intel, capture-profile) | ❌ |
+| 8 | Domain services + review gates + tests | ✅ |
+| 9 | Full API (skills, MCP, intel, capture-profile) | ✅ |
 | 10 | HTMX command center shell + Research tab (retire transitional Next) | 🟡 Pulse + packet live |
-| 11 | E2E smoke + README verification | ❌ |
+| 11 | E2E smoke + README verification | ✅ |
 
 ---
 
@@ -492,7 +492,7 @@ Ship intel + workflow + capability modules + HTMX shell + E2E smoke. Vault seed 
 1. **Intel migration** — finish in separate window; verify `Complete: True` + indexes
 2. **Step 8–9: Domain services + full API** — skills, MCP manifests, intel routes, review tests
 4. **Step 10: HTMX** — Research tab + actions matrix; retire Next from launcher
-5. **Step 11: E2E smoke** — track signal → packet edit → review approve
+5. **Post-foundation: product MVP** — activation runs, MCP→packet routing, brain runtime
 
 ---
 
@@ -513,4 +513,4 @@ Ship intel + workflow + capability modules + HTMX shell + E2E smoke. Vault seed 
 - [x] HTMX shell — Pulse, recompete radar, packet edit, review queue
 - [ ] HTMX Research tab + actions matrix
 - [ ] Retire transitional Next.js from launcher
-- [ ] E2E smoke test path
+- [x] E2E smoke test path

@@ -62,6 +62,33 @@ Packet field seeds: [`backend/src/thread/domain/packet_field_seed.py`](backend/s
 
 **Review rule:** Intake → Candidate → Trusted. Nothing auto-promotes.
 
+## Foundation verification (step 11)
+
+**Foundation complete** means the core pipe works end-to-end — not full ariadne-thread product MVP (agentic packet fill, chart data elements, brain runtime). That comes after foundation.
+
+**Automated smoke** (Postgres on `:55432`):
+
+```powershell
+cd C:\Users\benma\ariadne-capform
+.venv\Scripts\python.exe -m pytest backend/tests/test_e2e_smoke.py -v
+```
+
+Path exercised: intel signal opportunity → packet field edit (candidate) → review approve → trusted.
+
+**Live API smoke** (with `python app.py` running):
+
+```powershell
+.\scripts\smoke-foundation.ps1
+```
+
+**Full unit suite:**
+
+```powershell
+.venv\Scripts\python.exe -m pytest backend/tests -v --ignore=backend/tests/test_intel_pg_queries.py
+```
+
+Optional live research checks: `$env:THREAD_INTEGRATION_TESTS='1'` then `pytest backend/tests/test_research_integration.py -v`.
+
 ## Extension path
 
 1. Complete intel migration + pg_queries from capture-insights

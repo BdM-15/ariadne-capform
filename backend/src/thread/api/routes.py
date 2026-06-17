@@ -137,6 +137,7 @@ async def get_packet(opp_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> P
     ).scalars().all()
     fields = [
         PacketFieldAnswerOut(
+            id=a.id,
             field_key=a.field_key,
             value=a.value,
             status=a.status,
@@ -164,6 +165,7 @@ async def patch_packet_field(
     answer = await opp_svc.update_packet_field(db, opp_id, field_key, value, as_candidate=True)
     await db.commit()
     return PacketFieldAnswerOut(
+        id=answer.id,
         field_key=answer.field_key,
         value=answer.value,
         status=answer.status,

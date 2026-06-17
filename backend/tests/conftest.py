@@ -21,6 +21,26 @@ def settings() -> Settings:
     return Settings()
 
 
+_E2E_SMOKE_ORDER = {
+    "test_a_smoke_api_http_path": 0,
+    "test_z_smoke_service_path": 1,
+    "test_b_smoke_htmx_track_signal_redirect": 2,
+}
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Run E2E sync smokes before async service path (Windows asyncpg loop clash)."""
+    e2e = [item for item in items if item.name in _E2E_SMOKE_ORDER]
+    if len(e2e) < 2:
+        return
+    e2e.sort(key=lambda item: _E2E_SMOKE_ORDER[item.name])
+    first_idx = items.index(e2e[0])
+    for item in e2e:
+        items.remove(item)
+    for offset, item in enumerate(e2e):
+        items.insert(first_idx + offset, item)
+
+
 @pytest.fixture
 async def db_session(settings: Settings):
     """Yield a session inside a rolled-back transaction (requires local Postgres)."""
