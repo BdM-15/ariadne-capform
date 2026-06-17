@@ -177,7 +177,8 @@ def main() -> int:
     if settings.knowledge_bootstrap_on_start:
         result = bootstrap_vault(settings)
         if result.get("bootstrapped"):
-            print(f"[thread] Vault bootstrapped at {result.get('path')}")
+            n = len(result.get("created") or [])
+            print(f"[thread] Vault seed +{n} files → {result.get('path')}")
 
     from thread.intel.migration import get_migration_status, needs_migration, run_intel_migration
 
