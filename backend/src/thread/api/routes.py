@@ -23,6 +23,7 @@ from thread.domain.schemas import (
     ReviewRecordOut,
 )
 from thread.intel import pg_queries as intel_queries
+from thread.llm.router import probe_ollama
 from thread.services import opportunities as opp_svc
 from thread.services.portfolio import build_portfolio_pulse
 from thread.services.review_gate import approve_review, list_pending_reviews
@@ -46,12 +47,20 @@ async def health(db: AsyncSession = Depends(get_db)) -> HealthOut:
         except Exception:
             pass
 
+    ollama_reachable = False
+    if postgres_ready:
+        try:
+            ollama_reachable = await probe_ollama(settings)
+        except Exception:
+            pass
+
     return HealthOut(
         status="ok" if postgres_ready else "degraded",
         version=__version__,
         postgres_ready=postgres_ready,
         intel_row_count=intel_row_count,
         grok_configured=bool(settings.xai_api_key),
+        ollama_reachable=ollama_reachable,
         vault_healthy=False,
         research_providers={
             "searxng": settings.searxng_base_url,
