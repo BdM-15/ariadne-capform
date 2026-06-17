@@ -48,18 +48,28 @@
     <link rel="stylesheet" href="/static/styles/thread.css" />
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   </head>
-  <body class="font-sans antialiased scanline min-h-screen">
-    <div class="app-shell flex min-h-screen">
+  <body class="font-sans antialiased scanline min-h-screen flex flex-col">
+    {% include "partials/app_topbar.html" %}
+
+    <div class="app-shell flex flex-1 min-h-0 h-[calc(100vh-3.5rem)] overflow-hidden">
       {% include "partials/app_sidebar.html" %}
 
-      <div class="app-main flex flex-col flex-1 min-w-0 min-h-screen">
+      <div class="app-main flex flex-col flex-1 min-w-0 min-h-0">
         {% block page_header %}{% endblock %}
-        <main class="app-canvas panel-canvas flex-1 overflow-auto">
+        <main class="app-canvas panel-canvas flex-1 overflow-y-auto min-h-0">
           <div class="app-canvas-inner max-w-6xl mx-auto px-6 py-8 w-full">
             {% block content %}{% endblock %}
           </div>
         </main>
       </div>
     </div>
+    <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+    <script>
+      function initLucide() {
+        if (window.lucide) window.lucide.createIcons();
+      }
+      document.addEventListener("DOMContentLoaded", initLucide);
+      document.body.addEventListener("htmx:afterSwap", initLucide);
+    </script>
   </body>
 </html>

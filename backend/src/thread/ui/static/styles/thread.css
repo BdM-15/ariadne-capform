@@ -8,6 +8,10 @@
   background: transparent;
 }
 
+.app-sidebar {
+  overflow: hidden;
+}
+
 .app-canvas {
   position: relative;
 }
@@ -17,7 +21,7 @@
   z-index: 1;
 }
 
-/* Per-page top navigation (workspace tabs, drill-down) — not global app nav */
+/* Per-page top bar — workspace tabs, drill-down, refresh. Not global app nav. */
 .page-nav-bar {
   flex-shrink: 0;
   position: relative;
@@ -109,4 +113,27 @@
 .thread-textarea {
   resize: vertical;
   min-height: 88px;
+}
+
+/* Purple accent for Command lane (dashboard) */
+.tile-purple {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--accent-purple-rgb), 0.22) 0%,
+    rgba(var(--neon-cyan-rgb), 0.12) 100%
+  );
+  border: 1px solid rgba(var(--accent-purple-rgb), 0.45);
+  color: var(--accent-purple-soft);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 4px 12px -6px rgba(var(--accent-purple-rgb), 0.55);
+}
+
+.nav-group-purple span:last-child {
+  color: var(--accent-purple-soft);
+  text-shadow: 0 0 12px rgba(var(--accent-purple-rgb), 0.35);
+}
+
+.nav-icon-tile svg {
+  stroke-width: 2;
 }

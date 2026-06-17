@@ -8,12 +8,52 @@
   {% set signals = pulse.intel_signals %}
   {% set opps = pulse.opportunities %}
 
-  <p class="text-sm text-slate-400 mb-6">
-    Intel layer holds
-    <span class="text-neon-cyan font-mono">{{ "{:,}".format(stats.prime_award_count) }}</span> prime awards ·
-    <span class="text-neon-magenta font-mono">{{ signals|length }}</span> recompete signals ·
-    <span class="text-neon-lime font-mono">{{ opps|length }}</span> active opportunities
-  </p>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="card card-accent card-hover accent-cyan p-5">
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Prime awards</div>
+          <div class="mt-2 text-4xl font-semibold neon-text tabular-nums text-neon-cyan">
+            {{ "{:,}".format(stats.prime_award_count) }}
+          </div>
+          <div class="mt-1 text-xs text-slate-500">USAspending intel layer</div>
+        </div>
+        <div class="icon-tile text-neon-cyan text-sm font-bold">$</div>
+      </div>
+    </div>
+    <div class="card card-accent card-hover accent-magenta p-5">
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Recompete radar</div>
+          <div class="mt-2 text-4xl font-semibold tabular-nums text-neon-magenta">{{ signals|length }}</div>
+          <div class="mt-1 text-xs text-slate-500">Expiring contracts · 18 mo</div>
+        </div>
+        <div class="icon-tile text-neon-magenta text-sm font-bold">◎</div>
+      </div>
+    </div>
+    <div class="card card-accent card-hover accent-lime p-5">
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Active pursuits</div>
+          <div class="mt-2 text-4xl font-semibold tabular-nums text-neon-lime">{{ opps|length }}</div>
+          <div class="mt-1 text-xs text-slate-500">Capture workspaces</div>
+        </div>
+        <div class="icon-tile text-neon-lime text-sm font-bold">→</div>
+      </div>
+    </div>
+    <div class="card card-accent card-hover accent-amber p-5">
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Intel status</div>
+          <div class="mt-2 text-2xl font-semibold tabular-nums {% if intel_live %}text-neon-lime{% else %}text-neon-amber{% endif %}">
+            {% if intel_live %}LIVE{% else %}LOAD{% endif %}
+          </div>
+          <div class="mt-1 text-xs text-slate-500">Migration window</div>
+        </div>
+        <div class="icon-tile {% if intel_live %}text-neon-lime{% else %}text-neon-amber{% endif %} text-sm font-bold">●</div>
+      </div>
+    </div>
+  </div>
 
   <section class="card card-accent accent-cyan p-5 mb-6 flex flex-wrap items-center gap-4 text-[11px] font-mono uppercase tracking-wider text-slate-500">
     <span class="text-slate-400">Intel layer</span>

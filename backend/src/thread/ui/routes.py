@@ -23,6 +23,7 @@ from thread.services import opportunities as opp_svc
 from thread.services.portfolio import build_portfolio_pulse, signal_opportunity_name
 from thread.services.review_gate import ReviewGateError, approve_review
 from thread.ui.formatters import format_date, format_money, urgency_label
+from thread.ui.settings_health import build_settings_health_context
 from thread.ui.workspace import (
     list_research_runs,
     load_actions,
@@ -170,12 +171,41 @@ async def knowledge_page(
 @router.get("/settings", response_class=HTMLResponse)
 async def settings_page(
     request: Request,
+    db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    return _render_stub_page(request, settings, "settings")
+    health = await build_settings_health_context(db, settings)
+    return templates.TemplateResponse(
+        request,
+        "settings.html",
+        {
+            "app_name": settings.public_app_name,
+            "active_nav": "settings",
+            "health": health,
+        },
+    )
 
 
 @router.get("/", response_class=HTMLResponse)
+async def dashboard_page(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    pulse = await build_portfolio_pulse(db, settings)
+    return templates.TemplateResponse(
+        request,
+        "dashboard.html",
+        {
+            "pulse": pulse,
+            "app_name": settings.public_app_name,
+            "active_nav": "dashboard",
+            "flash": None,
+        },
+    )
+
+
+@router.get("/pulse", response_class=HTMLResponse)
 async def pulse_page(
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -216,7 +246,7 @@ async def create_opportunity_form(
 ) -> Response:
     name = name.strip()
     if not name:
-        return _htmx_redirect("/")
+        return _htmx_redirect("/pulse")
     opp = await opp_svc.create_opportunity(db, OpportunityCreate(name=name))
     await db.commit()
     if request.headers.get("HX-Request"):

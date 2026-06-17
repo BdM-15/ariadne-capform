@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Settings — {{ app_name }}{% endblock %}
+{% block page_header %}
+<header class="page-nav-bar glass-section-bar h-12 shrink-0 flex items-center px-6 justify-between gap-4">
+  <div class="flex items-center gap-3 min-w-0">
+    <h1 class="text-base font-semibold tracking-tight h1-gradient shrink-0">Settings</h1>
+    <span class="text-[11px] font-mono text-slate-500 truncate">Platform health · read-only</span>
+  </div>
+  <span class="pill border {% if health.status == 'ok' %}border-neon-lime/40 text-neon-lime{% else %}border-neon-amber/40 text-neon-amber{% endif %} text-[10px] font-mono uppercase">
+    {{ health.status }}
+  </span>
+</header>
+{% endblock %}
+{% block content %}
+<div class="space-y-5 max-w-3xl">
+  <p class="text-sm text-slate-400">
+    Operator diagnostics wired from <span class="font-mono text-slate-500">/api/health</span> and intel migration.
+    Editable configuration deferred — no secrets shown here.
+  </p>
+
+  <details class="acc accent-cyan" open>
+    <summary>
+      <span class="font-semibold text-sm">Platform</span>
+      <span class="summary-actions">
+        <span class="pill border border-neon-cyan/40 text-neon-cyan text-[10px] font-mono">v{{ health.version }}</span>
+        <span class="acc-chevron">›</span>
+      </span>
+    </summary>
+    <div class="acc-body space-y-3 text-sm">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="card p-3 border border-edge">
+          <div class="text-[10px] font-mono uppercase text-slate-500 mb-1">PostgreSQL</div>
+          <div class="{% if health.postgres_ready %}text-neon-lime{% else %}text-neon-red{% endif %} font-semibold">
+            {% if health.postgres_ready %}Ready{% else %}Unreachable{% endif %}
+          </div>
+        </div>
+        <div class="card p-3 border border-edge">
+          <div class="text-[10px] font-mono uppercase text-slate-500 mb-1">Knowledge vault</div>
+          <div class="{% if health.vault_healthy %}text-neon-lime{% else %}text-neon-amber{% endif %} font-semibold">
+            {% if health.vault_healthy %}Seeded{% else %}Empty / missing{% endif %}
+          </div>
+          <div class="mt-1 text-[11px] font-mono text-slate-500 truncate" title="{{ health.vault_path }}">{{ health.vault_path }}</div>
+        </div>
+      </div>
+      <div class="text-[11px] font-mono text-slate-500">Env: {{ health.env_flags.app_env }}</div>
+    </div>
+  </details>
+
+  <details class="acc accent-magenta" open>
+    <summary>
+      <span class="font-semibold text-sm">Intel migration</span>
+      <span class="summary-actions">
+        <span class="pill border border-neon-magenta/40 text-neon-magenta text-[10px] font-mono">
+          {{ health.migration.prime_pct }}%
+        </span>
+        <span class="acc-chevron">›</span>
+      </span>
+    </summary>
+    <div class="acc-body space-y-3 text-sm">
+      <div class="flex flex-wrap gap-2 text-[11px] font-mono">
+        <span class="pill text-slate-500">phase {{ health.migration.phase }}</span>
+        {% if health.migration.complete %}
+        <span class="pill border border-neon-lime/40 text-neon-lime">complete</span>
+        {% else %}
+        <span class="pill border border-neon-amber/40 text-neon-amber">in progress</span>
+        {% endif %}
+        {% if health.migration.indexes_built %}
+        <span class="pill border border-neon-cyan/40 text-neon-cyan">indexes built</span>
+        {% endif %}
+      </div>
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <div>
+          <dt class="text-slate-500 text-[10px] font-mono uppercase">Prime rows</dt>
+          <dd class="font-mono text-neon-cyan">{{ "{:,}".format(health.migration.prime_migrated) }} / {{ "{:,}".format(health.migration.prime_source_total) }}</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500 text-[10px] font-mono uppercase">Subaward rows</dt>
+          <dd class="font-mono text-neon-magenta">{{ "{:,}".format(health.migration.sub_migrated) }} / {{ "{:,}".format(health.migration.sub_source_total) }}</dd>
+        </div>
+        <div class="sm:col-span-2">
+          <dt class="text-slate-500 text-[10px] font-mono uppercase">DuckDB source</dt>
+          <dd class="font-mono text-slate-400 text-xs truncate" title="{{ health.migration.source_path }}">
+            {{ health.migration.source_path }}
+            {% if not health.migration.source_exists %}<span class="text-neon-amber"> (missing)</span>{% endif %}
+          </dd>
+        </div>
+      </dl>
+      {% if health.migration.last_updated %}
+      <p class="text-[11px] text-slate-500">Last updated: {{ health.migration.last_updated }}</p>
+      {% endif %}
+    </div>
+  </details>
+
+  <details class="acc accent-cyan" open>
+    <summary>
+      <span class="font-semibold text-sm">Intel layer (PostgreSQL)</span>
+      <span class="summary-actions">
+        <span class="pill border border-neon-cyan/40 text-neon-cyan text-[10px] font-mono">
+          {{ "{:,}".format(health.intel_stats.get("prime_award_count", 0) or 0) }} prime
+        </span>
+        <span class="acc-chevron">›</span>
+      </span>
+    </summary>
+    <div class="acc-body">
+      <dl class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+        <div>
+          <dt class="text-[10px] font-mono uppercase text-slate-500">Prime awards</dt>
+          <dd class="font-mono text-neon-cyan">{{ "{:,}".format(health.intel_stats.get("prime_award_count", 0) or 0) }}</dd>
+        </div>
+        <div>
+          <dt class="text-[10px] font-mono uppercase text-slate-500">Subawards</dt>
+          <dd class="font-mono text-neon-magenta">{{ "{:,}".format(health.intel_stats.get("subaward_count", 0) or 0) }}</dd>
+        </div>
+        <div>
+          <dt class="text-[10px] font-mono uppercase text-slate-500">Prime ready</dt>
+          <dd class="{% if health.intel_stats.get('prime_awards_ready') %}text-neon-lime{% else %}text-neon-amber{% endif %} font-semibold">
+            {% if health.intel_stats.get("prime_awards_ready") %}yes{% else %}no{% endif %}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </details>
+
+  <details class="acc accent-lime">
+    <summary>
+      <span class="font-semibold text-sm">Reasoning &amp; models</span>
+      <span class="summary-actions">
+        <span class="acc-chevron">›</span>
+      </span>
+    </summary>
+    <div class="acc-body space-y-3 text-sm">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="card p-3 border border-edge">
+          <div class="text-[10px] font-mono uppercase text-slate-500 mb-1">Grok / xAI</div>
+          <div class="{% if health.grok_configured %}text-neon-lime{% else %}text-neon-amber{% endif %} font-semibold">
+            {% if health.grok_configured %}Configured{% else %}API key missing{% endif %}
+          </div>
+          <div class="mt-1 font-mono text-xs text-slate-500">{{ health.reasoning_model }}</div>
+        </div>
+        <div class="card p-3 border border-edge">
+          <div class="text-[10px] font-mono uppercase text-slate-500 mb-1">Ollama (admin)</div>
+          <div class="{% if health.ollama_reachable %}text-neon-lime{% else %}text-slate-500{% endif %} font-semibold">
+            {% if health.ollama_reachable %}Reachable{% else %}Offline{% endif %}
+          </div>
+          <div class="mt-1 font-mono text-xs text-slate-500">{{ health.local_daily_model }}</div>
+          <div class="mt-1 text-[10px] text-slate-600">Admin offload {% if health.local_admin_enabled %}enabled{% else %}disabled{% endif %}</div>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <details class="acc accent-amber">
+    <summary>
+      <span class="font-semibold text-sm">Research providers</span>
+      <span class="summary-actions">
+        <span class="acc-chevron">›</span>
+      </span>
+    </summary>
+    <div class="acc-body space-y-2">
+      {% for p in health.providers %}
+      <div class="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-edge/60 last:border-0 text-sm">
+        <div>
+          <span class="font-medium">{{ p.name }}</span>
+          <span class="text-[10px] font-mono text-slate-500 ml-2">{{ p.role }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-mono text-slate-500 truncate max-w-[200px]" title="{{ p.detail }}">{{ p.detail }}</span>
+          <span class="pill border text-[10px] font-mono uppercase
+            {% if p.status == 'available' %}border-neon-lime/40 text-neon-lime
+            {% elif p.status == 'unreachable' %}border-neon-red/40 text-neon-red
+            {% elif p.status == 'requires_approval' %}border-neon-amber/40 text-neon-amber
+            {% else %}border-edge text-slate-500{% endif %}">
+            {{ p.status|replace('_', ' ') }}
+          </span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+
+  <details class="acc accent-cyan">
+    <summary>
+      <span class="font-semibold text-sm">Skills, MCP &amp; orchestration</span>
+      <span class="summary-actions">
+        <span class="acc-chevron">›</span>
+      </span>
+    </summary>
+    <div class="acc-body">
+      <dl class="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <dt class="text-[10px] font-mono uppercase text-slate-500">MCP servers</dt>
+          <dd class="font-mono text-neon-cyan">{{ health.mcp_server_count }}</dd>
+        </div>
+        <div>
+          <dt class="text-[10px] font-mono uppercase text-slate-500">Skills</dt>
+          <dd class="font-mono text-neon-magenta">{{ health.skill_count }}</dd>
+        </div>
+        <div>
+          <dt class="text-[10px] font-mono uppercase text-slate-500">LangGraph</dt>
+          <dd class="{% if health.langgraph_enabled %}text-neon-lime{% else %}text-slate-500{% endif %}">
+            {% if health.langgraph_enabled %}enabled :{{ health.langgraph_studio_port }}{% else %}disabled{% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] font-mono uppercase text-slate-500">LangSmith</dt>
+          <dd class="text-slate-300">
+            {% if health.langsmith_configured %}configured{% else %}not set{% endif %}
+            {% if health.langsmith_tracing %} · tracing on{% endif %}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </details>
+
+  <details class="acc accent-magenta">
+    <summary>
+      <span class="font-semibold text-sm">Startup flags</span>
+      <span class="summary-actions">
+        <span class="acc-chevron">›</span>
+      </span>
+    </summary>
+    <div class="acc-body">
+      <ul class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono text-slate-400">
+        {% for key, value in health.env_flags.items() %}
+        <li class="flex justify-between gap-2 border-b border-edge/40 pb-1">
+          <span>{{ key }}</span>
+          <span class="{% if value is sameas true %}text-neon-lime{% elif value is sameas false %}text-slate-600{% else %}text-neon-cyan{% endif %}">{{ value }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </details>
+</div>
+{% endblock %}

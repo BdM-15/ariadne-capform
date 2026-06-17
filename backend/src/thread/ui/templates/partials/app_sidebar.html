@@ -1,87 +1,91 @@
-<aside class="app-sidebar sidebar-vibrant flex flex-col shrink-0 w-[15.5rem] min-h-screen z-30">
-  <div class="p-4 border-b border-edge/80">
-    <a href="/" class="flex items-center gap-2.5 no-underline" style="color: inherit">
-      <div class="brand-tile w-10 h-10 rounded-xl flex items-center justify-center shrink-0">
-        <svg viewBox="0 0 40 40" class="w-9 h-9 brand-labyrinth" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="sidebar-lab-wall" x1="0" y1="0" x2="40" y2="40">
-              <stop offset="0%" stop-color="#00f0ff" />
-              <stop offset="55%" stop-color="#a855f7" />
-              <stop offset="100%" stop-color="#ff2bd6" />
-            </linearGradient>
-          </defs>
-          <g stroke="url(#sidebar-lab-wall)" stroke-width="1.6" fill="none">
-            <path d="M7 7 H33 V33 H22" />
-            <path d="M18 33 H7 V7" />
-            <path d="M10 10 H30 V30 H22" />
-            <path d="M18 30 H10 V10" />
-          </g>
-          <circle cx="20" cy="20" r="3.5" fill="#00f0ff" opacity="0.9" />
-        </svg>
+<aside class="app-sidebar sidebar-vibrant flex flex-col shrink-0 w-60 min-h-0 z-30">
+  <nav class="relative z-10 flex-1 px-3 py-4 overflow-y-auto" aria-label="Application">
+    <div class="mb-5">
+      <div class="nav-group-label nav-group-purple">
+        <span class="nav-group-dot tile-purple"></span>
+        <span>Command</span>
       </div>
-      <div class="leading-tight min-w-0">
-        <div class="text-sm font-semibold tracking-tight truncate">
-          {{ app_name }}<span class="neon-text">.</span>
-        </div>
-        <div class="text-[10px] font-mono uppercase tracking-wider text-slate-500 truncate">Command center</div>
+      <div class="space-y-1">
+        <a href="/" class="nav-item w-full no-underline {% if active_nav == 'dashboard' %}nav-item-active{% endif %}">
+          {% with icon="layout-dashboard", tile_class="tile-purple" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
+          <span>Dashboard</span>
+        </a>
       </div>
-    </a>
-  </div>
+    </div>
 
-  <nav class="flex-1 overflow-y-auto p-3 space-y-5" aria-label="Application">
-    <div>
+    <div class="mb-5">
       <div class="nav-group-label nav-group-cyan">
         <span class="nav-group-dot tile-cyan"></span>
         <span>Identify</span>
       </div>
       <div class="space-y-1">
-        <a href="/" class="nav-item w-full no-underline {% if active_nav == 'pulse' %}nav-item-active{% endif %}">
-          <span class="nav-icon-tile tile-cyan text-xs font-bold">P</span>
+        <a href="/pulse" class="nav-item w-full no-underline {% if active_nav == 'pulse' %}nav-item-active{% endif %}">
+          {% with icon="radar", tile_class="tile-cyan" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
           <span>Portfolio Pulse</span>
         </a>
         <a href="/insights" class="nav-item w-full no-underline {% if active_nav == 'insights' %}nav-item-active{% endif %}">
-          <span class="nav-icon-tile tile-cyan text-xs font-bold">I</span>
+          {% with icon="chart-no-axes-combined", tile_class="tile-cyan" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
           <span>Data Insights</span>
         </a>
       </div>
     </div>
 
-    <div>
+    <div class="mb-5">
       <div class="nav-group-label nav-group-magenta">
         <span class="nav-group-dot tile-magenta"></span>
         <span>Capture</span>
       </div>
       <div class="space-y-1">
         <a href="/knowledge" class="nav-item w-full no-underline {% if active_nav == 'knowledge' %}nav-item-active{% endif %}">
-          <span class="nav-icon-tile tile-magenta text-xs font-bold">K</span>
+          {% with icon="book-open", tile_class="tile-magenta" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
           <span>Knowledge</span>
         </a>
         <a href="/review" class="nav-item w-full no-underline {% if active_nav == 'review' %}nav-item-active{% endif %}">
-          <span class="nav-icon-tile tile-magenta text-xs font-bold">R</span>
+          {% with icon="list-checks", tile_class="tile-magenta" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
           <span>Review Queue</span>
         </a>
       </div>
     </div>
 
-    <div>
+    <div class="mb-5">
       <div class="nav-group-label nav-group-lime">
         <span class="nav-group-dot tile-lime"></span>
         <span>Win</span>
       </div>
       <div class="space-y-1">
-        <span class="nav-item w-full opacity-45 cursor-not-allowed" title="Phase 21 — proposal produce lane">
-          <span class="nav-icon-tile tile-lime text-xs font-bold">W</span>
-          <span>Produce</span>
+        <span class="nav-item w-full opacity-45 cursor-not-allowed" title="Phase 21 — artifact studio (pWin outputs, proposal produce)">
+          {% with icon="folder-open", tile_class="tile-lime" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
+          <span>Studio</span>
           <span class="ml-auto text-[9px] font-mono text-slate-500">soon</span>
         </span>
       </div>
     </div>
-  </nav>
 
-  <div class="p-3 border-t border-edge/80 mt-auto">
-    <a href="/settings" class="nav-item w-full no-underline {% if active_nav == 'settings' %}nav-item-active{% endif %}">
-      <span class="nav-icon-tile tile-amber text-xs font-bold">⚙</span>
-      <span>Settings</span>
-    </a>
-  </div>
+    <div>
+      <div class="nav-group-label nav-group-amber">
+        <span class="nav-group-dot tile-amber"></span>
+        <span>System</span>
+      </div>
+      <div class="space-y-1">
+        <a href="/settings" class="nav-item w-full no-underline {% if active_nav == 'settings' %}nav-item-active{% endif %}">
+          {% with icon="settings", tile_class="tile-amber" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
+          <span>Settings</span>
+        </a>
+      </div>
+    </div>
+  </nav>
 </aside>

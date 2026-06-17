@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Command Center — {{ app_name }}{% endblock %}
+{% block page_header %}
+<header class="page-nav-bar glass-section-bar h-12 shrink-0 flex items-center px-6 justify-between gap-4">
+  <div class="flex items-center gap-3 min-w-0">
+    <h1 class="text-base font-semibold tracking-tight h1-gradient shrink-0">Command Center</h1>
+    <span class="text-[11px] font-mono text-slate-500 truncate">Capture command &amp; control</span>
+  </div>
+</header>
+{% endblock %}
+{% block content %}
+{% set stats = pulse.intel_stats %}
+{% set intel_live = stats.prime_awards_ready and stats.prime_award_count > 0 %}
+{% set signals = pulse.intel_signals %}
+{% set opps = pulse.opportunities %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  <div class="card card-accent card-hover accent-cyan p-5">
+    <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Intel layer</div>
+    <div class="mt-2 text-3xl font-semibold neon-text tabular-nums text-neon-cyan">
+      {{ "{:,}".format(stats.prime_award_count) }}
+    </div>
+    <div class="mt-1 text-xs text-slate-500">Prime awards indexed</div>
+  </div>
+  <div class="card card-accent card-hover accent-magenta p-5">
+    <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Radar signals</div>
+    <div class="mt-2 text-3xl font-semibold tabular-nums text-neon-magenta">{{ signals|length }}</div>
+    <div class="mt-1 text-xs text-slate-500">Recompete · 18 mo window</div>
+  </div>
+  <div class="card card-accent card-hover accent-lime p-5">
+    <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Active pursuits</div>
+    <div class="mt-2 text-3xl font-semibold tabular-nums text-neon-lime">{{ opps|length }}</div>
+    <div class="mt-1 text-xs text-slate-500">Capture workspaces open</div>
+  </div>
+  <div class="card card-accent card-hover accent-amber p-5">
+    <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Platform</div>
+    <div class="mt-2 text-xl font-semibold {% if intel_live %}text-neon-lime{% else %}text-neon-amber{% endif %}">
+      {% if intel_live %}LIVE{% else %}LOADING{% endif %}
+    </div>
+    <div class="mt-1 text-xs text-slate-500">Intel migration status</div>
+  </div>
+</div>
+
+<section class="mb-8">
+  <h2 class="mb-4 text-[11px] font-mono uppercase tracking-[0.2em] text-slate-500">Identify</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <a href="/pulse" class="card card-accent card-hover accent-cyan p-5 no-underline block" style="color: inherit">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Morning briefing</div>
+          <div class="mt-2 text-lg font-semibold text-slate-100">Portfolio Pulse</div>
+          <p class="mt-1 text-sm text-slate-400">Recompete radar, intel status, and active opportunity list.</p>
+        </div>
+        <div class="icon-tile text-neon-cyan">
+          <i data-lucide="radar" class="w-5 h-5"></i>
+        </div>
+      </div>
+    </a>
+    <a href="/insights" class="card card-accent card-hover accent-cyan p-5 no-underline block" style="color: inherit">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Market deep dives</div>
+          <div class="mt-2 text-lg font-semibold text-slate-100">Data Insights</div>
+          <p class="mt-1 text-sm text-slate-400">Multi-facet USAspending queries — agency, competitor, NAICS, PSC.</p>
+        </div>
+        <div class="icon-tile text-neon-cyan">
+          <i data-lucide="chart-no-axes-combined" class="w-5 h-5"></i>
+        </div>
+      </div>
+    </a>
+  </div>
+</section>
+
+<section class="mb-8">
+  <h2 class="mb-4 text-[11px] font-mono uppercase tracking-[0.2em] text-slate-500">Capture</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <a href="/knowledge" class="card card-accent card-hover accent-magenta p-5 no-underline block" style="color: inherit">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Vault &amp; entities</div>
+          <div class="mt-2 text-lg font-semibold text-slate-100">Knowledge</div>
+          <p class="mt-1 text-sm text-slate-400">Obsidian vault browser, domain intel, and parsed document wiki.</p>
+        </div>
+        <div class="icon-tile text-neon-magenta">
+          <i data-lucide="book-open" class="w-5 h-5"></i>
+        </div>
+      </div>
+    </a>
+    <a href="/review" class="card card-accent card-hover accent-magenta p-5 no-underline block" style="color: inherit">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.18em] font-mono text-slate-500">Trust promotion</div>
+          <div class="mt-2 text-lg font-semibold text-slate-100">Review Queue</div>
+          <p class="mt-1 text-sm text-slate-400">Global gate for packet edits, research, and skill outputs.</p>
+        </div>
+        <div class="icon-tile text-neon-magenta">
+          <i data-lucide="list-checks" class="w-5 h-5"></i>
+        </div>
+      </div>
+    </a>
+  </div>
+</section>
+
+<section>
+  <h2 class="mb-4 text-[11px] font-mono uppercase tracking-[0.2em] text-slate-500">Recent pursuits</h2>
+  <div class="grid gap-3">
+    {% if opps|length == 0 %}
+    <div class="card card-accent accent-amber p-5 text-sm text-slate-400">
+      No active pursuits — open <a href="/pulse" class="text-neon-cyan no-underline hover:underline">Portfolio Pulse</a> to track a signal.
+    </div>
+    {% endif %}
+    {% for o in opps[:5] %}
+    <a href="/opportunities/{{ o.id }}" class="card card-hover card-accent accent-lime block p-4 no-underline" style="color: inherit">
+      <div class="flex items-center justify-between gap-3">
+        <span class="font-semibold">{{ o.name }}</span>
+        <span class="pill text-slate-500">{{ o.milestone_gate }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

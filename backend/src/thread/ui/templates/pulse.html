@@ -1,21 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Portfolio Pulse — {{ app_name }}{% endblock %}
 {% block page_header %}
-<header class="page-nav-bar glass-section-bar px-6 py-4 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <p class="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500 mb-1">Identify · morning briefing</p>
-    <h1 class="text-2xl font-bold tracking-tight">
-      Portfolio Pulse<span class="neon-text">.</span>
-    </h1>
+<header class="page-nav-bar glass-section-bar h-12 shrink-0 flex items-center px-6 justify-between gap-4">
+  <div class="flex items-center gap-3 min-w-0">
+    <h1 class="text-base font-semibold tracking-tight h1-gradient shrink-0">Portfolio Pulse</h1>
+    <span class="text-[11px] font-mono text-slate-500 truncate">Identify · morning briefing</span>
   </div>
   <button
     type="button"
-    class="btn btn-ghost border border-edge text-sm"
+    class="btn btn-ghost text-xs shrink-0"
     hx-get="/partials/pulse"
     hx-target="#pulse-body"
     hx-swap="outerHTML"
   >
-    Refresh
+    ↻ Refresh
   </button>
 </header>
 {% endblock %}
