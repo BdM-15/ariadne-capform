@@ -57,18 +57,6 @@ def _ensure_venv() -> None:
             os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), str(ROOT / "app.py"), *sys.argv[1:]])
 
 
-def _sync_frontend_env() -> None:
-    api_url = os.environ.get("NEXT_PUBLIC_API_URL", "http://127.0.0.1:9622")
-    port = os.environ.get("FRONTEND_PORT", "3000")
-    frontend_env = ROOT / "frontend" / ".env.local"
-    frontend_env.write_text(
-        f"# Auto-synced from root .env by app.py — do not edit manually\n"
-        f"NEXT_PUBLIC_API_URL={api_url}\n"
-        f"PORT={port}\n",
-        encoding="utf-8",
-    )
-
-
 def _docker_up(*, research: bool) -> bool:
     env = os.environ.copy()
     compose = ROOT / "docker-compose.yml"
@@ -143,6 +131,11 @@ def main() -> int:
         action="store_true",
         help="Disable INTEL_AUTO_MIGRATE_ON_START for this run",
     )
+    parser.add_argument(
+        "--legacy-frontend",
+        action="store_true",
+        help="Also spawn archived Next.js in frontend/ (dev archaeology only — not the command center)",
+    )
     args = parser.parse_args()
 
     import uvicorn
@@ -158,8 +151,6 @@ def main() -> int:
     from thread.orchestration.tracing import apply_langsmith_env
 
     apply_langsmith_env(settings)
-
-    _sync_frontend_env()
 
     docker_ok = True
     if not args.skip_docker:
@@ -193,18 +184,23 @@ def main() -> int:
         )
 
     frontend_proc = None
-    if settings.autostart_frontend and not args.api_only:
+    if args.legacy_frontend and not args.api_only:
         print(
-            "[thread] AUTOSTART_FRONTEND=true — spawning legacy Next.js (transitional). "
-            "Command center is HTMX on :9622; set AUTOSTART_FRONTEND=false to skip Node."
+            "[thread] --legacy-frontend: spawning archived Next.js. "
+            "Command center is HTMX on :9622 (python app.py without this flag)."
         )
         frontend_proc = _spawn_frontend(settings.frontend_port)
+    elif settings.autostart_frontend and not args.api_only:
+        print(
+            "[thread] AUTOSTART_FRONTEND is deprecated and ignored. "
+            "Use python app.py --legacy-frontend only if you need the archived Next shell."
+        )
 
     from thread.main import create_app
 
-    print(f"[thread] {settings.public_app_name} → http://127.0.0.1:{settings.port}")
+    print(f"[thread] Command center → http://127.0.0.1:{settings.port}")
     if frontend_proc:
-        print(f"[thread] Legacy Next.js → http://127.0.0.1:{settings.frontend_port}")
+        print(f"[thread] Archived Next.js → http://127.0.0.1:{settings.frontend_port}")
 
     try:
         uvicorn.run(

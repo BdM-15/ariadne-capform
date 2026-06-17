@@ -12,7 +12,7 @@ cd C:\Users\benma\ariadne-capform
 python app.py
 ```
 
-`python app.py` handles everything: `.venv` bootstrap (first run), Docker Postgres on **port 55432**, vault seed, frontend dev server, and API.
+`python app.py` handles everything: `.venv` bootstrap (first run), Docker Postgres on **port 55432**, vault seed, and the HTMX command center API on **:9622**.
 
 **First-time intel load** (64M+ rows — run in a **separate PowerShell window**, resumable, ~48h OK):
 
@@ -29,9 +29,9 @@ python app.py
 
 Re-run `run-intel-migration.ps1` to resume after interrupt. Build indexes only: `.\scripts\run-intel-migration.ps1 -IndexesOnly`
 
-- Command center UI: http://127.0.0.1:9622
-- API: http://127.0.0.1:9622/api/health
-- Legacy Next.js (optional): set `AUTOSTART_FRONTEND=true` → http://127.0.0.1:3000
+- Command center (HTMX): http://127.0.0.1:9622
+- API health: http://127.0.0.1:9622/api/health
+- Archived Next.js (dev only): `python app.py --legacy-frontend` → http://127.0.0.1:3000
 - PostgreSQL: `127.0.0.1:55432` (Thread-dedicated — not 5432)
 
 **PostgreSQL version:** Docker Compose pins **Postgres 16** to match the existing `thread_pg_data` volume (intel migration checkpoint). Point `DATABASE_URL` at an external Postgres 18 instance anytime. Upgrading the Docker volume to 18 requires `pg_upgrade` or a fresh volume — do not bump the image tag alone.

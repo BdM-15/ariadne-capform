@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     frontend_port: int = 3000
     public_app_name: str = "Ariadne's Thread"
     next_public_api_url: str = "http://127.0.0.1:9622"
-    autostart_frontend: bool = False
+    autostart_frontend: bool = False  # deprecated — app.py ignores; use --legacy-frontend
     enable_startup_warmup: bool = True
     autostart_research_providers: bool = True
 

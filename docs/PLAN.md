@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-17
+**Last updated:** 2026-06-17 (foundation complete; Phase 12 planning)
 
 ---
 
@@ -15,7 +15,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Area | Status | Notes |
 |------|--------|-------|
 | Monorepo scaffold | ✅ Done | `backend/`, `frontend/`, `skills/`, `docs/reference/` |
-| `python app.py` launcher | 🟡 Partial | Postgres, vault bootstrap, frontend spawn; no Alembic, no intel migration |
+| `python app.py` launcher | ✅ Done | Postgres, vault bootstrap, HTMX on `:9622`; Next retired (`--legacy-frontend` only) |
 | `.env` / `config.py` | ✅ Done | Full categorized config including research, MCP, orchestration |
 | Docker Compose | ✅ Done | Postgres **16** image on `:55432` (matches volume; PG18 needs pg_upgrade) + `research` profile |
 | Reference corpus | ✅ Done | Briefing packet, call plan, risk register, Shipley, USAspending |
@@ -27,12 +27,12 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Web research module | ❌ Not started | Config + docker profile only |
 | Skill runtime (3 skills) | ❌ Not started | SKILL.md stubs exist |
 | MCP manifests | 🟡 Partial | USAspending only; 7 more planned |
-| Frontend command center | 🟡 HTMX shell live | FastAPI serves Pulse + packet; Next.js optional (`AUTOSTART_FRONTEND`) |
+| Frontend command center | 🟡 Foundation shell | HTMX Pulse + opp workspace tabs; **not** product-grade command center yet |
 | Theseus visual language | ✅ Done | `frontend/styles/theseus.css` synced from proj-theseus |
 | Orchestration (LangGraph) | 🟡 Placeholder | Env + tracing bootstrap; runtime deferred |
 | Git | ✅ Done | Repo pushed; commit early/often |
 
-**Resume here:** Finish intel migration (background), then **capability modules** (LLM router → skills → research), then **HTMX shell port** (step 10).
+**Resume here:** Foundation steps 1–11 ✅. Next: **Phase 12** (command center usefulness) in small vertical slices — see below. Intel migration continues in background.
 
 ---
 
@@ -402,11 +402,19 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 **Shell (target):** FastAPI serves Jinja templates + HTMX partials from `backend/src/thread/ui/`. Server-owned forms, tables, review gates. Same handlers back `/api/*` and HTMX fragments.
 
-**Transitional:** `frontend/` Next.js 15 — Pulse, opportunity workspace, Theseus theme applied. Keeps API contract honest until HTMX port done. **Not the long-term shell.**
+**Archived:** `frontend/` Next.js 15 — no longer spawned by `app.py`. Use `python app.py --legacy-frontend` or `cd frontend && npm run dev` only for archaeology.
 
 **Next.js / client islands (allowed when justified):** Streaming LLM output, interactive charts, drag-drop matrices, other client-heavy UX. Embed via iframe, separate route, or small bundled script — not whole-platform SPA by default.
 
-**Target screens:** Portfolio Pulse + intel signals · opportunity workspace (Packet | Actions | Review | Research | Intel Context) · skills panel · vault browser.
+### What exists today (foundation shell — not product MVP)
+
+| Screen | Foundation | Product gap |
+|--------|------------|-------------|
+| Portfolio Pulse | Intel stats strip, recompete radar (hardcoded NAICS), track button, opp list | No “active bids” view, no SAM monitor, no health dashboard, no intel inbox, no quick skills, no global knowledge digest |
+| Opportunity workspace | Packet (raw keys), Actions, Review, Research tabs | Packet not a Living Briefing Packet UX; no Intel Context tab |
+| Top nav | Pulse only | No Review queue, Knowledge, Settings |
+
+**Target screens (product):** Command center Pulse · opportunity workspace (Packet \| Actions \| Review \| Research \| Intel Context) · global review · skills panel · vault browser · settings/health.
 
 ---
 
@@ -445,11 +453,28 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 ## Extension path (post-foundation)
 
-**Do not build until steps 1–11 (platform MVP) are done.** Ideas below are parked here — not current sprint work.
+**Foundation (steps 1–11) is complete.** Product work proceeds in **small vertical slices** — one screen region per slice, wired to real APIs, with tests. No one-shot “rebuild the command center.”
 
-### Platform MVP first (steps 1–11)
+### Phase 12 — Command center usefulness (incremental)
 
-Ship intel + workflow + capability modules + HTMX shell + E2E smoke. Vault seed (`domain_intel`, `training/` scaffold) is **static content** until runtime wires it.
+Build order is deliberate: shell first, then Pulse regions one at a time. Each slice ships independently and must be usable without the next slice.
+
+| Slice | Scope | Done when |
+|-------|--------|-----------|
+| **12a** | Top nav + route stubs (`/review`, `/knowledge`, `/settings`) | Nav works; pages render Theseus layout (may be placeholder) |
+| **12b** | Settings / health page | PG ready, intel migration %, research providers, vault path, key env flags (read-only) |
+| **12c** | Global review queue page | `/review` lists pending items with human titles (reuse `review_display`); approve works |
+| **12d** | Pulse — active pursuits panel | Distinct section for opportunities you are bidding; urgency, pending review, gate |
+| **12e** | Pulse — system health strip | Expand intel strip: migration status, `/api/intel/health`, provider pills, vault bootstrap |
+| **12f** | Pulse — recompete radar v2 | Configurable NAICS/agency (settings or `.env`); honest empty states |
+| **12g** | Pulse — intel inbox | Recent candidate outputs: research, tracked signals, vault pages — feed into review |
+| **12h** | Pulse — quick actions | Shortcuts to skills, research, vault — each links to a working route |
+| **12i** | SAM.gov monitor (stub → live) | Panel on Pulse; stub until SAM adapter exists |
+| **12j** | Global knowledge digest | `domain_intel` / vault highlights on Pulse (read-only first) |
+
+**Parallel track (Phase 13 — workspace, not Pulse):** Living Briefing Packet UX (sections, labels, gate badges from `packet_field_seed`); Intel Context tab on opportunity workspace.
+
+**Rules (anti–scope-creep):** One slice per PR/session. No new backend module unless the slice’s UI needs it. Editor monitors diffs; run pytest before commit. Inspiration from capture-insights / ariadne-thread is **reference only** — do not port their UI trees wholesale.
 
 ### Deferred — knowledge & intelligence runtime (after MVP)
 
@@ -482,17 +507,19 @@ Ship intel + workflow + capability modules + HTMX shell + E2E smoke. Vault seed 
 | 7 | Research module + adapters + API | ✅ MVP |
 | 8 | Domain services + review gates + tests | ✅ |
 | 9 | Full API (skills, MCP, intel, capture-profile) | ✅ |
-| 10 | HTMX command center shell + Research tab (retire transitional Next) | 🟡 Pulse + packet live |
+| 10 | HTMX command center shell + Research tab (retire transitional Next) | ✅ |
 | 11 | E2E smoke + README verification | ✅ |
+| 12+ | Product command center + workspace UX | ❌ Planned (incremental — Phase 12) |
 
 ---
 
 ## Immediate next actions
 
 1. **Intel migration** — finish in separate window; verify `Complete: True` + indexes
-2. **Step 8–9: Domain services + full API** — skills, MCP manifests, intel routes, review tests
-4. **Step 10: HTMX** — Research tab + actions matrix; retire Next from launcher
-5. **Post-foundation: product MVP** — activation runs, MCP→packet routing, brain runtime
+2. **Phase 12a** — top nav + route stubs (Review, Knowledge, Settings)
+3. **Phase 12b** — settings/health read-only page (wire existing health endpoints)
+4. **Phase 12c** — global review queue page
+5. **Phase 12d** — Pulse active pursuits panel (first substantive Pulse upgrade)
 
 ---
 
@@ -508,9 +535,10 @@ Ship intel + workflow + capability modules + HTMX shell + E2E smoke. Vault seed 
 - [x] LLM router (Grok primary)
 - [x] Vault seed — global_wiki, domain_intel, training scaffold
 - [x] Research module + `/api/research/*` (SearXNG + Crawl4AI + fake; paid stubs)
-- [ ] Skill runtime + 8 MCP manifests
-- [x] Theseus visual language (CSS + transitional Next shell)
+- [x] Skill runtime + 8 MCP manifests
+- [x] Theseus visual language (CSS + HTMX shell)
 - [x] HTMX shell — Pulse, recompete radar, packet edit, review queue
-- [ ] HTMX Research tab + actions matrix
-- [ ] Retire transitional Next.js from launcher
+- [x] HTMX Research tab + actions matrix
+- [x] Retire transitional Next.js from launcher
 - [x] E2E smoke test path
+- [ ] Phase 12 — command center usefulness (incremental slices)
