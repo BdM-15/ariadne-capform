@@ -137,3 +137,55 @@
 .nav-icon-tile svg {
   stroke-width: 2;
 }
+
+/* Field help + guides (Theseus RFP Intel / settings pattern) */
+.settings-tip-box {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #94a3b8;
+  background: rgba(var(--ink-900-rgb), 0.45);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.settings-label-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  color: #94a3b8;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: help;
+  vertical-align: middle;
+}
+
+.tuning-guide-body {
+  color: #94a3b8;
+  line-height: 1.55;
+}
+
+.tuning-guide-h {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  margin-bottom: 8px;
+}
+
+.tuning-guide-list {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0;
+}
+
+.tuning-guide-list li {
+  margin-bottom: 0.35rem;
+}

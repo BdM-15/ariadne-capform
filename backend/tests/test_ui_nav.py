@@ -20,6 +20,8 @@ STUB_NAV_ROUTES = (
     ("/review", "Review Queue"),
     ("/knowledge", "Knowledge"),
     ("/settings", "Settings"),
+    ("/tools/mcp", "MCP Servers"),
+    ("/tools/skills", "Agent Skills"),
 )
 
 DB_NAV_ROUTES = (("/", "Command Center"),)
@@ -71,6 +73,9 @@ def test_theseus_sidebar_shell_not_topbar_app_nav():
     assert "nav-group-magenta" in html
     assert "System" in html
     assert "Command" in html
+    assert "Tools" in html
+    assert 'href="/tools/mcp"' in html
+    assert 'href="/tools/skills"' in html
     assert 'href="/pulse"' in html
     assert "data-lucide" in html
     assert 'data-lucide="layout-dashboard"' in html
@@ -93,3 +98,21 @@ def test_settings_page_read_only_health():
     assert "Research providers" in html
     assert "Grok" in html or "xAI" in html
     assert "default_naics" in html
+
+
+def test_tools_mcp_page_has_guides():
+    client = TestClient(create_app())
+    res = client.get("/tools/mcp")
+    html = res.text
+    assert res.status_code == 200
+    assert "tuning-guide-h" in html
+    assert "settings-tip-box" in html
+    assert "usaspending" in html
+
+
+def test_tools_skills_page_lists_skills():
+    client = TestClient(create_app())
+    res = client.get("/tools/skills")
+    html = res.text
+    assert res.status_code == 200
+    assert "datarepublican_intel" in html or "skill-creator" in html

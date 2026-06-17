@@ -14,8 +14,12 @@
 {% block content %}
 <div class="space-y-5 max-w-3xl">
   <p class="text-sm text-slate-400">
-    Operator diagnostics wired from <span class="font-mono text-slate-500">/api/health</span> and intel migration.
-    Editable configuration deferred — no secrets shown here.
+    Platform health and startup flags — wired from <span class="font-mono text-slate-500">/api/health</span> and intel migration.
+    MCP catalog and skill discovery live under
+    <a href="/tools/mcp" class="text-neon-cyan no-underline hover:underline">Tools → MCP Servers</a>
+    and
+    <a href="/tools/skills" class="text-neon-magenta no-underline hover:underline">Agent Skills</a>.
+    No secrets shown here.
   </p>
 
   <details class="acc accent-cyan" open>
@@ -180,21 +184,19 @@
 
   <details class="acc accent-cyan">
     <summary>
-      <span class="font-semibold text-sm">Skills, MCP &amp; orchestration</span>
+      <span class="font-semibold text-sm">Orchestration</span>
       <span class="summary-actions">
         <span class="acc-chevron">›</span>
       </span>
     </summary>
-    <div class="acc-body">
-      <dl class="grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <dt class="text-[10px] font-mono uppercase text-slate-500">MCP servers</dt>
-          <dd class="font-mono text-neon-cyan">{{ health.mcp_server_count }}</dd>
-        </div>
-        <div>
-          <dt class="text-[10px] font-mono uppercase text-slate-500">Skills</dt>
-          <dd class="font-mono text-neon-magenta">{{ health.skill_count }}</dd>
-        </div>
+    <div class="acc-body space-y-3 text-sm">
+      <p class="text-xs text-slate-500">
+        Tool inventory:
+        <a href="/tools/mcp" class="text-neon-cyan">{{ health.mcp_server_count }} MCP</a>
+        ·
+        <a href="/tools/skills" class="text-neon-magenta">{{ health.skill_count }} skills</a>
+      </p>
+      <dl class="grid grid-cols-2 gap-3">
         <div>
           <dt class="text-[10px] font-mono uppercase text-slate-500">LangGraph</dt>
           <dd class="{% if health.langgraph_enabled %}text-neon-lime{% else %}text-slate-500{% endif %}">

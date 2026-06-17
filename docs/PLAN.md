@@ -429,12 +429,16 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | Command Center (`/`) | Metric cards, lane quick-links, recent pursuits | GovDash-style widget row (12c–12h): pending reviews, phase breakdown, hot signals, health, quick actions |
 | Portfolio Pulse (`/pulse`) | Recompete radar, metric cards, track button, opp list | Morning-briefing regions only: SAM strip (12i), intel inbox (12g), active pursuits panel (12d) |
 | Opportunity workspace | Packet (raw keys), Actions, Review, Research tabs | Workspace templates (competitive / readiness); extra pills; slide-deck packet (Phase 14) |
-| Sidebar nav | Command / Identify / Capture / Win / System + Lucide icons | Studio route (Phase 21) |
-| Settings | Stub → **12b** read-only health | Editable config deferred |
+| Sidebar nav | Command / Identify / Capture / **Tools** / Win / System + Lucide icons | Studio route (Phase 21) |
+| Settings (`/settings`) | ✅ Read-only platform health | Editable keys deferred to Tools/MCP (12k) |
+| MCP Servers (`/tools/mcp`) | ✅ Catalog + per-server guides/tooltips | Test connection, .env key editor (12k) |
+| Agent Skills (`/tools/skills`) | ✅ Skill card grid from `skills/` | Run/install UX (Phase 20); **not** Theseus Skills Retrieval settings |
 
-**Shell IA (Theseus pattern):** `topbar-vibrant` = brand + health (no route links). Left `sidebar-vibrant` = app lanes (Command / Identify / Capture / Win / System). Top `glass-section-bar` = **per-page** nav only (workspace tabs, refresh, back links). Main canvas = `panel-canvas` aurora.
+**Shell IA (Theseus pattern):** `topbar-vibrant` = brand + health (no route links). Left `sidebar-vibrant` = app lanes (Command / Identify / Capture / **Tools** / Win / System). Top `glass-section-bar` = **per-page** nav only. Main canvas = `panel-canvas` aurora.
 
-**Target nav (product):** Sidebar: Dashboard, Pulse, Insights, Knowledge, Review, Studio (soon), Settings · Workspace tabs on opportunity header · Briefing Packet slide deck (Phase 14).
+**Settings vs Tools split:** Settings = platform health, migration, providers, orchestration flags. **Tools** = operator-facing catalogs (MCP Servers, Agent Skills) with guides — modeled on Theseus MCP settings + RFP Intelligence briefing guides (`settings-label-tip`, `tuning-guide-*`). Do **not** port Theseus Settings → Skills Retrieval panel (too complex).
+
+**Target nav (product):** Dashboard, Pulse, Insights, Knowledge, Review · **MCP Servers, Agent Skills** · Studio (soon) · Settings.
 
 **Solo operator model:** one user; technology produces **pWin artifacts** (BLUF, PTW, win themes, eval mapping) for external humans — not multi-user CRM, not post-award.
 
@@ -510,7 +514,9 @@ Shell first, then region widgets. One slice per PR. Concrete targets below — d
 | Slice | Scope | Done when |
 |-------|--------|-----------|
 | **12a** | Sidebar + stubs + Command Center shell | ✅ Dashboard `/`, Pulse `/pulse`, sidebar lanes, Theseus topbar |
-| **12b** | Settings / health (read-only) | Accordion page: PG, migration %, intel stats, Grok/Ollama, research providers, vault path, MCP/skills counts, env flags (no secrets) |
+| **12b** | Settings / health (read-only) | ✅ Platform accordion; links to Tools for MCP/skills inventory |
+| **12k** | Tools — MCP ops | `/tools/mcp`: test connection, .env key save (Theseus settings-mcp pattern); guides already on page |
+| **12l** | Tools — Agent Skills UX | `/tools/skills`: run from page, detail drawer — **not** settings-skills-retrieval |
 | **12c** | Global review queue | `/review` human titles (`review_display`); approve works; **widget on Command Center**: pending count → `/review` |
 | **12d** | Pulse — active pursuits | Lifecycle-filtered bidding opps; urgency, pending review, gate; **widget on Command Center**: pursuits by `phase_band` mini breakdown |
 | **12e** | Intel / migration health | Settings + **Command Center widget**: migration %, `/api/intel/health`, vault bootstrap status |
@@ -649,4 +655,6 @@ General parser — **not** solicitation-only. Parse API → vault wiki ingest (n
 - [x] E2E smoke test path
 - [x] Phase 12a — sidebar + Command Center dashboard + Pulse `/pulse` + Studio nav label
 - [x] Phase 12b — settings/health read-only page
+- [x] Tools lane — `/tools/mcp` (guides) + `/tools/skills` (card grid); Settings slimmed
 - [ ] Phase 12c–12j — command center widgets + Pulse regions (GovDash inspiration captured in plan)
+- [ ] Phase 12k–12l — MCP test/key editor; Agent Skills run UX

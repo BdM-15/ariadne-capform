@@ -24,6 +24,7 @@ from thread.services.portfolio import build_portfolio_pulse, signal_opportunity_
 from thread.services.review_gate import ReviewGateError, approve_review
 from thread.ui.formatters import format_date, format_money, urgency_label
 from thread.ui.settings_health import build_settings_health_context
+from thread.ui.tools_context import build_mcp_tools_context, build_skills_tools_context
 from thread.ui.workspace import (
     list_research_runs,
     load_actions,
@@ -182,6 +183,38 @@ async def settings_page(
             "app_name": settings.public_app_name,
             "active_nav": "settings",
             "health": health,
+        },
+    )
+
+
+@router.get("/tools/mcp", response_class=HTMLResponse)
+async def tools_mcp_page(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "tools_mcp.html",
+        {
+            "app_name": settings.public_app_name,
+            "active_nav": "tools_mcp",
+            "mcp": build_mcp_tools_context(settings),
+        },
+    )
+
+
+@router.get("/tools/skills", response_class=HTMLResponse)
+async def tools_skills_page(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "tools_skills.html",
+        {
+            "app_name": settings.public_app_name,
+            "active_nav": "tools_skills",
+            "skills": build_skills_tools_context(settings),
         },
     )
 

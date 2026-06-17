@@ -58,6 +58,27 @@
     </div>
 
     <div class="mb-5">
+      <div class="nav-group-label nav-group-magenta">
+        <span class="nav-group-dot tile-magenta"></span>
+        <span>Tools</span>
+      </div>
+      <div class="space-y-1">
+        <a href="/tools/mcp" class="nav-item w-full no-underline {% if active_nav == 'tools_mcp' %}nav-item-active{% endif %}">
+          {% with icon="plug", tile_class="tile-cyan" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
+          <span>MCP Servers</span>
+        </a>
+        <a href="/tools/skills" class="nav-item w-full no-underline {% if active_nav == 'tools_skills' %}nav-item-active{% endif %}">
+          {% with icon="wand-2", tile_class="tile-magenta" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
+          <span>Agent Skills</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="mb-5">
       <div class="nav-group-label nav-group-lime">
         <span class="nav-group-dot tile-lime"></span>
         <span>Win</span>
