@@ -8,6 +8,7 @@
   {% set signals = pulse.intel_signals %}
   {% set opps = pulse.opportunities %}
   {% set band_widget = pulse.phase_band_widget %}
+  {% set lens_summary = pulse.radar_lens_summary %}
 
   <div class="cc-stat-grid">
     <div class="cc-stat-tile">
@@ -44,6 +45,7 @@
           </div>
           {% if intel_live %}
           <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">{{ signals|length }}</span>
+          <span class="text-[10px] font-mono text-slate-600 truncate max-w-[10rem]" title="{{ lens_summary }}">{{ lens_summary }}</span>
           {% endif %}
         </div>
         <div class="pulse-panel-body space-y-0">

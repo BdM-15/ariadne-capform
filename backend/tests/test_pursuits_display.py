@@ -83,3 +83,5 @@ async def test_portfolio_pulse_includes_phase_band_widget(db_session, settings):
     assert "phase_band_widget" in pulse
     assert hasattr(pulse["phase_band_widget"], "total")
     assert hasattr(pulse["phase_band_widget"], "bands")
+    assert "hot_signals_widget" in pulse
+    assert len(pulse["radar_naics_codes"]) >= 2

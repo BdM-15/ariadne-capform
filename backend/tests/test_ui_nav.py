@@ -148,6 +148,18 @@ def test_dashboard_pending_reviews_widget():
     assert 'href="/review"' in html
 
 
+def test_dashboard_hot_signals_widget():
+    """Phase 12f — hot recompete widget on Command Center."""
+    client = TestClient(create_app())
+    res = client.get("/")
+    html = res.text
+    assert res.status_code == 200
+    assert "cc-widget-hot-signals" in html
+    assert "Hot recompete" in html
+    assert "/pulse#recompete-radar" in html
+    assert "cc-widget-grid-3" in html
+
+
 def test_dashboard_quick_actions_strip():
     """Phase 12h — compact action chips, not full-width buttons."""
     client = TestClient(create_app())

@@ -17,9 +17,11 @@
 <div class="cc-page-layout page-content">
   <div>
     <div class="cc-section-label">Attention</div>
-    <div class="cc-widget-grid">
+    <div class="cc-widget-grid cc-widget-grid-3">
       <div class="cc-widget-compact-wrap">{% include "partials/dashboard_pending_reviews_widget.html" %}</div>
       {% include "partials/dashboard_phase_band_widget.html" %}
+      {% set hot_signals = pulse.hot_signals_widget %}
+      {% include "partials/dashboard_hot_signals_widget.html" %}
     </div>
   </div>
 

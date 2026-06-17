@@ -572,7 +572,7 @@ Shell first, then region widgets. One slice per PR. Concrete targets below — d
 | **12c** | Global review queue | ✅ `/review` human titles (`review_display`); approve works; **widget on Command Center**: pending count → `/review` |
 | **12d** | Pulse — active pursuits | ✅ Lifecycle-filtered opps; urgency/gate pills; **Command Center widget**: `phase_band` breakdown; compact multi-column layout |
 | **12e** | Intel / migration health | Settings + **Command Center widget**: migration %, `/api/intel/health`, vault bootstrap status |
-| **12f** | Recompete radar v2 | **Saved lenses** (agency + NAICS + incumbent combos); drop NAICS-only default in `portfolio.py`; **Command Center widget**: hot signals ≤6 mo |
+| **12f** | Recompete radar v2 | ✅ **Saved lenses** seed (multi-NAICS); drop NAICS-only default in `portfolio.py`; **Command Center widget**: hot ≤6 mo |
 | **12g** | Intel inbox | Recent candidates → review — **Pulse region** (morning briefing), not dashboard home |
 | **12h** | Quick actions | ✅ **Command Center strip**: track signal, run research, insights, vault, review; hot-signal chip when ≤6 mo |
 | **12i** | SAM monitor | **Pulse region**: new-opportunity strip (stub → live SAM adapter) |
@@ -584,7 +584,7 @@ Not the morning briefing — that stays on **Portfolio Pulse** (`/pulse`). Not a
 
 1. **Pending reviews** — count + link to `/review` (12c) ✅
 2. **Active pursuits by phase band** — mini breakdown + drill to Pulse/opp (12d) ✅
-3. **Recompete signals (hot ≤6 mo)** — count + link to Pulse radar; chain to incumbent/SAM when wired (12f)
+3. **Recompete signals (hot ≤6 mo)** — count + link to Pulse radar; chain to incumbent/SAM when wired (12f) ✅
 4. **Intel / migration health** — **blocking status only** (migration %, intel ready) — not award analytics (12e)
 5. **Quick actions** — track signal, run research, open insights lens, vault shortcut (12h) ✅ — highest priority for C&C usefulness
 
@@ -713,5 +713,6 @@ General parser — **not** solicitation-only. Parse API → vault wiki ingest (n
 - [x] Phase 12c — global review queue + Command Center pending-reviews widget
 - [x] Phase 12d — active pursuits + phase-band widget + compact dashboard/Pulse layout
 - [x] Phase 12h — Command Center quick-actions strip
-- [ ] Phase 12e–12g, 12i–12j — remaining widgets + Pulse regions
+- [x] Phase 12f — saved lenses seed + hot recompete widget + multi-NAICS radar
+- [ ] Phase 12e, 12g, 12i–12j — remaining widgets + Pulse regions
 - [ ] Phase 12k–12l — MCP test/key editor; Agent Skills run UX

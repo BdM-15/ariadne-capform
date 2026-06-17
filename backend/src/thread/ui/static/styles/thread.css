@@ -354,6 +354,10 @@
   .cc-widget-grid {
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   }
+
+  .cc-widget-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .cc-stat-grid {
