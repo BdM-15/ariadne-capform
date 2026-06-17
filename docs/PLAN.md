@@ -1,8 +1,8 @@
-# Ariadne's Thread — Foundation Plan (v3)
+# Ariadne's Thread — Foundation Plan (v4)
 
-> **Ariadne's Thread** — Shipley capture command center in `ariadne-capform`.  
+> **Ariadne's Thread** — Global opportunity command center in `ariadne-capform`.  
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
-> Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus dark UI.
+> Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
 **Last updated:** 2026-06-17
 
@@ -17,21 +17,22 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Monorepo scaffold | ✅ Done | `backend/`, `frontend/`, `skills/`, `docs/reference/` |
 | `python app.py` launcher | 🟡 Partial | Postgres, vault bootstrap, frontend spawn; no Alembic, no intel migration |
 | `.env` / `config.py` | ✅ Done | Full categorized config including research, MCP, orchestration |
-| Docker Compose | ✅ Done | Postgres `:55432` + `research` profile (SearXNG, Crawl4AI) |
+| Docker Compose | ✅ Done | Postgres 18 image on `:55432` + `research` profile (SearXNG, Crawl4AI) |
 | Reference corpus | ✅ Done | Briefing packet, call plan, risk register, Shipley, USAspending |
 | Workflow DB models | 🟡 Partial | Opportunities, packet, actions, review; missing intel/research/capability tables |
 | Alembic migrations | ❌ Not started | Still using `create_all()` |
-| Intel migration (DuckDB→PG) | 🟡 Ready to run | `scripts/run-intel-migration.ps1` in separate window (~64M rows, resumable) |
+| Intel migration (DuckDB→PG) | 🟡 In progress | Resumable via `scripts/run-intel-migration.ps1` (~64M rows, separate window) |
 | `pg_queries` intel layer | ✅ Done | Core queries + portfolio intel signals |
 | LLM router (Grok + Ollama) | ❌ Not started | Config only |
 | Web research module | ❌ Not started | Config + docker profile only |
 | Skill runtime (3 skills) | ❌ Not started | SKILL.md stubs exist |
 | MCP manifests | 🟡 Partial | USAspending only; 7 more planned |
-| Frontend command center | 🟡 Partial | Pulse + basic opportunity page; no Research tab, no review UI |
+| Frontend command center | 🟡 Transitional | Next.js Pulse + packet (validates API); target HTMX shell from FastAPI |
+| Theseus visual language | ✅ Done | `frontend/styles/theseus.css` synced from proj-theseus |
 | Orchestration (LangGraph) | 🟡 Placeholder | Env + tracing bootstrap; runtime deferred |
 | Git | ✅ Done | Repo pushed; commit early/often |
 
-**Resume here:** Run full intel migration, then step **3** E2E smoke.
+**Resume here:** Finish intel migration (background), then **capability modules** (LLM router → skills → research), then **HTMX shell port** (step 10).
 
 ---
 
@@ -41,17 +42,17 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 - **Python package:** `thread` in [`backend/src/thread/`](../backend/src/thread/)
 - **Workspace:** `ariadne-capform`
 - **Ports:** API `9622` · LangGraph Studio `9623` · UI `3000` · Postgres `55432`
-- **Philosophy:** Shipley-aligned capture command center; human-in-the-loop everywhere; knowledge compounds; focused modules
+- **Philosophy:** Global opportunity command center; Shipley-aligned capture; human-in-the-loop everywhere; knowledge compounds; focused modules
 
 **Inspiration repos (patterns only — no code dependency):**
 
-| Repo | Adopt |
-|------|-------|
-| [ariadne-thread](https://github.com/BdM-15/ariadne-thread) | Living Briefing Packet, review gates, vault, research provider registry |
-| [capture-insights](https://github.com/BdM-15/capture-insights) | USAspending intel, Karpathy vault, skill runtime |
-| [proj-theseus](https://github.com/BdM-15/proj-theseus) | UI theme, MCP manifest pattern |
-| [1102 MCP tools](https://github.com/1102tools/federal-contracting-mcps) | Deterministic federal data |
-| DataRepublican | Follow-the-money via `datarepublican_intel` skill |
+| Repo | Adopt | Do **not** copy |
+|------|-------|-----------------|
+| [ariadne-thread](https://github.com/BdM-15/ariadne-thread) | Living Briefing Packet, review gates, vault, research provider registry | Next.js as long-term shell |
+| [capture-insights](https://github.com/BdM-15/capture-insights) | USAspending intel, Karpathy vault, skill runtime | Vite/React UI stack |
+| [proj-theseus](https://github.com/BdM-15/proj-theseus) | **Skin only:** `theseus.css`, shell UX patterns; MCP manifest pattern | Graph/RAG/LightRAG plumbing |
+| [1102 MCP tools](https://github.com/1102tools/federal-contracting-mcps) | Deterministic federal data | — |
+| DataRepublican | Follow-the-money via `datarepublican_intel` skill | — |
 
 ---
 
@@ -64,9 +65,86 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 5. **Living Milestone Decision Briefing Packet** — gate-scoped fields, Action Matrix, risks, evidence.
 6. **Two-store knowledge** — Obsidian vault (synthesis) vs PostgreSQL (execution truth).
 7. **PostgreSQL only** — single DB for workflow AND intel (DuckDB = one-time migration source only).
-8. **Theseus visual language** — ink/neon dark theme from proj-theseus.
-9. **One command to run** — `python app.py` from root `.venv`.
+8. **Theseus visual language** — ink/neon dark theme from proj-theseus (presentation layer only).
+9. **One command to run** — `python app.py` from root `.venv` (single Python process at steady state).
 10. **Web research enrichment** — bounded, approval-gated; free/local providers first.
+11. **Server-owned truth** — UI renders and commands; domain rules live in Python `services/`, never in the client.
+
+---
+
+## Architectural layers (first principles)
+
+Ariadne is a **capability-first Python platform** with a **Theseus-skinned command center**. Skin, shell, API, domain, and capability are separate — never conflate theme with plumbing.
+
+| Layer | Responsibility | Location (target) |
+|-------|----------------|-------------------|
+| **Skin** | Colors, typography, cards, collapsibles, topbar | `theseus.css` (synced from proj-theseus) |
+| **Shell** | Pages, nav, HTMX partials, optional JS islands | `backend/src/thread/ui/` (target) |
+| **API** | Stable HTTP contract for UI, scripts, automation | `backend/src/thread/api/` |
+| **Domain** | Opportunities, packet, review enums, schemas | `backend/src/thread/domain/` + `services/` |
+| **Capability** | Intel, LLM, skills, MCP, research, vault, migration | `backend/src/thread/{intel,llm,skills,mcp,research,bootstrap}/` |
+
+**Shell decision (v4):** FastAPI serves **HTMX + Jinja templates** (Theseus delivery model). Transitional Next.js in `frontend/` validates flows against `/api/*` until HTMX port completes. **Next.js is not forbidden** — use for client-heavy surfaces (streaming chat, charts, drag-drop) as **embedded islands** when first principles require it, not as the default shell.
+
+```mermaid
+flowchart TB
+  subgraph skin [Skin - presentation only]
+    CSS[theseus.css]
+    Tokens[ink / neon / edge tokens]
+  end
+
+  subgraph shell [Shell - HTMX primary]
+    Templates[Jinja templates + partials]
+    HTMX[HTMX fragments]
+    Islands[Optional Next or vanilla JS islands]
+  end
+
+  subgraph api [API - stable contract]
+    REST["/api/* routes"]
+  end
+
+  subgraph domain [Domain - business rules]
+    Services[services/]
+    Schemas[domain/ enums + schemas]
+  end
+
+  subgraph capability [Capability - the hard stuff]
+    Intel[intel / migration / pg_queries]
+    LLM[llm router]
+    Skills[skill runtime]
+    MCP[mcp adapter]
+    Research[research adapters]
+    Vault[vault bootstrap]
+    Orch[orchestration tracing]
+  end
+
+  subgraph stores [Stores]
+    PG[(PostgreSQL 55432)]
+    VaultDir[knowledge/thread vault]
+  end
+
+  skin --> shell
+  shell --> REST
+  Islands -.->|when needed| REST
+  REST --> Services
+  Services --> Schemas
+  Services --> Intel
+  Services --> LLM
+  Services --> Skills
+  Services --> MCP
+  Services --> Research
+  Services --> Vault
+  Intel --> PG
+  Services --> PG
+  Research --> PG
+  Vault --> VaultDir
+```
+
+**Rules:**
+- Routes stay thin → `services/` fat → models dumb.
+- Long jobs resumable and out-of-band (intel migration pattern).
+- Every LLM/skill/MCP/research output lands as `candidate` + provenance; promotion only via review gate.
+- Enhance bottom-up (capability → domain → API → shell → skin). Swapping shell or skin must not require rewriting intel/LLM/skills.
 
 ---
 
@@ -153,37 +231,60 @@ Route-first capture orchestration ships **before** LangGraph runtime adoption (p
 ```mermaid
 flowchart TB
   subgraph launch [python app.py]
-    Boot[Bootstrap]
-    Migrate[IntelMigration]
-    Warm[Warmup]
+    Boot[Bootstrap + vault seed]
+    PGUp[PostgreSQL docker]
+    Warm[Warmup probes]
   end
 
-  subgraph ui [Next.js_CommandCenter]
-    Pulse[PortfolioPulse]
-    Workspace[OpportunityWorkspace]
-    Packet[LivingBriefingPacket]
-    ResearchUI[WebResearch]
-    ReviewUI[ReviewGates]
+  subgraph fastapi [FastAPI :9622]
+    UIRoutes[UI routes - HTMX target]
+    APIRoutes["/api/* REST"]
+    subgraph capability_mod [Capability modules]
+      IntelMod[Intel]
+      LLMMod[LLM Router]
+      SkillMod[Skills]
+      ResearchMod[Research]
+      MCPMod[MCP]
+    end
+    subgraph domain_mod [Domain services]
+      OppSvc[Opportunities]
+      ReviewSvc[Review Gate]
+      PacketSvc[Packet]
+    end
   end
 
-  subgraph api [FastAPI_9622]
-    Routes[REST]
-    LLMRouter[LLM_Router]
-    Research[CaptureResearch]
-    Intel[PG_IntelQueries]
-    MCP[MCP_Adapter]
+  subgraph command_center [Command Center surfaces]
+    Pulse[Portfolio Pulse]
+    Workspace[Opportunity Workspace]
+    PacketUI[Living Briefing Packet]
+    ReviewUI[Review Queue]
+    ResearchUI[Research + Skills]
+    IslandUI[Optional client islands]
   end
 
-  subgraph pg [(PostgreSQL_55432)]
+  subgraph pg [(PostgreSQL :55432)]
     Workflow[workflow_tables]
     IntelTables[intel_tables]
     ResearchTables[research_tables]
   end
 
-  launch --> api
-  ui --> api
-  api --> pg
+  Vault[(knowledge/thread)]
+
+  launch --> fastapi
+  launch --> PGUp
+  PGUp --> pg
+  UIRoutes --> command_center
+  IslandUI -.-> APIRoutes
+  command_center --> UIRoutes
+  command_center --> APIRoutes
+  APIRoutes --> domain_mod
+  domain_mod --> capability_mod
+  capability_mod --> pg
+  capability_mod --> Vault
+  Boot --> Vault
 ```
+
+**Transitional:** `frontend/` (Next.js) currently calls `APIRoutes` directly on `:9622`; retire after HTMX shell reaches parity.
 
 ### Shipley phase model
 
@@ -208,9 +309,9 @@ python app.py
 4. Intel migration if PG intel tables empty (`INTEL_MIGRATION_SOURCE` → capture-insights DuckDB)
 5. Vault bootstrap if empty
 6. Optional: `docker compose --profile research up`
-7. Spawn Next.js dev server
+7. Serve command center UI from FastAPI (HTMX + `theseus.css`) — **target**; transitional: optional Next.js on `:3000`
 8. Warmup: vault, Grok probe, Ollama, MCP catalog, research providers, intel row count
-9. Print URLs
+9. Print URLs (API `:9622`, UI same origin when HTMX lands)
 
 **CLI flags (target):** `--api-only`, `--no-warmup`, `--migrate-intel`, `--skip-docker`, `--no-research-providers`
 
@@ -271,7 +372,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 2. **Knowledge Layer** — Obsidian vault, health/lint, mirror proposals
 3. **Developer Skills** — skill-creator, datarepublican_intel, mcp_federal_tools
 4. **Data & Intel** — PG intel (10yr awards), 1102 MCPs, web research, MinerU stub, capture profile DOCX stub
-5. **Config & Stack** — FastAPI, Next.js 15, PostgreSQL 16, Docker profiles
+5. **Config & Stack** — FastAPI, HTMX shell (Theseus skin), PostgreSQL 18, Docker profiles; Next islands when justified
 
 ---
 
@@ -280,14 +381,14 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | Method | Path | Status |
 |--------|------|--------|
 | GET | `/api/health` | ✅ |
-| GET | `/api/portfolio/pulse` | ✅ (no intel signals yet) |
+| GET | `/api/portfolio/pulse` | ✅ (intel signals + stats) |
 | GET/POST | `/api/opportunities` | ✅ |
 | GET/PATCH | `/api/opportunities/{id}/packet` | ✅ |
 | GET/POST | `/api/opportunities/{id}/actions` | ✅ |
 | GET | `/api/review/pending` | ✅ |
 | POST | `/api/review/{id}/approve` | ✅ |
 | GET | `/api/packet/definitions` | ✅ |
-| GET | `/api/intel/*` | ❌ |
+| GET | `/api/intel/health`, `/expiring`, `/snapshot`, `/migration-status` | ✅ |
 | POST | `/api/research/*` | ❌ |
 | GET/POST | `/api/skills/*` | ❌ |
 | POST | `/api/intel/mcp/{server}/invoke` | ❌ |
@@ -295,11 +396,17 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 ---
 
-## Frontend (Theseus + shadcn)
+## Frontend / command center shell
 
-**Target screens:** Pulse + Intel signals, opportunity workspace (Packet | Actions | Review | Research | Intel Context), skills panel, vault browser.
+**Skin:** `theseus.css` + Theseus shell patterns (topbar, `card-accent`, pills, `btn-hero-cyan`). Sync from proj-theseus; no local token forks.
 
-**Current:** Basic Pulse + opportunity detail page with Theseus tokens.
+**Shell (target):** FastAPI serves Jinja templates + HTMX partials from `backend/src/thread/ui/`. Server-owned forms, tables, review gates. Same handlers back `/api/*` and HTMX fragments.
+
+**Transitional:** `frontend/` Next.js 15 — Pulse, opportunity workspace, Theseus theme applied. Keeps API contract honest until HTMX port done. **Not the long-term shell.**
+
+**Next.js / client islands (allowed when justified):** Streaming LLM output, interactive charts, drag-drop matrices, other client-heavy UX. Embed via iframe, separate route, or small bundled script — not whole-platform SPA by default.
+
+**Target screens:** Portfolio Pulse + intel signals · opportunity workspace (Packet | Actions | Review | Research | Intel Context) · skills panel · vault browser.
 
 ---
 
@@ -360,18 +467,19 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | 7 | Research module + adapters + API | ❌ |
 | 8 | Domain services + review gates + tests | 🟡 |
 | 9 | Full API (skills, MCP, intel, capture-profile) | ❌ |
-| 10 | Next.js command center + Research tab | 🟡 |
+| 10 | HTMX command center shell + Research tab (retire transitional Next) | 🟡 |
 | 11 | E2E smoke + README verification | ❌ |
 
 ---
 
 ## Immediate next actions
 
-1. **Intel migration** — `migrate_intel_from_duckdb.py` + `intel/pg_queries.py` + intel tables; wire `INTEL_AUTO_MIGRATE_ON_START` in `app.py`
-2. **Portfolio intel signals** — `/api/portfolio/pulse` returns recompete/expiring awards from PG
-3. **E2E smoke** — `python app.py` → create opportunity from intel signal → edit packet field → approve review
-4. **Alembic** — proper migrations for workflow + intel schema
-5. **LLM router** — Grok packet field synthesis behind review gate
+1. **Intel migration** — finish in separate window; verify `Complete: True` + indexes
+2. **Capability: LLM router** — `backend/src/thread/llm/router.py`; Grok behind review gate
+3. **Capability: skills + research** — runtime + adapters; all outputs `candidate`
+4. **E2E smoke** — track signal → packet edit → review approve (API-first)
+5. **Alembic** — replace `create_all()` for workflow + intel schema
+6. **HTMX shell port** — Pulse + workspace partials; drop Node from `app.py` when parity reached
 
 ---
 
@@ -382,10 +490,12 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 - [x] Reference docs + packet field seeds
 - [x] Orchestration env placeholders
 - [ ] Alembic + full PG schema (workflow + intel + research)
-- [ ] Intel migration from capture-insights DuckDB
-- [ ] `pg_queries` intel layer
+- [ ] Intel migration from capture-insights DuckDB (in progress)
+- [x] `pg_queries` intel layer
 - [ ] LLM router (Grok primary)
 - [ ] Research module + `/api/research/*`
 - [ ] Skill runtime + 8 MCP manifests
-- [ ] Frontend command center + Research tab
+- [x] Theseus visual language (CSS + transitional Next shell)
+- [ ] HTMX command center shell + Research tab
+- [ ] Retire transitional Next.js from launcher
 - [ ] E2E smoke test path
