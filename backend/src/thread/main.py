@@ -33,11 +33,17 @@ async def lifespan(app: FastAPI):
             f"[orchestration] LangSmith tracing ready "
             f"(project={settings.resolved_langchain_project}, runtime deferred)"
         )
-    try:
-        await init_db()
-        print("[thread] Database tables ready")
-    except Exception as exc:
-        print(f"[thread] Database init note: {exc}")
+    from thread.db.ready import wait_for_postgres
+    from thread.db.session import engine
+
+    if not await wait_for_postgres(engine, settings, timeout_sec=30):
+        print("[thread] Database init skipped — PostgreSQL unavailable")
+    else:
+        try:
+            await init_db()
+            print("[thread] Database tables ready")
+        except Exception as exc:
+            print(f"[thread] Database init note: {exc}")
     if settings.enable_startup_warmup:
         if settings.xai_api_key:
             print(f"[warmup] Grok reasoning provider configured ({settings.reasoning_llm_model})")

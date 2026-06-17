@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:18
+    # PG16 matches existing thread_pg_data volume (intel migration checkpoint).
+    # PG18 image requires pg_upgrade or fresh volume — see README PostgreSQL notes.
+    image: postgres:16
     restart: unless-stopped
     ports:
       - "127.0.0.1:${THREAD_POSTGRES_PORT:-55432}:5432"

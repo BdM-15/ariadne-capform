@@ -34,6 +34,8 @@ Re-run `run-intel-migration.ps1` to resume after interrupt. Build indexes only: 
 - Legacy Next.js (optional): set `AUTOSTART_FRONTEND=true` → http://127.0.0.1:3000
 - PostgreSQL: `127.0.0.1:55432` (Thread-dedicated — not 5432)
 
+**PostgreSQL version:** Docker Compose pins **Postgres 16** to match the existing `thread_pg_data` volume (intel migration checkpoint). Point `DATABASE_URL` at an external Postgres 18 instance anytime. Upgrading the Docker volume to 18 requires `pg_upgrade` or a fresh volume — do not bump the image tag alone.
+
 ## Reference corpus
 
 Domain dictionaries live in [`docs/reference/`](docs/reference/README.md):

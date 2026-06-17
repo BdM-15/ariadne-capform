@@ -72,11 +72,14 @@ def _docker_up(*, research: bool) -> None:
     env = os.environ.copy()
     compose = ROOT / "docker-compose.yml"
     if research:
-        cmd = ["docker", "compose", "-f", str(compose), "--profile", "research", "up", "-d"]
+        cmd = ["docker", "compose", "-f", str(compose), "--profile", "research", "up", "-d", "--wait"]
     else:
-        cmd = ["docker", "compose", "-f", str(compose), "up", "-d", "postgres"]
+        cmd = ["docker", "compose", "-f", str(compose), "up", "-d", "--wait", "postgres"]
     try:
-        subprocess.run(cmd, cwd=str(ROOT), env=env, check=False)
+        result = subprocess.run(cmd, cwd=str(ROOT), env=env, check=False)
+        if result.returncode != 0 and "--wait" in cmd:
+            cmd_fallback = [c for c in cmd if c != "--wait"]
+            subprocess.run(cmd_fallback, cwd=str(ROOT), env=env, check=False)
         pg_port = env.get("THREAD_POSTGRES_PORT", "55432")
         print(f"[thread] PostgreSQL target 127.0.0.1:{pg_port} (Thread-dedicated port)")
     except FileNotFoundError:
@@ -149,6 +152,15 @@ def main() -> int:
     if not args.skip_docker:
         _docker_up(research=settings.autostart_research_providers and not args.no_research_providers)
 
+    import asyncio
+
+    from thread.db.ready import wait_for_postgres
+    from thread.db.session import engine
+
+    if not asyncio.run(wait_for_postgres(engine, settings)):
+        print("[thread] ERROR: Cannot start without PostgreSQL. Check docker compose / DATABASE_URL.")
+        return 1
+
     if settings.knowledge_bootstrap_on_start:
         result = bootstrap_vault(settings)
         if result.get("bootstrapped"):
@@ -174,6 +186,11 @@ def main() -> int:
 
     frontend_proc = None
     if settings.autostart_frontend and not args.api_only:
+        print(
+            "[thread] AUTOSTART_FRONTEND=true — spawning legacy Next.js. "
+            f"HTMX command center: http://127.0.0.1:{settings.port} — "
+            "set AUTOSTART_FRONTEND=false in .env to skip Node."
+        )
         frontend_proc = _spawn_frontend(settings.frontend_port)
 
     from thread.main import create_app

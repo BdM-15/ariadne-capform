@@ -17,7 +17,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Monorepo scaffold | ✅ Done | `backend/`, `frontend/`, `skills/`, `docs/reference/` |
 | `python app.py` launcher | 🟡 Partial | Postgres, vault bootstrap, frontend spawn; no Alembic, no intel migration |
 | `.env` / `config.py` | ✅ Done | Full categorized config including research, MCP, orchestration |
-| Docker Compose | ✅ Done | Postgres 18 image on `:55432` + `research` profile (SearXNG, Crawl4AI) |
+| Docker Compose | ✅ Done | Postgres **16** image on `:55432` (matches volume; PG18 needs pg_upgrade) + `research` profile |
 | Reference corpus | ✅ Done | Briefing packet, call plan, risk register, Shipley, USAspending |
 | Workflow DB models | 🟡 Partial | Opportunities, packet, actions, review; missing intel/research/capability tables |
 | Alembic migrations | ❌ Not started | Still using `create_all()` |
