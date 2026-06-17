@@ -57,7 +57,7 @@
       <div class="app-main flex flex-col flex-1 min-w-0 min-h-0">
         {% block page_header %}{% endblock %}
         <main class="app-canvas panel-canvas flex-1 overflow-y-auto min-h-0">
-          <div class="app-canvas-inner max-w-6xl mx-auto px-6 py-8 w-full">
+          <div class="app-canvas-inner page-content px-8 py-8 w-full min-w-0">
             {% block content %}{% endblock %}
           </div>
         </main>
@@ -68,8 +68,34 @@
       function initLucide() {
         if (window.lucide) window.lucide.createIcons();
       }
-      document.addEventListener("DOMContentLoaded", initLucide);
-      document.body.addEventListener("htmx:afterSwap", initLucide);
+      function openGuideDialog(id) {
+        const el = document.getElementById(id);
+        if (el && typeof el.showModal === "function") {
+          el.showModal();
+          initLucide();
+        }
+      }
+      function closeGuideDialog(id) {
+        const el = document.getElementById(id);
+        if (el && typeof el.close === "function") el.close();
+      }
+      function initGuideDialogs() {
+        document.querySelectorAll("dialog.guide-modal").forEach((dialog) => {
+          if (dialog.dataset.guideBound) return;
+          dialog.dataset.guideBound = "1";
+          dialog.addEventListener("click", (e) => {
+            if (e.target === dialog) dialog.close();
+          });
+        });
+      }
+      document.addEventListener("DOMContentLoaded", () => {
+        initLucide();
+        initGuideDialogs();
+      });
+      document.body.addEventListener("htmx:afterSwap", () => {
+        initLucide();
+        initGuideDialogs();
+      });
     </script>
   </body>
 </html>

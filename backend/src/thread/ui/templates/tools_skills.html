@@ -12,7 +12,7 @@
 </header>
 {% endblock %}
 {% block content %}
-<div class="space-y-5 max-w-4xl">
+<div class="page-content space-y-5">
   <div class="settings-tip-box">
     Skills are markdown packages under
     <code class="text-neon-cyan font-mono">skills/</code>
@@ -27,7 +27,7 @@
   <p class="text-sm text-slate-500 italic font-mono">No skills discovered in {{ skills.skills_root }}.</p>
   {% endif %}
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
     {% for skill in skills.skills %}
     <div class="card card-accent card-hover accent-magenta p-5">
       <div class="flex items-start justify-between gap-3">

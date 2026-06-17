@@ -84,6 +84,7 @@ def test_theseus_sidebar_shell_not_topbar_app_nav():
     assert html.index("sidebar-vibrant") < html.index("glass-section-bar")
     assert 'href="/insights"' in html
     assert html.count('class="topbar-pill"') >= 1
+    assert "page-content" in html
 
 
 def test_settings_page_read_only_health():
@@ -105,9 +106,11 @@ def test_tools_mcp_page_has_guides():
     res = client.get("/tools/mcp")
     html = res.text
     assert res.status_code == 200
-    assert "tuning-guide-h" in html
+    assert "guide-modal" in html
     assert "settings-tip-box" in html
     assert "usaspending" in html
+    assert "openGuideDialog" in html
+    assert "Got it" in html
 
 
 def test_tools_skills_page_lists_skills():

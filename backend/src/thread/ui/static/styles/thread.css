@@ -21,6 +21,34 @@
   z-index: 1;
 }
 
+/* Left-aligned full-width page content (Theseus settings pattern — not centered column) */
+.page-content {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  text-align: left;
+}
+
+/* Native <dialog> guide modals (RFP Intel briefing pattern) */
+.guide-modal {
+  border: none;
+  padding: 0;
+  margin: auto;
+  background: transparent;
+  max-width: 42rem;
+  width: calc(100% - 2rem);
+}
+
+.guide-modal::backdrop {
+  background: rgba(5, 7, 13, 0.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.guide-modal .modal-canvas {
+  margin: 0;
+}
+
 /* Per-page top bar — workspace tabs, drill-down, refresh. Not global app nav. */
 .page-nav-bar {
   flex-shrink: 0;

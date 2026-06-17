@@ -1,0 +1,52 @@
+{# One <dialog> per MCP server — opened via showModal() from card Guide button #}
+<dialog id="guide-{{ server.id }}" class="guide-modal" aria-labelledby="guide-title-{{ server.id }}">
+  <div class="modal-canvas rounded-2xl overflow-hidden flex flex-col max-h-[85vh] border border-neon-cyan/30 w-full">
+    <div class="px-5 py-4 glass-section-bar flex items-center justify-between shrink-0">
+      <div class="min-w-0">
+        <h3 id="guide-title-{{ server.id }}" class="font-semibold flex items-center gap-2 text-neon-cyan">
+          <i data-lucide="book-open" class="w-4 h-4 shrink-0"></i>
+          <span class="truncate">{{ server.id }} Guide</span>
+        </h3>
+        <p class="text-xs text-slate-500 mt-0.5">
+          When to run · what you get · how optional context changes the run
+        </p>
+      </div>
+      <button type="button" class="btn btn-ghost text-slate-500 shrink-0" onclick="closeGuideDialog('guide-{{ server.id }}')" title="Close (Esc)">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div class="tuning-guide-body overflow-y-auto p-5 space-y-5 text-sm">
+      <div class="settings-tip-box">
+        <strong class="text-slate-300">Purpose:</strong>
+        <span class="text-slate-400">{{ server.guide.purpose }}</span>
+      </div>
+      <section>
+        <h4 class="tuning-guide-h">When to run</h4>
+        <p class="text-slate-400 leading-relaxed">{{ server.guide.when }}</p>
+      </section>
+      <section>
+        <h4 class="tuning-guide-h">What you get</h4>
+        <p class="text-slate-400 leading-relaxed">{{ server.guide.output }}</p>
+      </section>
+      <section>
+        <h4 class="tuning-guide-h">Optional context — impact</h4>
+        <p class="text-slate-400 leading-relaxed">{{ server.guide.context_impact }}</p>
+      </section>
+      {% if server.guide.tips %}
+      <section>
+        <h4 class="tuning-guide-h">Tips</h4>
+        <ul class="tuning-guide-list text-slate-400">
+          {% for tip in server.guide.tips %}
+          <li>{{ tip }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+    </div>
+    <div class="px-5 py-3 border-t border-edge flex justify-end shrink-0 bg-ink-900/40">
+      <button type="button" class="btn btn-primary text-xs" onclick="closeGuideDialog('guide-{{ server.id }}')">
+        Got it
+      </button>
+    </div>
+  </div>
+</dialog>
