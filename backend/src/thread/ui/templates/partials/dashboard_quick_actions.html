@@ -1,0 +1,21 @@
+{# 12h — compact action strip; not full-width hero buttons #}
+<section id="cc-quick-actions" class="cc-quick-actions" aria-label="Quick actions">
+  {% for action in quick_actions %}
+  {% if action.enabled %}
+  <a
+    href="{{ action.href }}"
+    class="cc-action-chip no-underline"
+    title="{{ action.hint }}"
+    style="color: inherit"
+  >
+    <i data-lucide="{{ action.icon }}" class="w-3.5 h-3.5 shrink-0"></i>
+    <span class="cc-action-label">{{ action.label }}</span>
+  </a>
+  {% else %}
+  <span class="cc-action-chip cc-action-chip-disabled" title="{{ action.hint }}">
+    <i data-lucide="{{ action.icon }}" class="w-3.5 h-3.5 shrink-0 opacity-40"></i>
+    <span class="cc-action-label">{{ action.label }}</span>
+  </span>
+  {% endif %}
+  {% endfor %}
+</section>

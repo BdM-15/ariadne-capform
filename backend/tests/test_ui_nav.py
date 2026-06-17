@@ -148,6 +148,19 @@ def test_dashboard_pending_reviews_widget():
     assert 'href="/review"' in html
 
 
+def test_dashboard_quick_actions_strip():
+    """Phase 12h — compact action chips, not full-width buttons."""
+    client = TestClient(create_app())
+    res = client.get("/")
+    html = res.text
+    assert res.status_code == 200
+    assert "cc-quick-actions" in html
+    assert "Track signal" in html
+    assert "/pulse#recompete-radar" in html
+    assert 'href="/insights"' in html
+    assert 'href="/knowledge"' in html
+
+
 def test_dashboard_compact_layout_and_phase_band_widget():
     """Phase 12d — widget grid + phase-band breakdown, not lazy full-width cards."""
     client = TestClient(create_app())

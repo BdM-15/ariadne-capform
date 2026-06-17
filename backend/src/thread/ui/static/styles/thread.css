@@ -300,6 +300,44 @@
   max-width: 88rem;
 }
 
+/* 12h — action strip (wrap, compact chips — not full-width buttons) */
+.cc-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.cc-action-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--edge);
+  background: rgba(var(--ink-900-rgb), 0.5);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-300);
+  transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  max-width: 100%;
+}
+
+.cc-action-chip:hover {
+  border-color: rgba(var(--neon-cyan-rgb), 0.45);
+  color: var(--neon-cyan);
+  box-shadow: 0 0 10px -4px rgba(var(--neon-cyan-rgb), 0.45);
+}
+
+.cc-action-chip-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cc-action-label {
+  white-space: nowrap;
+}
+
 .cc-widget-grid {
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));

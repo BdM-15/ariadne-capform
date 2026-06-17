@@ -21,6 +21,7 @@ from thread.research.capture_research import run_capture_research
 from thread.research.providers import build_provider_registry
 from thread.services import opportunities as opp_svc
 from thread.services.portfolio import build_portfolio_pulse, signal_opportunity_name
+from thread.services.quick_actions import build_quick_actions
 from thread.services.review_gate import ReviewGateError, approve_review
 from thread.ui.formatters import format_date, format_money, urgency_label
 from thread.services.pursuits_display import lifecycle_label, milestone_gate_label, phase_band_label
@@ -234,6 +235,10 @@ async def dashboard_page(
 ) -> HTMLResponse:
     pulse = await build_portfolio_pulse(db, settings)
     pending_reviews = await build_pending_reviews_widget(db, settings)
+    quick_actions = build_quick_actions(
+        opportunities=pulse["opportunities"],
+        intel_signals=pulse["intel_signals"],
+    )
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -241,6 +246,7 @@ async def dashboard_page(
             "pulse": pulse,
             "phase_band_widget": pulse["phase_band_widget"],
             "pending_reviews": pending_reviews,
+            "quick_actions": quick_actions,
             "app_name": settings.public_app_name,
             "active_nav": "dashboard",
             "flash": None,
