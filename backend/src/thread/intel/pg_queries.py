@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from thread.intel.facet_query import InsightFacetQuery, build_facet_sql
 from thread.intel.sql_expressions import (
     AGENCY_EXPR,
     MONTHS_TO_END_EXPR,
@@ -145,7 +146,26 @@ async def get_expiring_contracts(
     months_ahead: int = 24,
     limit: int = 20,
 ) -> list[dict[str, Any]]:
-    nf_sql, nf_params = naics_filter(naics_codes)
+    """Legacy NAICS-list entry — prefer get_expiring_contracts_for_query with facet query."""
+    if not naics_codes:
+        return []
+    return await get_expiring_contracts_for_query(
+        session,
+        InsightFacetQuery(id="legacy", name="legacy", naics_codes=tuple(naics_codes)),
+        months_ahead=months_ahead,
+        limit=limit,
+    )
+
+
+async def get_expiring_contracts_for_query(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    months_ahead: int = 24,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    if not query.has_filters():
+        return []
+    facet_sql, facet_params = build_facet_sql(query)
     sql = f"""
         SELECT
             contract_award_unique_key AS award_key,
@@ -162,11 +182,11 @@ async def get_expiring_contracts(
         WHERE period_of_performance_current_end_date IS NOT NULL
           AND period_of_performance_current_end_date <= CURRENT_DATE + (:months_ahead || ' months')::interval
           AND period_of_performance_current_end_date >= CURRENT_DATE
-        {nf_sql}
+          {facet_sql}
         ORDER BY period_of_performance_current_end_date ASC
         LIMIT :limit
     """
-    params = {**nf_params, "months_ahead": str(months_ahead), "limit": limit}
+    params = {**facet_params, "months_ahead": str(months_ahead), "limit": limit}
     rows = (await session.execute(text(sql), params)).all()
     return [
         {

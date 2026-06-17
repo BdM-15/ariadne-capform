@@ -89,6 +89,7 @@ class Settings(BaseSettings):
     skills_root: Path = Path("skills")
     skill_runs_path: Path = Path("data/runs")
     thread_state_dir: Path = Path(".thread")
+    # Legacy skill param only — NOT a platform search default. Radar/Insights require explicit facets.
     default_naics: str = "561210"
 
     mineru_enabled: bool = False

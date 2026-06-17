@@ -22,15 +22,20 @@
   </div>
 
   <p class="text-[10px] font-mono text-slate-600 mt-1 truncate" title="{{ hot_signals.lens_summary }}">
-    Lens: {{ hot_signals.lens_summary }}
+    Search: {{ hot_signals.lens_summary }}
   </p>
 
   {% if not hot_signals.intel_live %}
   <p class="cc-widget-sub text-slate-500 text-xs mt-1">Intel loading — radar empty until migration completes.</p>
+  {% elif hot_signals.lens_summary == "No active search" %}
+  <p class="cc-widget-sub text-slate-500 text-xs mt-1">
+    <a href="/insights" class="text-neon-cyan no-underline hover:underline">Define a search</a>
+    — agency, recipient, NAICS, PSC, combo. No default filter.
+  </p>
   {% elif hot_signals.hot_count == 0 %}
   <p class="cc-widget-sub text-slate-500 text-xs mt-1">
-    No ≤6mo signals in current lenses.
-    <a href="/insights" class="text-neon-cyan no-underline hover:underline">Insights</a> for deeper analytics.
+    No ≤6mo signals for active search.
+    <a href="/insights" class="text-neon-cyan no-underline hover:underline">Insights</a> to adjust facets.
   </p>
   {% else %}
   <ul class="cc-widget-preview mt-1">

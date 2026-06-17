@@ -8,7 +8,8 @@
   {% set signals = pulse.intel_signals %}
   {% set opps = pulse.opportunities %}
   {% set band_widget = pulse.phase_band_widget %}
-  {% set lens_summary = pulse.radar_lens_summary %}
+  {% set query_summary = pulse.radar_query_summary %}
+  {% set has_radar_query = pulse.active_insight_query is not none %}
 
   <div class="cc-stat-grid">
     <div class="cc-stat-tile">
@@ -43,16 +44,22 @@
             <i data-lucide="radar" class="w-4 h-4 text-neon-magenta"></i>
             <span>Recompete radar</span>
           </div>
-          {% if intel_live %}
+          {% if intel_live and has_radar_query %}
           <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">{{ signals|length }}</span>
-          <span class="text-[10px] font-mono text-slate-600 truncate max-w-[10rem]" title="{{ lens_summary }}">{{ lens_summary }}</span>
+          <span class="text-[10px] font-mono text-slate-600 truncate max-w-[14rem]" title="{{ query_summary }}">{{ query_summary }}</span>
           {% endif %}
         </div>
         <div class="pulse-panel-body space-y-0">
           {% if not intel_live %}
           <p class="text-xs text-slate-400 py-1">No intel rows yet — resume migration, then Refresh.</p>
+          {% elif not has_radar_query %}
+          <p class="text-xs text-slate-400 py-1">
+            No active search. Define a facet query in
+            <a href="/insights" class="text-neon-cyan no-underline hover:underline">Data Insights</a>
+            — agency, sub-agency, recipient, NAICS, PSC, or any combo. No platform default filter.
+          </p>
           {% elif signals|length == 0 %}
-          <p class="text-xs text-slate-400 py-1">Intel loaded — no expiring contracts for default NAICS (18 mo).</p>
+          <p class="text-xs text-slate-400 py-1">No expiring contracts match your active search (18 mo).</p>
           {% endif %}
 
           {% for signal in signals %}
@@ -129,6 +136,17 @@
         <div><span class="text-neon-cyan">{{ "{:,}".format(stats.prime_award_count) }}</span> prime</div>
         {% if stats.subaward_count > 0 %}
         <div><span class="text-neon-magenta">{{ "{:,}".format(stats.subaward_count) }}</span> sub</div>
+        {% endif %}
+      </div>
+
+      <div class="pulse-rail-card">
+        <div class="cc-section-label mb-2">Active search</div>
+        {% if has_radar_query %}
+        <p class="text-[10px] text-slate-400 leading-relaxed">{{ query_summary }}</p>
+        {% else %}
+        <p class="text-[10px] text-slate-500 leading-relaxed">
+          None — <a href="/insights" class="text-neon-cyan no-underline hover:underline">Data Insights</a> to save facet queries.
+        </p>
         {% endif %}
       </div>
 

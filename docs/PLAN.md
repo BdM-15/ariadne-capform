@@ -82,6 +82,7 @@ Lanes overlap on one **opportunity record** — identification feeds capture; ca
 10. **Web research enrichment** — bounded, approval-gated; free/local providers first.
 11. **Server-owned truth** — UI renders and commands; domain rules live in Python `services/`, never in the client.
 12. **Command & control ≠ metrics dump** — Dashboard is for **visibility + efficient action** under limited time and resources; deep analytics belong on **Data Insights**, not vanity counters on `/`.
+13. **No default search dimension** — NAICS, agency, sub-agency, recipient/incumbent, PSC are **peer facets**. Operator defines explicit queries; platform never silently filters on `default_naics` or baked-in presets.
 
 ---
 
@@ -129,9 +130,27 @@ Recompete signal (USAspending PG / radar)
         → review gate → packet field / vault mirror
 ```
 
-Same pattern for: `award_key` → prime award detail → agency/NAICS lens → saved insight profile → Pulse alert. Skills and future orchestration should **encode these chains** as named recipes, not one-off UI hacks.
+Same pattern for: `award_key` → prime award detail → facet query → Pulse alert. Skills and future orchestration should **encode these chains** as named recipes, not one-off UI hacks.
 
 **Implementation rule:** New dashboard/Pulse regions must document **feed capability** (which MCP/skill/query) and support **drill-down into chain** (e.g. signal row → open workspace Research with context pre-filled). Phase 12 widgets are scaffolding until wired; wire them before adding more counters.
+
+### Insight facet queries (no NAICS-default)
+
+USAspending PG intel supports **multi-facet search** — any combination the operator needs:
+
+| Facet | Example use |
+|-------|-------------|
+| `agency` | Customer / funding org spend and expiring awards |
+| `sub_agency` | Component-level (e.g. Army CIO, DISA) |
+| `recipient` | Incumbent or competitor market position |
+| `naics_codes` | Industry slice when relevant — not the default dimension |
+| `psc_codes` | Product/service line drill-down |
+
+- **Storage:** `.thread/insight_queries.json` (saved queries) + `.thread/active_insight_query.json` (which query feeds Pulse radar).
+- **Operator presets yes; platform presets no** — you save named facet queries you create; Thread ships with **zero** hardcoded search presets.
+- **No `default_naics` fallback** for radar, Pulse, or `/api/intel/expiring`. Empty until you define and activate a query.
+- **Data Insights (`/insights`)** — UI to compose, save, and activate facet queries; analytics and trends live here, not on Command Center.
+- **Anti-pattern:** NAICS-only presets, single-code defaults, or implying NAICS is the primary search key.
 
 ---
 
@@ -572,7 +591,7 @@ Shell first, then region widgets. One slice per PR. Concrete targets below — d
 | **12c** | Global review queue | ✅ `/review` human titles (`review_display`); approve works; **widget on Command Center**: pending count → `/review` |
 | **12d** | Pulse — active pursuits | ✅ Lifecycle-filtered opps; urgency/gate pills; **Command Center widget**: `phase_band` breakdown; compact multi-column layout |
 | **12e** | Intel / migration health | Settings + **Command Center widget**: migration %, `/api/intel/health`, vault bootstrap status |
-| **12f** | Recompete radar v2 | ✅ **Saved lenses** seed (multi-NAICS); drop NAICS-only default in `portfolio.py`; **Command Center widget**: hot ≤6 mo |
+| **12f** | Recompete radar v2 | 🟡 Hot ≤6mo widget ✅; **facet queries** (`facet_query.py`) — no NAICS default; Insights UI to save/activate queries (Phase 17) |
 | **12g** | Intel inbox | Recent candidates → review — **Pulse region** (morning briefing), not dashboard home |
 | **12h** | Quick actions | ✅ **Command Center strip**: track signal, run research, insights, vault, review; hot-signal chip when ≤6 mo |
 | **12i** | SAM monitor | **Pulse region**: new-opportunity strip (stub → live SAM adapter) |
@@ -713,6 +732,7 @@ General parser — **not** solicitation-only. Parse API → vault wiki ingest (n
 - [x] Phase 12c — global review queue + Command Center pending-reviews widget
 - [x] Phase 12d — active pursuits + phase-band widget + compact dashboard/Pulse layout
 - [x] Phase 12h — Command Center quick-actions strip
-- [x] Phase 12f — saved lenses seed + hot recompete widget + multi-NAICS radar
+- [x] Phase 12f — hot recompete widget (partial)
+- [x] Facet query model — no NAICS/search defaults; radar empty until operator defines query
 - [ ] Phase 12e, 12g, 12i–12j — remaining widgets + Pulse regions
 - [ ] Phase 12k–12l — MCP test/key editor; Agent Skills run UX
