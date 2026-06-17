@@ -148,6 +148,19 @@ def test_dashboard_pending_reviews_widget():
     assert 'href="/review"' in html
 
 
+def test_dashboard_platform_health_widget():
+    """Phase 12e — blocking health strip, not award analytics."""
+    client = TestClient(create_app())
+    res = client.get("/")
+    html = res.text
+    assert res.status_code == 200
+    assert "cc-widget-platform-health" in html
+    assert "Platform health" in html
+    assert 'href="/settings"' in html
+    assert "cc-health-pill" in html
+    assert "cc-stat-tile" not in html
+
+
 def test_dashboard_hot_signals_widget():
     """Phase 12f — hot recompete widget on Command Center."""
     client = TestClient(create_app())
@@ -181,7 +194,7 @@ def test_dashboard_compact_layout_and_phase_band_widget():
     assert res.status_code == 200
     assert "cc-widget-grid" in html
     assert "cc-widget-phase-band" in html
-    assert "cc-stat-tile" in html
+    assert "cc-widget-platform-health" in html
     assert "cc-lane-grid" in html
     assert "lane-tile" in html
     assert "pursuit-card" in html or "No active pursuits" in html.lower() or "track a signal" in html

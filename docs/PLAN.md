@@ -590,7 +590,7 @@ Shell first, then region widgets. One slice per PR. Concrete targets below — d
 | **12l** | Tools — Agent Skills UX | `/tools/skills`: run from page, detail drawer — **not** settings-skills-retrieval |
 | **12c** | Global review queue | ✅ `/review` human titles (`review_display`); approve works; **widget on Command Center**: pending count → `/review` |
 | **12d** | Pulse — active pursuits | ✅ Lifecycle-filtered opps; urgency/gate pills; **Command Center widget**: `phase_band` breakdown; compact multi-column layout |
-| **12e** | Intel / migration health | Settings + **Command Center widget**: migration %, `/api/intel/health`, vault bootstrap status |
+| **12e** | Intel / migration health | ✅ Settings + **Command Center widget**: blocking status (PG, migration %, vault, Grok) — not award analytics |
 | **12f** | Recompete radar v2 | 🟡 Hot ≤6mo widget ✅; **facet queries** (`facet_query.py`) — no NAICS default; Insights UI to save/activate queries (Phase 17) |
 | **12g** | Intel inbox | Recent candidates → review — **Pulse region** (morning briefing), not dashboard home |
 | **12h** | Quick actions | ✅ **Command Center strip**: track signal, run research, insights, vault, review; hot-signal chip when ≤6 mo |
@@ -604,7 +604,7 @@ Not the morning briefing — that stays on **Portfolio Pulse** (`/pulse`). Not a
 1. **Pending reviews** — count + link to `/review` (12c) ✅
 2. **Active pursuits by phase band** — mini breakdown + drill to Pulse/opp (12d) ✅
 3. **Recompete signals (hot ≤6 mo)** — count + link to Pulse radar; chain to incumbent/SAM when wired (12f) ✅
-4. **Intel / migration health** — **blocking status only** (migration %, intel ready) — not award analytics (12e)
+4. **Intel / migration health** — **blocking status only** (migration %, intel ready) — not award analytics (12e) ✅
 5. **Quick actions** — track signal, run research, open insights lens, vault shortcut (12h) ✅ — highest priority for C&C usefulness
 
 **Anti-patterns on `/`:** prime award totals as hero metrics, full recompete tables, NAICS analytics, anything that belongs on Insights or Pulse body.
@@ -734,5 +734,6 @@ General parser — **not** solicitation-only. Parse API → vault wiki ingest (n
 - [x] Phase 12h — Command Center quick-actions strip
 - [x] Phase 12f — hot recompete widget (partial)
 - [x] Facet query model — no NAICS/search defaults; radar empty until operator defines query
-- [ ] Phase 12e, 12g, 12i–12j — remaining widgets + Pulse regions
+- [x] Phase 12e — platform health widget on Command Center
+- [ ] Phase 12g, 12i–12j — Pulse regions
 - [ ] Phase 12k–12l — MCP test/key editor; Agent Skills run UX

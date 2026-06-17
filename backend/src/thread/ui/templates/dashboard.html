@@ -30,29 +30,9 @@
     {% include "partials/dashboard_quick_actions.html" %}
   </div>
 
-  <div class="cc-stat-grid">
-    <div class="cc-stat-tile">
-      <div class="cc-stat-tile-label text-neon-cyan">Intel layer</div>
-      <div class="cc-stat-tile-value text-neon-cyan">{{ "{:,}".format(stats.prime_award_count) }}</div>
-      <div class="cc-stat-tile-sub">Prime awards</div>
-    </div>
-    <div class="cc-stat-tile">
-      <div class="cc-stat-tile-label text-neon-magenta">Radar</div>
-      <div class="cc-stat-tile-value text-neon-magenta">{{ signals|length }}</div>
-      <div class="cc-stat-tile-sub">18 mo window</div>
-    </div>
-    <div class="cc-stat-tile">
-      <div class="cc-stat-tile-label text-neon-lime">Pursuits</div>
-      <div class="cc-stat-tile-value text-neon-lime">{{ opps|length }}</div>
-      <div class="cc-stat-tile-sub">Active capture</div>
-    </div>
-    <div class="cc-stat-tile">
-      <div class="cc-stat-tile-label text-neon-amber">Platform</div>
-      <div class="cc-stat-tile-value text-base {% if intel_live %}text-neon-lime{% else %}text-neon-amber{% endif %}">
-        {% if intel_live %}LIVE{% else %}LOAD{% endif %}
-      </div>
-      <div class="cc-stat-tile-sub">Intel migration</div>
-    </div>
+  <div>
+    <div class="cc-section-label">Platform</div>
+    {% include "partials/dashboard_platform_health_widget.html" %}
   </div>
 
   <div class="cc-main-grid">

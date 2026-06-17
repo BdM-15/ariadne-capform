@@ -1,0 +1,49 @@
+{# 12e — blocking platform health only; detail on Settings #}
+<section
+  id="cc-widget-platform-health"
+  class="cc-widget cc-widget-compact cc-platform-health {% if platform_health.needs_attention %}cc-widget-attention accent-amber{% else %}cc-widget-clear accent-cyan{% endif %}"
+>
+  <div class="cc-widget-header">
+    <div class="flex items-center gap-2 min-w-0">
+      <i data-lucide="activity" class="w-4 h-4 {% if platform_health.needs_attention %}text-neon-amber{% else %}text-neon-cyan{% endif %} shrink-0"></i>
+      <h2 class="cc-widget-title {% if platform_health.needs_attention %}text-neon-amber{% else %}text-slate-200{% endif %}">
+        Platform health
+      </h2>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <span class="pill border {% if platform_health.status == 'ok' %}border-neon-lime/40 text-neon-lime{% elif platform_health.status == 'blocked' %}border-neon-red/40 text-neon-red{% else %}border-neon-amber/40 text-neon-amber{% endif %} text-[10px] font-mono uppercase">
+        {{ platform_health.status }}
+      </span>
+      <a href="/settings" class="btn btn-ghost btn-compact text-xs no-underline">
+        Settings
+        <i data-lucide="arrow-right" class="w-3 h-3"></i>
+      </a>
+    </div>
+  </div>
+
+  <div class="cc-health-pills">
+    <span class="cc-health-pill {% if platform_health.postgres_ready %}ok{% else %}bad{% endif %}">
+      <i data-lucide="database" class="w-3 h-3"></i> PG
+    </span>
+    <span class="cc-health-pill {% if platform_health.intel_live %}ok{% elif platform_health.migration_complete %}ok{% else %}warn{% endif %}">
+      <i data-lucide="hard-drive" class="w-3 h-3"></i>
+      Intel {% if platform_health.migration_complete %}ready{% else %}{{ platform_health.migration_pct }}%{% endif %}
+    </span>
+    <span class="cc-health-pill {% if platform_health.vault_healthy %}ok{% else %}warn{% endif %}">
+      <i data-lucide="book-open" class="w-3 h-3"></i> Vault
+    </span>
+    <span class="cc-health-pill {% if platform_health.grok_configured %}ok{% else %}warn{% endif %}">
+      <i data-lucide="sparkles" class="w-3 h-3"></i> Grok
+    </span>
+  </div>
+
+  {% if platform_health.blockers %}
+  <ul class="cc-widget-preview mt-1">
+    {% for msg in platform_health.blockers[:3] %}
+    <li class="cc-widget-preview-item text-slate-500 text-xs">{{ msg }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="cc-widget-sub text-slate-500 text-xs mt-1">All core services ready — no blockers.</p>
+  {% endif %}
+</section>

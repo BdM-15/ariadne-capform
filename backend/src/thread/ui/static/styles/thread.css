@@ -338,6 +338,47 @@
   white-space: nowrap;
 }
 
+/* 12e — platform health status pills */
+.cc-health-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.cc-health-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.4rem;
+  font-size: 0.5625rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--edge);
+  color: var(--text-500);
+}
+
+.cc-health-pill.ok {
+  border-color: rgba(var(--neon-lime-rgb), 0.35);
+  color: var(--neon-lime);
+}
+
+.cc-health-pill.warn {
+  border-color: rgba(var(--neon-amber-rgb), 0.35);
+  color: var(--neon-amber);
+}
+
+.cc-health-pill.bad {
+  border-color: rgba(var(--neon-red-rgb), 0.4);
+  color: var(--neon-red);
+}
+
+.cc-platform-health {
+  max-width: 42rem;
+}
+
 .cc-widget-grid {
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));

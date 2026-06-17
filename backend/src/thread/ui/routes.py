@@ -21,6 +21,7 @@ from thread.research.capture_research import run_capture_research
 from thread.research.providers import build_provider_registry
 from thread.services import opportunities as opp_svc
 from thread.services.portfolio import build_portfolio_pulse, signal_opportunity_name
+from thread.services.platform_health import build_platform_health_widget
 from thread.services.quick_actions import build_quick_actions
 from thread.services.review_gate import ReviewGateError, approve_review
 from thread.ui.formatters import format_date, format_money, urgency_label
@@ -239,6 +240,7 @@ async def dashboard_page(
         opportunities=pulse["opportunities"],
         intel_signals=pulse["intel_signals"],
     )
+    platform_health = await build_platform_health_widget(db, settings)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -247,6 +249,7 @@ async def dashboard_page(
             "phase_band_widget": pulse["phase_band_widget"],
             "pending_reviews": pending_reviews,
             "quick_actions": quick_actions,
+            "platform_health": platform_health,
             "app_name": settings.public_app_name,
             "active_nav": "dashboard",
             "flash": None,
