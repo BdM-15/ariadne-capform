@@ -1,0 +1,9 @@
+{% if active_tab == "packet" %}
+{% include "partials/packet_panel.html" %}
+{% elif active_tab == "actions" %}
+{% include "partials/actions_panel.html" %}
+{% elif active_tab == "review" %}
+{% include "partials/review_panel.html" %}
+{% elif active_tab == "research" %}
+{% include "partials/research_panel.html" %}
+{% endif %}

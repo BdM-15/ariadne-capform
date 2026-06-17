@@ -1,0 +1,13 @@
+<nav class="workspace-tabs flex flex-wrap gap-2 mb-6" id="workspace-tabs">
+  {% for key, label in tabs %}
+  <button
+    type="button"
+    class="topbar-pill {% if active_tab == key %}text-neon-cyan border-neon-cyan/50{% endif %}"
+    hx-get="/opportunities/{{ opp_id }}/panel?tab={{ key }}"
+    hx-target="#workspace-panel"
+    hx-swap="innerHTML"
+  >
+    {{ label }}
+  </button>
+  {% endfor %}
+</nav>

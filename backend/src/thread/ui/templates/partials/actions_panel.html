@@ -1,0 +1,44 @@
+<div id="actions-panel">
+  <div class="card card-accent accent-magenta overflow-hidden mb-5">
+    <div class="px-5 py-3 border-b border-edge">
+      <h2 class="font-semibold text-sm">Add action</h2>
+    </div>
+    <form
+      class="p-5 space-y-3"
+      hx-post="/opportunities/{{ opp_id }}/actions"
+      hx-target="#workspace-panel"
+      hx-swap="innerHTML"
+    >
+      <input type="hidden" name="tab" value="actions" />
+      <input class="thread-input" name="action" placeholder="Action description" required />
+      <div class="flex flex-wrap gap-3">
+        <input class="thread-input flex-1 min-w-[140px]" name="owner" placeholder="Owner" />
+        <input class="thread-input flex-1 min-w-[140px]" name="due_date" type="date" />
+      </div>
+      <input class="thread-input" name="linked_field_keys" placeholder="Linked field keys (comma-separated)" />
+      <button type="submit" class="btn btn-primary">Add to matrix</button>
+    </form>
+  </div>
+
+  <h2 class="mb-3 text-[11px] font-mono uppercase tracking-wider text-slate-500">Action matrix</h2>
+  {% if actions|length == 0 %}
+  <div class="card p-5 text-sm text-slate-400">No actions yet — add capture tasks above.</div>
+  {% endif %}
+  {% for item in actions %}
+  <div class="card card-hover mb-2 p-4">
+    <div class="flex items-start justify-between gap-3 flex-wrap">
+      <div>
+        <p class="text-sm font-medium">{{ item.action }}</p>
+        <p class="text-[11px] font-mono text-slate-500 mt-1">
+          {% if item.owner %}Owner: {{ item.owner }} · {% endif %}
+          {% if item.due_date %}Due {{ item.due_date|datefmt }}{% else %}No due date{% endif %}
+          · <span class="pill">{{ item.status }}</span>
+        </p>
+        {% if item.linked_field_keys %}
+        <p class="text-[11px] text-slate-500 mt-1">Fields: {{ item.linked_field_keys|join(', ') }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>

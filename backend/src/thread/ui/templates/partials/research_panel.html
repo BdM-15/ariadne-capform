@@ -1,0 +1,66 @@
+<div id="research-panel">
+  <section class="card card-accent accent-cyan overflow-hidden mb-5">
+    <div class="px-5 py-3 border-b border-edge flex items-center justify-between gap-2 flex-wrap">
+      <h2 class="font-semibold text-sm">Run capture research</h2>
+      <span class="pill border border-neon-cyan/40 text-neon-cyan text-[10px]">candidate → review</span>
+    </div>
+    <form
+      class="p-5 space-y-3"
+      hx-post="/opportunities/{{ opp_id }}/research"
+      hx-target="#research-result"
+      hx-swap="innerHTML"
+    >
+      <label class="block text-[11px] font-mono uppercase tracking-wider text-slate-500">Lens</label>
+      <select class="thread-input" name="lens">
+        {% for value, label in lenses %}
+        <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+      <label class="block text-[11px] font-mono uppercase tracking-wider text-slate-500">Query</label>
+      <input class="thread-input" name="query" placeholder="e.g. DHS cyber services recompete" required />
+      <div class="flex flex-wrap gap-3 items-end">
+        <div class="flex-1 min-w-[120px]">
+          <label class="block text-[11px] font-mono uppercase tracking-wider text-slate-500 mb-1">Max sources</label>
+          <input class="thread-input" name="max_sources" type="number" min="1" max="10" value="5" />
+        </div>
+        <button type="submit" class="btn btn-primary">Run research</button>
+      </div>
+    </form>
+    {% if providers %}
+    <div class="px-5 pb-4 flex flex-wrap gap-2 text-[10px] font-mono">
+      {% for p in providers %}
+      <span class="pill border {% if p.status.value == 'available' %}border-neon-lime/40 text-neon-lime{% else %}border-edge text-slate-500{% endif %}">
+        {{ p.id }}: {{ p.status.value }}
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  <div id="research-result">
+    {% if flash %}
+    <div class="card card-accent accent-amber p-3 mb-3 text-sm text-neon-amber">{{ flash }}</div>
+    {% endif %}
+  </div>
+
+  <h2 class="mb-3 text-[11px] font-mono uppercase tracking-wider text-slate-500">Recent runs (this opportunity)</h2>
+  {% if runs|length == 0 %}
+  <div class="card p-5 text-sm text-slate-400">No research runs yet for this opportunity.</div>
+  {% endif %}
+  {% for run in runs %}
+  <div class="card card-hover mb-2 p-4">
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+      <div>
+        <p class="text-sm font-medium">{{ run.query }}</p>
+        <p class="text-[11px] font-mono text-slate-500 mt-1">
+          {{ run.lens }} · {{ run.status }} · {{ run.findings|length }} findings
+        </p>
+      </div>
+      <span class="pill font-mono text-[10px]">{{ run.run_id[:8] }}…</span>
+    </div>
+    {% if run.interpretation %}
+    <p class="text-xs text-slate-400 mt-2 line-clamp-3">{{ run.interpretation[:280] }}{% if run.interpretation|length > 280 %}…{% endif %}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>

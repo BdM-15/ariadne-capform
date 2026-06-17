@@ -25,3 +25,13 @@
   resize: vertical;
   min-height: 88px;
 }
+
+.workspace-tabs button {
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.workspace-tabs button:hover {
+  border-color: var(--edge);
+}

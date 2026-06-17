@@ -1,0 +1,26 @@
+<div id="review-queue">
+  {% if flash %}
+  <div class="card card-accent accent-amber p-3 mb-3 text-sm text-neon-amber">{{ flash }}</div>
+  {% endif %}
+  <h2 class="mb-3 text-[11px] font-mono uppercase tracking-wider text-slate-500">Pending review</h2>
+  {% if reviews|length == 0 %}
+  <div class="card p-5 text-sm text-slate-400">No pending reviews.</div>
+  {% endif %}
+  {% for r in reviews %}
+  <div class="card card-hover mb-2 p-4 flex items-center justify-between gap-3 flex-wrap">
+    <div>
+      <span class="pill border border-neon-magenta/40 text-neon-magenta text-[10px]">{{ r.entity_type }}</span>
+      <span class="text-sm font-mono text-slate-400 ml-2">{{ r.entity_id[:24] }}{% if r.entity_id|length > 24 %}…{% endif %}</span>
+    </div>
+    <form
+      hx-post="/review/{{ r.id }}/approve"
+      hx-target="#workspace-panel"
+      hx-swap="innerHTML"
+    >
+      <input type="hidden" name="opp_id" value="{{ opp_id }}" />
+      <input type="hidden" name="tab" value="review" />
+      <button type="submit" class="btn btn-primary">Approve</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>

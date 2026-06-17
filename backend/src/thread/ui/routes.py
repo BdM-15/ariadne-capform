@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
@@ -14,11 +15,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from thread.config import Settings, get_settings
 from thread.db.models import PacketFieldAnswer
 from thread.db.session import get_db
+from thread.domain.enums import ResearchLens
 from thread.domain.schemas import OpportunityCreate
+from thread.research.capture_research import run_capture_research
+from thread.research.providers import build_provider_registry
 from thread.services import opportunities as opp_svc
 from thread.services.portfolio import build_portfolio_pulse, signal_opportunity_name
-from thread.services.review_gate import ReviewGateError, approve_review, list_pending_reviews
+from thread.services.review_gate import ReviewGateError, approve_review
 from thread.ui.formatters import format_date, format_money, urgency_label
+from thread.ui.workspace import (
+    list_research_runs,
+    load_actions,
+    load_workspace_reviews,
+    normalize_tab,
+    research_lenses,
+)
 
 UI_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(UI_DIR / "templates"))
@@ -28,9 +39,49 @@ templates.env.filters["urgency"] = urgency_label
 
 router = APIRouter(tags=["ui"])
 
+WORKSPACE_TABS = [
+    ("packet", "Packet"),
+    ("actions", "Actions"),
+    ("review", "Review"),
+    ("research", "Research"),
+]
+
 
 def _htmx_redirect(url: str) -> Response:
     return Response(status_code=200, headers={"HX-Redirect": url})
+
+
+async def _panel_context(
+    db: AsyncSession,
+    settings: Settings,
+    opp_id: uuid.UUID,
+    *,
+    tab: str,
+    flash: str | None = None,
+) -> dict:
+    answers = (
+        await db.execute(select(PacketFieldAnswer).where(PacketFieldAnswer.opportunity_id == opp_id))
+    ).scalars().all()
+    active_tab = normalize_tab(tab)
+    ctx: dict = {
+        "opp_id": opp_id,
+        "fields": answers,
+        "active_tab": active_tab,
+        "flash": flash,
+    }
+    if active_tab == "actions":
+        ctx["actions"] = await load_actions(db, opp_id)
+    elif active_tab == "review":
+        ctx["reviews"] = await load_workspace_reviews(db, opp_id)
+    elif active_tab == "research":
+        ctx["lenses"] = research_lenses()
+        ctx["runs"] = list_research_runs(settings, opp_id)
+        ctx["providers"] = await build_provider_registry(settings)
+    return ctx
+
+
+def _render_panel(request: Request, ctx: dict) -> HTMLResponse:
+    return templates.TemplateResponse(request, "partials/workspace_panel.html", ctx)
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -110,6 +161,7 @@ async def track_signal_form(
 async def opportunity_workspace(
     request: Request,
     opp_id: uuid.UUID,
+    tab: str = Query("packet"),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
@@ -117,24 +169,33 @@ async def opportunity_workspace(
     if not opp:
         return HTMLResponse("Opportunity not found", status_code=404)
 
-    answers = (
-        await db.execute(select(PacketFieldAnswer).where(PacketFieldAnswer.opportunity_id == opp_id))
-    ).scalars().all()
-    reviews = await list_pending_reviews(db)
-    packet_reviews = [r for r in reviews if r.entity_type == "packet_field_answer"]
-
+    panel = await _panel_context(db, settings, opp_id, tab=tab)
     return templates.TemplateResponse(
         request,
         "opportunity.html",
         {
             "opp": opp,
-            "fields": answers,
-            "reviews": packet_reviews,
+            "tabs": WORKSPACE_TABS,
             "app_name": settings.public_app_name,
             "active_nav": "pulse",
             "flash": None,
+            **panel,
         },
     )
+
+
+@router.get("/opportunities/{opp_id}/panel", response_class=HTMLResponse)
+async def opportunity_panel(
+    request: Request,
+    opp_id: uuid.UUID,
+    tab: str = Query("packet"),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    if not await opp_svc.get_opportunity(db, opp_id):
+        return HTMLResponse("Opportunity not found", status_code=404)
+    ctx = await _panel_context(db, settings, opp_id, tab=tab)
+    return _render_panel(request, ctx)
 
 
 @router.post("/opportunities/{opp_id}/packet/{field_key}", response_class=HTMLResponse)
@@ -154,36 +215,86 @@ async def save_packet_field(
     )
 
 
+@router.post("/opportunities/{opp_id}/actions", response_class=HTMLResponse)
+async def create_action_form(
+    request: Request,
+    opp_id: uuid.UUID,
+    action: str = Form(...),
+    owner: str = Form(""),
+    due_date: str = Form(""),
+    linked_field_keys: str = Form(""),
+    tab: str = Form("actions"),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    parsed_due: date | None = None
+    if due_date.strip():
+        parsed_due = date.fromisoformat(due_date.strip())
+    keys = [k.strip() for k in linked_field_keys.split(",") if k.strip()]
+    await opp_svc.add_action_item(db, opp_id, action.strip(), owner.strip() or None, parsed_due, keys)
+    await db.commit()
+    ctx = await _panel_context(db, settings, opp_id, tab=tab)
+    return _render_panel(request, ctx)
+
+
+@router.post("/opportunities/{opp_id}/research", response_class=HTMLResponse)
+async def run_research_form(
+    request: Request,
+    opp_id: uuid.UUID,
+    lens: str = Form(...),
+    query: str = Form(...),
+    max_sources: int = Form(5),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    if not await opp_svc.get_opportunity(db, opp_id):
+        return HTMLResponse("Opportunity not found", status_code=404)
+    try:
+        research_lens = ResearchLens(lens)
+    except ValueError:
+        return HTMLResponse("Invalid lens", status_code=400)
+
+    result = await run_capture_research(
+        settings,
+        db,
+        lens=research_lens,
+        query=query.strip(),
+        max_sources=max(1, min(max_sources, 10)),
+        opportunity_id=opp_id,
+    )
+    await db.commit()
+    return templates.TemplateResponse(
+        request,
+        "partials/research_result.html",
+        {
+            "result": {
+                "run_id": result.run_id,
+                "status": result.status.value,
+                "finding_count": len(result.findings),
+                "source_count": len([s for s in result.sources if not s.get("meta")]),
+                "interpretation": result.interpretation,
+                "errors": result.errors,
+            }
+        },
+    )
+
+
 @router.post("/review/{review_id}/approve", response_class=HTMLResponse)
 async def approve_review_form(
     request: Request,
     review_id: uuid.UUID,
     opp_id: uuid.UUID = Form(...),
+    tab: str = Form("review"),
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
+    flash: str | None = None
     try:
         await approve_review(db, review_id)
         await db.commit()
     except ReviewGateError as exc:
         await db.rollback()
-        reviews = await list_pending_reviews(db)
-        return templates.TemplateResponse(
-            request,
-            "partials/review_queue.html",
-            {
-                "reviews": [r for r in reviews if r.entity_type == "packet_field_answer"],
-                "opp_id": opp_id,
-                "flash": str(exc),
-            },
-        )
+        flash = str(exc)
 
-    reviews = await list_pending_reviews(db)
-    return templates.TemplateResponse(
-        request,
-        "partials/review_queue.html",
-        {
-            "reviews": [r for r in reviews if r.entity_type == "packet_field_answer"],
-            "opp_id": opp_id,
-            "flash": None,
-        },
-    )
+    ctx = await _panel_context(db, settings, opp_id, tab=tab, flash=flash)
+    return _render_panel(request, ctx)

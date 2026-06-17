@@ -1,0 +1,17 @@
+<div class="card card-accent accent-lime p-4 mb-4">
+  <p class="text-sm font-semibold text-neon-lime">Research {{ result.status }}</p>
+  <p class="text-[11px] font-mono text-slate-500 mt-1">
+    {{ result.finding_count }} findings · {{ result.source_count }} sources · run {{ result.run_id[:8] }}…
+  </p>
+  {% if result.errors %}
+  <ul class="text-xs text-neon-amber mt-2 list-disc pl-4">
+    {% for err in result.errors %}
+    <li>{{ err }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if result.interpretation %}
+  <div class="mt-3 text-sm text-slate-300 whitespace-pre-wrap border-t border-edge pt-3">{{ result.interpretation[:2000] }}</div>
+  {% endif %}
+  <p class="text-[11px] text-slate-500 mt-3">Findings queued for review — switch to Review tab.</p>
+</div>

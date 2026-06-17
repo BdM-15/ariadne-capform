@@ -195,19 +195,16 @@ def main() -> int:
     frontend_proc = None
     if settings.autostart_frontend and not args.api_only:
         print(
-            "[thread] AUTOSTART_FRONTEND=true — legacy Next on :3000. "
-            f"HTMX UI: http://127.0.0.1:{settings.port} — set AUTOSTART_FRONTEND=false to skip Node."
+            "[thread] AUTOSTART_FRONTEND=true — spawning legacy Next.js (transitional). "
+            "Command center is HTMX on :9622; set AUTOSTART_FRONTEND=false to skip Node."
         )
         frontend_proc = _spawn_frontend(settings.frontend_port)
 
     from thread.main import create_app
 
-    ui_url = (
-        f"http://127.0.0.1:{settings.frontend_port} (legacy Next)"
-        if frontend_proc
-        else f"http://127.0.0.1:{settings.port}"
-    )
-    print(f"[thread] {settings.public_app_name} → {ui_url}")
+    print(f"[thread] {settings.public_app_name} → http://127.0.0.1:{settings.port}")
+    if frontend_proc:
+        print(f"[thread] Legacy Next.js → http://127.0.0.1:{settings.frontend_port}")
 
     try:
         uvicorn.run(
