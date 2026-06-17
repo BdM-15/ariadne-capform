@@ -1,7 +1,92 @@
+/* Thread shell — extends theseus.css (do not fork neon tokens here) */
+
+.app-shell {
+  background: var(--ink-950);
+}
+
+.app-main {
+  background: transparent;
+}
+
+.app-canvas {
+  position: relative;
+}
+
+.app-canvas-inner {
+  position: relative;
+  z-index: 1;
+}
+
+/* Per-page top navigation (workspace tabs, drill-down) — not global app nav */
+.page-nav-bar {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.page-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.page-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-300);
+  background: linear-gradient(180deg, rgba(20, 26, 43, 0.7) 0%, rgba(10, 14, 26, 0.85) 100%);
+  border: 1px solid rgba(31, 42, 68, 0.85);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.page-tab:hover {
+  color: #fff;
+  border-color: rgba(var(--neon-cyan-rgb), 0.45);
+  box-shadow: 0 0 14px -6px rgba(var(--neon-cyan-rgb), 0.55);
+}
+
+.page-tab-active {
+  color: #fff !important;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--neon-cyan-rgb), 0.22) 0%,
+    rgba(var(--accent-purple-rgb), 0.16) 55%,
+    rgba(var(--neon-magenta-rgb), 0.12) 100%
+  ) !important;
+  border-color: rgba(var(--neon-cyan-rgb), 0.55) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--neon-cyan-rgb), 0.35),
+    0 0 20px -4px rgba(var(--accent-purple-rgb), 0.5) !important;
+}
+
+.page-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-400);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.page-back-link:hover {
+  color: var(--neon-cyan);
+}
+
 .thread-input,
 .thread-textarea {
   width: 100%;
-  background: var(--ink-900);
+  background: rgba(var(--ink-900-rgb), 0.85);
   border: 1px solid var(--edge);
   border-radius: 0.75rem;
   padding: 0.625rem 1rem;
@@ -24,14 +109,4 @@
 .thread-textarea {
   resize: vertical;
   min-height: 88px;
-}
-
-.workspace-tabs button {
-  cursor: pointer;
-  background: transparent;
-  border: 1px solid transparent;
-}
-
-.workspace-tabs button:hover {
-  border-color: var(--edge);
 }

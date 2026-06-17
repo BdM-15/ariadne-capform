@@ -268,7 +268,7 @@ async def opportunity_workspace(
             "opp": opp,
             "tabs": WORKSPACE_TABS,
             "app_name": settings.public_app_name,
-            "active_nav": "pulse",
+            "active_nav": "",
             "flash": None,
             **panel,
         },

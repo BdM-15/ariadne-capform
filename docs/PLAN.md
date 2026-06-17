@@ -430,7 +430,9 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | Opportunity workspace | Packet (raw keys), Actions, Review, Research tabs | Not slide-deck Living Briefing Packet; no Intel Context tab |
 | Top nav | Pulse only | No Insights, Review, Knowledge, Settings |
 
-**Target nav (product):** Pulse · **Data Insights** · Review · Knowledge · Settings · Opportunity workspace (Briefing Packet slide deck \| Actions \| Review \| Research \| Intel Context).
+**Shell IA (Theseus pattern):** Left `sidebar-vibrant` = app lanes (Identify / Capture / Win / Settings bottom). Top `glass-section-bar` = **per-page** nav only (workspace tabs, refresh, back links). Main canvas = `panel-canvas` aurora.
+
+**Target nav (product):** Sidebar: Pulse, Insights, Knowledge, Review, Settings · Workspace tabs on opportunity header · Briefing Packet slide deck (Phase 14).
 
 **Solo operator model:** one user; technology produces **pWin artifacts** (BLUF, PTW, win themes, eval mapping) for external humans — not multi-user CRM, not post-award.
 

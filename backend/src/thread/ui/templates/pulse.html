@@ -1,6 +1,24 @@
 {% extends "base.html" %}
 {% block title %}Portfolio Pulse — {{ app_name }}{% endblock %}
-{% block subtitle %}Portfolio pulse{% endblock %}
+{% block page_header %}
+<header class="page-nav-bar glass-section-bar px-6 py-4 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <p class="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500 mb-1">Identify · morning briefing</p>
+    <h1 class="text-2xl font-bold tracking-tight">
+      Portfolio Pulse<span class="neon-text">.</span>
+    </h1>
+  </div>
+  <button
+    type="button"
+    class="btn btn-ghost border border-edge text-sm"
+    hx-get="/partials/pulse"
+    hx-target="#pulse-body"
+    hx-swap="outerHTML"
+  >
+    Refresh
+  </button>
+</header>
+{% endblock %}
 {% block content %}
 {% include "partials/pulse_body.html" %}
 {% endblock %}

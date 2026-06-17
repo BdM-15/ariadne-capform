@@ -48,57 +48,18 @@
     <link rel="stylesheet" href="/static/styles/thread.css" />
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   </head>
-  <body class="font-sans antialiased scanline min-h-screen flex flex-col">
-    <header class="h-14 shrink-0 topbar-vibrant flex items-center px-5 gap-5 sticky top-0 z-40">
-      <div class="flex items-center gap-2.5 min-w-[240px]">
-        <div class="brand-tile w-10 h-10 rounded-xl flex items-center justify-center" title="{{ app_name }}">
-          <svg viewBox="0 0 40 40" class="w-10 h-10 brand-labyrinth" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="lab-wall" x1="0" y1="0" x2="40" y2="40">
-                <stop offset="0%" stop-color="#00f0ff" />
-                <stop offset="55%" stop-color="#a855f7" />
-                <stop offset="100%" stop-color="#ff2bd6" />
-              </linearGradient>
-            </defs>
-            <g stroke="url(#lab-wall)" stroke-width="1.6" fill="none">
-              <path d="M7 7 H33 V33 H22" />
-              <path d="M18 33 H7 V7" />
-              <path d="M10 10 H30 V30 H22" />
-              <path d="M18 30 H10 V10" />
-            </g>
-            <circle cx="20" cy="20" r="3.5" fill="#00f0ff" opacity="0.9" />
-          </svg>
-        </div>
-        <div class="leading-tight">
-          <div class="text-sm font-semibold tracking-tight">
-            {{ app_name }}<span class="neon-text">.</span>
-          </div>
-          <div class="text-[11px] font-mono uppercase tracking-wider text-slate-500">
-            {% block subtitle %}Capture command center{% endblock %}
-          </div>
-        </div>
-      </div>
-      <nav class="flex items-center gap-2 ml-auto flex-wrap justify-end">
-        <a href="/" class="topbar-pill {% if active_nav == 'pulse' %}text-neon-cyan{% endif %}">
-          Pulse
-        </a>
-        <a href="/insights" class="topbar-pill {% if active_nav == 'insights' %}text-neon-cyan{% endif %}">
-          Insights
-        </a>
-        <a href="/review" class="topbar-pill {% if active_nav == 'review' %}text-neon-cyan{% endif %}">
-          Review
-        </a>
-        <a href="/knowledge" class="topbar-pill {% if active_nav == 'knowledge' %}text-neon-cyan{% endif %}">
-          Knowledge
-        </a>
-        <a href="/settings" class="topbar-pill {% if active_nav == 'settings' %}text-neon-cyan{% endif %}">
-          Settings
-        </a>
-      </nav>
-    </header>
+  <body class="font-sans antialiased scanline min-h-screen">
+    <div class="app-shell flex min-h-screen">
+      {% include "partials/app_sidebar.html" %}
 
-    <main class="flex-1 w-full max-w-6xl mx-auto px-6 py-8">
-      {% block content %}{% endblock %}
-    </main>
+      <div class="app-main flex flex-col flex-1 min-w-0 min-h-screen">
+        {% block page_header %}{% endblock %}
+        <main class="app-canvas panel-canvas flex-1 overflow-auto">
+          <div class="app-canvas-inner max-w-6xl mx-auto px-6 py-8 w-full">
+            {% block content %}{% endblock %}
+          </div>
+        </main>
+      </div>
+    </div>
   </body>
 </html>

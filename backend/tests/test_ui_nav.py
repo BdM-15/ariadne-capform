@@ -30,3 +30,18 @@ def test_shell_stub_pages_declare_product_lane():
 
     res = client.get("/knowledge")
     assert "Capture" in res.text
+
+
+def test_theseus_sidebar_shell_not_topbar_app_nav():
+    """Stub route avoids PG; verifies sidebar + panel-canvas shell."""
+    client = TestClient(create_app())
+    res = client.get("/insights")
+    assert res.status_code == 200
+    assert "sidebar-vibrant" in res.text
+    assert "nav-item-active" in res.text
+    assert "panel-canvas" in res.text
+    assert "glass-section-bar" in res.text
+    assert 'href="/settings"' in res.text
+    assert "Settings" in html
+    assert "nav-group-cyan" in res.text
+    assert "nav-group-magenta" in res.text
