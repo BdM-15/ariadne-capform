@@ -36,6 +36,7 @@ Packet field seeds: [`backend/src/thread/domain/packet_field_seed.py`](backend/s
 | Intel | PostgreSQL tables migrated from capture-insights DuckDB (one-time) |
 | Knowledge brain | Obsidian vault at `knowledge/thread/` |
 | Reasoning | Grok/xAI primary; Ollama admin offload |
+| Orchestration | Route-first now; LangGraph skill chains on `:9623` when `LANGGRAPH_ENABLED` |
 | Web research | SearXNG + Crawl4AI (free), SerpAPI/Olostep/Firecrawl fallbacks |
 | Federal data | 1102 MCP manifests in `tools/mcps/` |
 

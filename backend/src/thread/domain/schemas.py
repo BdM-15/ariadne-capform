@@ -116,3 +116,7 @@ class HealthOut(BaseModel):
     ollama_reachable: bool = False
     vault_healthy: bool = False
     research_providers: dict[str, str] = Field(default_factory=dict)
+    langgraph_enabled: bool = False
+    langgraph_studio_port: int = 9623
+    langsmith_configured: bool = False
+    langsmith_tracing: bool = False

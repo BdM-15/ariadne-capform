@@ -92,9 +92,40 @@ class Settings(BaseSettings):
     mineru_enabled: bool = False
     mineru_docker_image: str | None = None
 
+    langgraph_enabled: bool = False
+    thread_langgraph_studio_auto_start: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "thread_langgraph_studio_auto_start",
+            "theseus_langgraph_studio_auto_start",
+        ),
+    )
+    langgraph_studio_host: str = "127.0.0.1"
+    langgraph_studio_port: int = 9623
+
+    langsmith_api_key: str | None = None
+    langchain_api_key: str | None = None
+    langsmith_tracing: bool = False
+    langchain_tracing_v2: bool = False
+    langsmith_project: str = "thread-capture-orchestration"
+    langchain_project: str | None = None
+    langsmith_endpoint: str = "https://api.smith.langchain.com"
+
     @property
     def repo_root(self) -> Path:
         return ROOT
+
+    @property
+    def resolved_langchain_api_key(self) -> str | None:
+        return self.langchain_api_key or self.langsmith_api_key
+
+    @property
+    def resolved_langchain_project(self) -> str:
+        return self.langchain_project or self.langsmith_project
+
+    @property
+    def langgraph_studio_base_url(self) -> str:
+        return f"http://{self.langgraph_studio_host}:{self.langgraph_studio_port}"
 
     def resolve(self, path: Path) -> Path:
         return path if path.is_absolute() else ROOT / path

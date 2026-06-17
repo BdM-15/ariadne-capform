@@ -125,6 +125,15 @@ def main() -> int:
     get_settings.cache_clear()
     settings = get_settings()
 
+    from thread.orchestration.tracing import apply_langsmith_env
+
+    apply_langsmith_env(settings)
+    if settings.thread_langgraph_studio_auto_start and not settings.langgraph_enabled:
+        print(
+            f"[orchestration] Studio auto-start requested for "
+            f"{settings.langgraph_studio_base_url} — enable LANGGRAPH_ENABLED when runtime lands"
+        )
+
     _sync_frontend_env()
 
     if not args.skip_docker:

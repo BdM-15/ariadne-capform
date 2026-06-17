@@ -46,6 +46,10 @@ async def health(db: AsyncSession = Depends(get_db)) -> HealthOut:
             "searxng": settings.searxng_base_url,
             "crawl4ai": settings.crawl4ai_base_url,
         },
+        langgraph_enabled=settings.langgraph_enabled,
+        langgraph_studio_port=settings.langgraph_studio_port,
+        langsmith_configured=bool(settings.resolved_langchain_api_key),
+        langsmith_tracing=settings.langsmith_tracing or settings.langchain_tracing_v2,
     )
 
 

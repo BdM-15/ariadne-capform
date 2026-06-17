@@ -9,12 +9,24 @@ from thread import __version__
 from thread.api.routes import router
 from thread.config import get_settings
 from thread.db.session import init_db
+from thread.orchestration.tracing import apply_langsmith_env
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+    apply_langsmith_env(settings)
     print(f"[thread] Starting {settings.public_app_name} v{__version__}")
+    if settings.langgraph_enabled:
+        print(
+            f"[orchestration] LangGraph enabled — studio "
+            f"{settings.langgraph_studio_base_url} (runtime wiring in progress)"
+        )
+    elif settings.resolved_langchain_api_key:
+        print(
+            f"[orchestration] LangSmith tracing ready "
+            f"(project={settings.resolved_langchain_project}, runtime deferred)"
+        )
     try:
         await init_db()
         print("[thread] Database tables ready")
