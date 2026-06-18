@@ -2,25 +2,29 @@
   {% if drilldown.status == 'idle' %}
   <div class="insights-drilldown-edu">
     <p class="insights-drilldown-lead">
-      Inspired by <a href="https://datarepublican.com" target="_blank" rel="noopener" class="text-neon-cyan no-underline hover:underline">DataRepublican</a>
-      (<a href="https://github.com/DataRepublican/datarepublican" target="_blank" rel="noopener" class="text-neon-cyan no-underline hover:underline">open repo</a>) —
-      <em>connecting the dots</em> on where money flows. Thread runs the same doctrine on
-      USAspending + subaward bulk in PostgreSQL (capture-insights migration), not DR's charity graph or 990 data.
+      <strong class="text-slate-300">Clew</strong> — Ariadne's thread through the contract labyrinth.
+      Trace paths across recipients, agencies, primes, subs, and time on USAspending + subaward bulk in PostgreSQL.
     </p>
     <ul class="insights-drilldown-bullets text-[11px] text-slate-400 space-y-1">
-      <li><span class="text-slate-300">Spend trend</span> — like funding-over-time exposure (charity graph / expose pattern).</li>
+      <li><span class="text-slate-300">Spend trend</span> — obligation totals over fiscal years in your slice.</li>
       <li><span class="text-slate-300">Money flow</span> — recipient → agency paths (who wins, who buys).</li>
-      <li><span class="text-slate-300">Teaming</span> — prime → sub edges (relations / beyond prime-only awards).</li>
-      <li><span class="text-slate-300">Recipient landscape</span> — federal grant search style incumbent map in your slice.</li>
+      <li><span class="text-slate-300">Teaming</span> — prime → sub edges beyond prime-only awards.</li>
+      <li><span class="text-slate-300">Recipient landscape</span> — concentration and spend share in your slice.</li>
     </ul>
     <p class="insights-drilldown-note text-[10px] font-mono text-slate-600 mt-2">
       Outputs are <span class="text-neon-amber">candidate</span> until review.
-      PDF/solicitation parsing → <span class="text-neon-cyan">MinerU 3.3</span> (Theseus), not DataRepublican pdfparser —
+      PDF/solicitation parsing → <span class="text-neon-cyan">MinerU 3.3</span> (Theseus)
       {% if drilldown.analysis.mineru.enabled %}enabled{% else %}stub until Phase 19{% endif %}.
       Live SAM subaward search supplements bulk via <a href="/tools/mcp" class="text-neon-cyan no-underline hover:underline">MCP</a>.
     </p>
   </div>
-  <p class="insights-idle-hint">Run explore first, pick a mode, then <strong>Run analysis</strong>.</p>
+  <p class="insights-idle-hint">
+    {% if clew_surface == 'page' %}
+    Set search facets in the form above, pick a mode, then <strong>Run analysis</strong>.
+    {% else %}
+    Set search facets, pick a mode, then <strong>Run analysis</strong>.
+    {% endif %}
+  </p>
 
   {% elif drilldown.error %}
   <p class="insights-explore-msg insights-explore-msg-warn">{{ drilldown.error }}</p>
@@ -35,6 +39,19 @@
     <span class="text-[10px] font-mono text-slate-500">{{ a.summary or drilldown.summary }}</span>
   </div>
   <p class="insights-drilldown-method text-[10px] text-slate-500 mb-2">{{ a.method }}</p>
+
+  {% if clew_surface == 'page' and a.chart %}
+  <div
+    class="clew-echarts-host"
+    style="width: 100%; min-height: 440px;"
+    data-chart-option='{{ a.chart|tojson }}'
+    role="img"
+    aria-label="Clew interactive chart"
+  ></div>
+  <details class="clew-table-fallback mt-3">
+    <summary class="text-[10px] text-slate-500 cursor-pointer select-none">Data table</summary>
+    <div class="mt-2">
+  {% endif %}
 
   {% if a.mode == 'spend_trend' and a.bars %}
   <div class="insights-trend-chart">
@@ -100,14 +117,71 @@
     </li>
     {% endfor %}
   </ul>
+
   {% else %}
   <p class="insights-idle-hint">No chart data for this mode and facet slice.</p>
+  {% endif %}
+
+  {% if clew_surface == 'page' and a.chart %}
+    </div>
+  </details>
   {% endif %}
 
   {% if a.intel_stats %}
   <p class="insights-drilldown-note text-[10px] font-mono text-slate-600 mt-3">
     PG: {{ "{:,}".format(a.intel_stats.prime_awards) }} prime{% if a.intel_stats.subawards %} · {{ "{:,}".format(a.intel_stats.subawards) }} subaward rows{% endif %}
   </p>
+  {% endif %}
+
+  {% if a.mcp_overlay and a.mcp_overlay.enabled %}
+  <div class="clew-mcp-overlay mt-4 pt-4 border-t border-edge/50 space-y-3">
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="cc-section-label text-neon-cyan mb-0 text-[10px]">Live MCP supplement</span>
+      <span class="pill pill-compact border border-neon-amber/40 text-neon-amber text-[10px]">candidate</span>
+      {% if a.mcp_overlay.fetched_at %}
+      <span class="text-[10px] font-mono text-slate-600">{{ a.mcp_overlay.fetched_at[:19] }}Z</span>
+      {% endif %}
+    </div>
+    {% if a.mcp_overlay.note %}
+    <p class="text-[10px] font-mono text-slate-500">{{ a.mcp_overlay.note }}</p>
+    {% endif %}
+    {% for layer in a.mcp_overlay.layers %}
+    <div class="card card-accent accent-cyan p-3">
+      <div class="flex flex-wrap items-center gap-2 mb-2">
+        <code class="text-[10px] text-neon-cyan font-bold">{{ layer.server }}</code>
+        <span class="text-[10px] text-slate-400">{{ layer.tool }}</span>
+        <span class="pill pill-compact border text-[9px] uppercase
+          {% if layer.status == 'ready' %}border-neon-lime/40 text-neon-lime{% elif layer.status == 'error' %}border-neon-amber/40 text-neon-amber{% else %}border-edge text-slate-500{% endif %}">
+          {{ layer.status }}
+        </span>
+      </div>
+      <p class="text-[11px] text-slate-300 mb-2">{{ layer.label }}</p>
+      {% if layer.error %}
+      <p class="text-[10px] text-neon-amber font-mono">{{ layer.error }}</p>
+      {% elif layer.rows %}
+      <ul class="insights-flow-list">
+        {% for row in layer.rows %}
+        <li class="insights-flow-row">
+          <div class="insights-flow-main min-w-0">
+            <span class="insights-result-title">{{ row.title }}</span>
+            {% if row.subtitle %}<span class="insights-result-sub">{{ row.subtitle }}</span>{% endif %}
+            {% if row.meta %}<span class="insights-result-sub text-slate-600">{{ row.meta }}</span>{% endif %}
+          </div>
+          {% if row.amount %}
+          <span class="insights-trend-val shrink-0">{{ row.amount }}</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-[10px] text-slate-500 font-mono italic">No live rows returned for this slice.</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% if a.mcp_overlay.layers|length == 0 and a.mcp_overlay.status == 'disabled' %}
+    <p class="text-[10px] text-slate-500 font-mono">Enable live MCP in Settings or check <a href="/tools/mcp" class="text-neon-cyan no-underline hover:underline">MCP Servers</a>.</p>
+    {% endif %}
+  </div>
   {% endif %}
   {% endif %}
 </div>

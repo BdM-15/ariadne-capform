@@ -1,0 +1,61 @@
+<div class="clew-drawer-panel" id="clew-drawer-panel">
+  {% if drilldown.query %}
+  <p class="clew-drawer-facet-summary text-[10px] font-mono text-slate-500 px-4 pt-3 pb-1">
+    {{ drilldown.summary or drilldown.query.name }}
+  </p>
+  {% endif %}
+
+  <form id="clew-drawer-facets" class="clew-drawer-facets px-4 pb-2">
+    <input type="hidden" name="agency" value="{{ facet_form.agency }}" />
+    <input type="hidden" name="sub_agency" value="{{ facet_form.sub_agency }}" />
+    <input type="hidden" name="recipient" value="{{ facet_form.recipient }}" />
+    <input type="hidden" name="naics_codes" value="{{ facet_form.naics_codes }}" />
+    <input type="hidden" name="psc_codes" value="{{ facet_form.psc_codes }}" />
+  </form>
+
+  <div class="clew-drawer-controls flex flex-wrap items-center gap-2 px-4 pb-3">
+    <select id="clew-drawer-mode" name="mode" class="thread-input text-xs" form="clew-drawer-run">
+      <option value="money_flow" {% if drilldown.mode == 'money_flow' %}selected{% endif %}>Money flow</option>
+      <option value="spend_trend" {% if drilldown.mode == 'spend_trend' %}selected{% endif %}>Spend trend</option>
+      <option value="teaming" {% if drilldown.mode == 'teaming' %}selected{% endif %}>Teaming (prime→sub)</option>
+      <option value="recipient_landscape" {% if drilldown.mode == 'recipient_landscape' %}selected{% endif %}>Recipient landscape</option>
+    </select>
+    <button type="submit" form="clew-drawer-run" class="btn btn-hero-magenta btn-compact">Run</button>
+    <button type="submit" form="clew-drawer-review" class="btn btn-primary btn-compact">Queue review</button>
+    <button
+      type="button"
+      class="btn btn-ghost btn-compact text-[10px]"
+      onclick="openGuideDialog('guide-clew')"
+    >Guide</button>
+  </div>
+
+  <form
+    id="clew-drawer-run"
+    hx-get="/partials/clew/drawer"
+    hx-target="#clew-drawer-body"
+    hx-swap="innerHTML"
+    hx-include="#clew-drawer-facets, #clew-drawer-mode"
+  >
+    <input type="hidden" name="run" value="1" />
+  </form>
+  <form
+    id="clew-drawer-review"
+    hx-post="/partials/clew/queue-review"
+    hx-target="#clew-drawer-body"
+    hx-swap="innerHTML"
+    hx-include="#clew-drawer-facets, #clew-drawer-mode"
+  >
+    <input type="hidden" name="run" value="1" />
+  </form>
+
+  <div class="clew-drawer-results px-4 pb-4">
+    {% include "partials/insights_radar_drilldown.html" %}
+  </div>
+
+  {% set guide_id = "clew" %}
+  {% set guide = clew_guide %}
+  {% include "partials/insights_guide_dialog.html" %}
+</div>
+<script>
+  if (window.lucide) window.lucide.createIcons();
+</script>

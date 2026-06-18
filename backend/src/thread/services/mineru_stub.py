@@ -1,4 +1,4 @@
-"""MinerU document parse status — Phase 19 hook (not DataRepublican pdfparser)."""
+"""MinerU document parse status — Phase 19 hook."""
 
 from __future__ import annotations
 
@@ -16,6 +16,6 @@ def mineru_ingest_status(settings: Settings) -> dict[str, Any]:
         "enabled": enabled,
         "status": "ready" if enabled else "stub",
         "role": "Solicitation / PDF → structured markdown → vault wiki (Phase 19).",
-        "not_used": "DataRepublican pdfparser — we do not port DR doc parsing.",
+        "not_used": "Legacy third-party pdfparser forks — Thread uses MinerU only.",
         "theseus_note": "MinerU 3.3 already runs on Theseus; enable here when opp attach pipeline lands.",
     }

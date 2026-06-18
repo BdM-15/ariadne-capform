@@ -18,8 +18,7 @@ INSIGHTS_EXPLORE_GUIDES: dict[str, dict[str, Any]] = {
         ),
         "output": (
             "Expiring contract rows with award_key, obligation, NAICS, and agency — "
-            "Watch promotes explicit potential to Pulse. Connect the dots panel runs "
-            "DataRepublican-style follow-the-money (spend trend, money flow, teaming, landscape) as candidate intel."
+            "Watch promotes explicit potential to Pulse. Clew (separate card / drawer) traces money paths."
         ),
         "context_impact": (
             "Peer facets only — agency, sub-agency, recipient, NAICS, PSC in any combo. "
@@ -30,36 +29,48 @@ INSIGHTS_EXPLORE_GUIDES: dict[str, dict[str, Any]] = {
             "Saved bookmarks reopen this explore pane — they do not remote-control Pulse.",
             "Research on Pulse feeds the platform knowledge vault (agencies, competitors) — one ingress among many.",
             "Pinpoint award lookups: USAspending MCP on Tools → MCP Servers.",
-            "Teaming uses FFATA subaward bulk — not prime-only. PDF parse is MinerU 3.3 (stub), not DR pdfparser.",
+            "Teaming uses FFATA subaward bulk — not prime-only. PDF parse is MinerU 3.3 (stub).",
         ],
     },
-    "connect_dots": {
-        "title": "Connect the dots (DataRepublican methods)",
+    "clew": {
+        "title": "Clew — trace the money path",
         "accent": "magenta",
         "purpose": (
-            "Follow-the-money analytics inspired by "
-            "datarepublican.com and github.com/DataRepublican/datarepublican — "
-            "connecting the dots on where federal money flows, applied to your facet slice "
-            "on migrated PostgreSQL intel (capture-insights bulk), not DR's charity/990 stack."
+            "Thread's connect-the-dots research utility — trace how federal money moves across "
+            "recipients, agencies, primes, subs, and time. Standalone page at "
+            "/clew (Tools sidebar) — not embedded in Data Insights explore."
         ),
         "when": (
-            "You need trend context, incumbent money paths, or prime→sub teaming structure "
-            "before Watch/Track — especially on recompete or competitive landscapes."
+            "Market scans, recompete qualification, competitive landscape, teaming structure, "
+            "or MS1 evidence — before Watch/Track or when deepening a watched opportunity."
         ),
         "output": (
-            "Candidate charts and edge lists — spend trend bars, recipient→agency flows, "
-            "teaming edges, recipient concentration. Queue for review before packet/vault trust."
+            "Candidate charts and edge lists — spend trend, recipient→agency flows, prime→sub "
+            "teaming, recipient concentration. Queue for review; trusted findings compound into "
+            "the knowledge vault (agencies, competitors, market notes)."
         ),
         "context_impact": (
-            "Uses intel_usaspending_prime_awards + intel_usaspending_subawards. "
-            "Document parsing for solicitations is MinerU 3.3 (Theseus path, Phase 19 stub) — "
-            "we do not use DataRepublican pdfparser. SAM MCP supplements live subaward discovery."
+            "Dual data layer: (1) PostgreSQL bulk — intel_usaspending_prime_awards + subawards for "
+            "portfolio-scale trends, teaming, concentration; (2) live MCP complement — USAspending MCP "
+            "for pinpoint award/recipient lookups, SAM.gov MCP for notices, entities, live subaward "
+            "discovery when bulk is stale or missing. Clew is a utility over both — separate from "
+            "USAspending explore UI. MinerU 3.3 for solicitation PDF (Phase 19 stub)."
         ),
+        "how_to_use": [
+            "Open Clew from Tools → Clew, or follow a deep link from Data Insights explore or Pulse watchlist (recipient/agency/NAICS pre-filled).",
+            "Set at least one facet — agency, sub-agency, recipient, NAICS, or PSC. Matching uses substring search (ILIKE), not exact labels; try a short fragment like Army or part of an incumbent name.",
+            "Pick a mode: Money flow (recipient→agency), Spend trend (fiscal years), Teaming (prime→sub), or Recipient landscape (concentration).",
+            "Click Run analysis. The ECharts chart is the PG bulk slice; expand Data table below for row-level detail.",
+            "Optional: check Live MCP supplement before Run for USAspending pinpoint awards and (in Teaming + recipient) SAM FFATA subawards — slower, shown in a separate panel under the chart.",
+            "Compare PG bulk (historical portfolio) to live MCP rows when both are present — bulk for trends, MCP for freshness.",
+            "Queue for review when the slice is worth promoting; outputs stay candidate until you approve on /review.",
+            "Teaming mode requires FFATA subaward migration (do not use --skip-subawards). SAM live subawards need SAM_GOV_API_KEY on Tools → MCP Servers.",
+        ],
         "tips": [
-            "Run USAspending explore first — analysis inherits the same facets.",
-            "Teaming mode needs subaward migration (not --skip-subawards).",
-            "Dots on a result row pre-fills recipient for teaming/money-flow context.",
-            "Approve on Review queue to promote candidate → trusted intel.",
+            "Not DR-style graph browse yet — analytical top-N paths in a facet slice; click-to-expand nodes is 17b-interact (future).",
+            "Facet autocomplete and semantic search (Army CIO → PG label) land in 17d / 17c — not required to type perfect agency strings today.",
+            "Trusted Clew findings will compound into vault entity pages after review (17b-vault — ingest design TBD).",
+            "Pair with USAspending explore for expiring awards; Clew for money-path and teaming structure on the same facets.",
         ],
     },
     "sam_explore": {
@@ -94,5 +105,10 @@ def guide_for_explore(guide_id: str) -> dict[str, Any]:
     return dict(INSIGHTS_EXPLORE_GUIDES.get(guide_id, {}))
 
 
+def guide_for_clew() -> dict[str, Any]:
+    return dict(INSIGHTS_EXPLORE_GUIDES.get("clew", {}))
+
+
 def guide_for_connect_dots() -> dict[str, Any]:
-    return dict(INSIGHTS_EXPLORE_GUIDES.get("connect_dots", {}))
+    """Deprecated alias — use guide_for_clew."""
+    return guide_for_clew()

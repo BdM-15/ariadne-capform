@@ -17,9 +17,10 @@
     Skills are markdown packages under
     <code class="text-neon-cyan font-mono">skills/</code>
     — the same files an agent reads via SKILL.md frontmatter.
-    Run from opportunity Research tab or API
-    <code class="text-neon-cyan font-mono">/api/skills/{id}/run</code>;
-    outputs stay <strong class="text-slate-300">candidate</strong> until review.
+    <strong class="text-slate-300">Run</strong> opens an inline panel; outputs stay
+    <strong class="text-slate-300">candidate</strong> until review.
+    API:
+    <code class="text-neon-cyan font-mono">POST /api/skills/{id}/run</code>.
     <span class="settings-label-tip" title="Theseus-style Skills Retrieval settings are intentionally not ported — too complex for solo operator shell.">?</span>
   </div>
 
@@ -29,11 +30,16 @@
 
   <div class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
     {% for skill in skills.skills %}
-    <div class="card card-accent card-hover accent-magenta p-5">
+    <div class="card card-accent card-hover accent-magenta p-5" id="skill-card-{{ skill.id }}">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <div class="flex items-center gap-2 mb-1">
+          <div class="flex items-center gap-2 mb-1 flex-wrap">
             <code class="text-sm font-bold text-neon-magenta">{{ skill.id }}</code>
+            {% if skill.wired %}
+            <span class="pill border border-neon-lime/40 text-neon-lime text-[9px] font-mono uppercase">wired</span>
+            {% else %}
+            <span class="pill border border-edge text-slate-500 text-[9px] font-mono uppercase">stub</span>
+            {% endif %}
             <span class="settings-label-tip" title="{{ skill.description }}">?</span>
           </div>
           <p class="text-xs text-slate-400 leading-relaxed line-clamp-3">{{ skill.description }}</p>
@@ -44,13 +50,27 @@
         </div>
       </div>
       <div class="mt-4 flex gap-2">
-        <span class="btn btn-ghost text-xs opacity-50 cursor-not-allowed" title="Phase 20 — run from workspace Research tab">
+        {% if skill.wired %}
+        <button
+          type="button"
+          class="btn btn-hero-magenta text-xs"
+          hx-get="/partials/tools/skills/{{ skill.id }}/panel"
+          hx-target="#skill-run-slot-{{ skill.id }}"
+          hx-swap="innerHTML"
+          title="Open run panel"
+        >
+          <i data-lucide="play" class="w-3.5 h-3.5"></i> Run
+        </button>
+        {% else %}
+        <span class="btn btn-ghost text-xs opacity-50 cursor-not-allowed" title="Register handler in skills/runner.py">
           <i data-lucide="play" class="w-3.5 h-3.5"></i> Run
         </span>
+        {% endif %}
         <span class="btn btn-ghost text-xs opacity-50 cursor-not-allowed" title="Install from GitHub — deferred">
           <i data-lucide="download" class="w-3.5 h-3.5"></i> Install
         </span>
       </div>
+      <div id="skill-run-slot-{{ skill.id }}"></div>
     </div>
     {% endfor %}
   </div>

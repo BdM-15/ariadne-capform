@@ -51,7 +51,7 @@
             <p class="text-[11px] text-slate-400 mt-1 line-clamp-3">{{ item.excerpt }}</p>
           </div>
           <a
-            href="/knowledge"
+            href="/knowledge?page={{ item.rel_path|urlencode }}"
             class="btn btn-ghost btn-compact text-[10px] no-underline shrink-0"
             title="Open Knowledge vault — {{ item.rel_path }}"
           >

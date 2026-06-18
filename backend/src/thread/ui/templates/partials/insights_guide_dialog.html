@@ -30,6 +30,16 @@
         <h4 class="tuning-guide-h">Facets &amp; constraints</h4>
         <p class="text-slate-400 leading-relaxed">{{ guide.context_impact }}</p>
       </section>
+      {% if guide.how_to_use %}
+      <section>
+        <h4 class="tuning-guide-h">How to use</h4>
+        <ol class="tuning-guide-list tuning-guide-steps text-slate-400 list-decimal list-inside space-y-2">
+          {% for step in guide.how_to_use %}
+          <li class="leading-relaxed">{{ step }}</li>
+          {% endfor %}
+        </ol>
+      </section>
+      {% endif %}
       {% if guide.tips %}
       <section>
         <h4 class="tuning-guide-h">Tips</h4>

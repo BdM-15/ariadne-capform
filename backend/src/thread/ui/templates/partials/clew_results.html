@@ -1,0 +1,15 @@
+{% with clew_surface='page' %}
+{% include "partials/insights_radar_drilldown.html" %}
+{% endwith %}
+<script>
+  (function () {
+    function boot() {
+      if (window.initClewCharts) window.initClewCharts();
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", boot);
+    } else {
+      boot();
+    }
+  })();
+</script>

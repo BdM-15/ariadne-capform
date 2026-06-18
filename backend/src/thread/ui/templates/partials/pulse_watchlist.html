@@ -21,7 +21,8 @@
   <div class="pulse-panel-body {% if wl.count > 4 %}pulse-panel-body-scroll{% endif %}">
     <p class="text-[10px] text-slate-600 mb-2">
       Explicit potential from <span class="text-slate-500">Data Insights</span>.
-      <span class="text-slate-500">Research</span> seeds agency/competitor vault notes (one platform ingress).
+      <span class="text-neon-magenta">Clew</span> opens <a href="/clew" class="text-neon-magenta no-underline hover:underline">trace page</a> (Tools sidebar).
+      <span class="text-slate-500">Research</span> seeds vault notes.
       <span class="text-slate-500">Track</span> commits to opportunity workspace.
     </p>
     {% if wl.count == 0 %}
@@ -75,6 +76,9 @@
               <button type="submit" class="btn btn-primary btn-compact">Track</button>
             </form>
             {% endif %}
+            {% with recipient=item.title, agency=item.agency or '', naics_codes=item.naics_code or '', mode='money_flow', run='1', extra_class='' %}
+            {% include "partials/clew_link.html" %}
+            {% endwith %}
             <form hx-post="/watchlist/{{ item.id }}/research" hx-target="#pulse-body" hx-swap="outerHTML">
               <button type="submit" class="btn btn-ghost btn-compact text-[10px]">Research</button>
             </form>

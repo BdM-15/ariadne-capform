@@ -1,0 +1,19 @@
+<div class="skill-run-result-inner card card-accent {% if result.errors %}accent-amber{% else %}accent-lime{% endif %} p-3 mt-2 space-y-2">
+  <div class="flex flex-wrap items-center gap-2 text-[10px] font-mono">
+    <span class="pill border border-edge text-slate-400">{{ result.status }}</span>
+    <span class="text-slate-500">run {{ result.run_id[:8] }}…</span>
+    {% if result.review_id %}
+    <a href="/review" class="text-neon-lime no-underline hover:underline">Review queue →</a>
+    {% endif %}
+  </div>
+  {% if result.errors %}
+  <ul class="text-xs text-neon-amber space-y-1">
+    {% for err in result.errors %}
+    <li>{{ err }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if result.output_json %}
+  <pre class="text-[10px] font-mono text-slate-400 overflow-x-auto max-h-48 whitespace-pre-wrap break-words">{{ result.output_json }}</pre>
+  {% endif %}
+</div>

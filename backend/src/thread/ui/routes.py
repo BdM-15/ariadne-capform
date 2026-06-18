@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import date
 from pathlib import Path
@@ -22,6 +23,7 @@ from thread.domain.schemas import OpportunityCreate
 from thread.research.capture_research import run_capture_research
 from thread.research.providers import build_provider_registry
 from thread.services import opportunities as opp_svc
+from thread.services.packet_workspace import build_packet_workspace, enrich_packet_field_card
 from thread.services.portfolio import build_portfolio_pulse, signal_opportunity_name
 from thread.services.platform_health import build_platform_health_widget
 from thread.services.insights_display import build_insights_page_context
@@ -37,9 +39,15 @@ from thread.intel.sam_query import (
     save_sam_query,
 )
 from thread.services.insights_explore import explore_radar, explore_sam
-from thread.ui.insights_guides import guide_for_connect_dots, guide_for_explore
+from thread.ui.insights_guides import guide_for_clew, guide_for_explore
 from thread.services.insights_drilldown import build_drilldown
 from thread.skills.runner import run_skill
+from thread.services.knowledge_browser import (
+    build_vault_browser_context,
+    child_dir_href,
+    child_file_href,
+    vault_href,
+)
 from thread.services.vault_research import ensure_watchlist_research_stubs
 from thread.services.watchlist import (
     add_watchlist_item,
@@ -52,6 +60,7 @@ from thread.services.review_gate import ReviewGateError, approve_review
 from thread.ui.formatters import format_date, format_money, urgency_label
 from thread.services.pursuits_display import lifecycle_label, milestone_gate_label, phase_band_label
 from thread.ui.settings_health import build_settings_health_context
+from thread.ui.skill_forms import CLEW_MODES, payload_from_form, skill_is_wired
 from thread.ui.tools_context import build_mcp_tools_context, build_skills_tools_context
 from thread.ui.review_display import build_pending_reviews_widget
 from thread.ui.workspace import (
@@ -70,6 +79,9 @@ templates.env.filters["datefmt"] = format_date
 templates.env.filters["urgency"] = urgency_label
 templates.env.filters["phase_band_label"] = phase_band_label
 templates.env.filters["milestone_label"] = milestone_gate_label
+templates.env.globals["vault_href"] = vault_href
+templates.env.globals["child_dir_href"] = child_dir_href
+templates.env.globals["child_file_href"] = child_file_href
 templates.env.filters["lifecycle_label"] = lifecycle_label
 
 router = APIRouter(tags=["ui"])
@@ -82,17 +94,6 @@ WORKSPACE_TABS = [
 ]
 
 SHELL_STUB_PAGES: dict[str, dict[str, str]] = {
-    "knowledge": {
-        "page_title": "Knowledge",
-        "page_subtitle": "Capture development",
-        "product_lane": "Capture",
-        "page_description": (
-            "Obsidian vault browser, domain_intel, entities. "
-            "MinerU ingest will land parsed docs and wiki drafts here."
-        ),
-        "next_phase": "15",
-        "stub_message": "Phase 15 wires vault browser. Phase 19 adds MinerU document upload.",
-    },
     "settings": {
         "page_title": "Settings",
         "page_subtitle": "Platform health",
@@ -130,17 +131,29 @@ async def _panel_context(
     *,
     tab: str,
     flash: str | None = None,
+    slide: str | None = None,
 ) -> dict:
-    answers = (
-        await db.execute(select(PacketFieldAnswer).where(PacketFieldAnswer.opportunity_id == opp_id))
-    ).scalars().all()
     active_tab = normalize_tab(tab)
     ctx: dict = {
         "opp_id": opp_id,
-        "fields": answers,
         "active_tab": active_tab,
         "flash": flash,
     }
+    if active_tab == "packet":
+        opp = await opp_svc.get_opportunity(db, opp_id)
+        packet = await build_packet_workspace(
+            db,
+            opp_id,
+            active_slide=slide,
+            milestone_gate=opp.current_milestone_gate if opp else None,
+        )
+        ctx["packet"] = packet
+        ctx["fields"] = packet["fields"]
+    else:
+        answers = (
+            await db.execute(select(PacketFieldAnswer).where(PacketFieldAnswer.opportunity_id == opp_id))
+        ).scalars().all()
+        ctx["fields"] = answers
     if active_tab == "actions":
         ctx["actions"] = await load_actions(db, opp_id)
     elif active_tab == "review":
@@ -182,7 +195,7 @@ async def _render_insights_body(
             "sam_form": sam_form,
             "radar_guide": guide_for_explore("usaspending_explore"),
             "sam_guide": guide_for_explore("sam_explore"),
-            "connect_dots_guide": guide_for_connect_dots(),
+            "clew_guide": guide_for_clew(),
         },
     )
 
@@ -212,7 +225,7 @@ async def insights_page(
             "sam_form": None,
             "radar_guide": guide_for_explore("usaspending_explore"),
             "sam_guide": guide_for_explore("sam_explore"),
-            "connect_dots_guide": guide_for_connect_dots(),
+            "clew_guide": guide_for_clew(),
         },
     )
 
@@ -243,6 +256,114 @@ async def insights_radar_explore_partial(
         request,
         "partials/insights_radar_explore.html",
         {"explore": explore},
+    )
+
+
+def _clew_facet_form(
+    *,
+    agency: str = "",
+    sub_agency: str = "",
+    recipient: str = "",
+    naics_codes: str = "",
+    psc_codes: str = "",
+) -> dict[str, str]:
+    return {
+        "agency": agency,
+        "sub_agency": sub_agency,
+        "recipient": recipient,
+        "naics_codes": naics_codes,
+        "psc_codes": psc_codes,
+    }
+
+
+@router.get("/partials/clew/drawer", response_class=HTMLResponse)
+async def clew_drawer_partial(
+    request: Request,
+    agency: str = Query(""),
+    sub_agency: str = Query(""),
+    recipient: str = Query(""),
+    naics_codes: str = Query(""),
+    psc_codes: str = Query(""),
+    mode: str = Query("money_flow"),
+    run: int = Query(0, ge=0, le=1),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    drilldown = await build_drilldown(
+        db,
+        settings,
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        mode=mode,
+        run=bool(run),
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/clew_drawer_panel.html",
+        {
+            "drilldown": drilldown,
+            "facet_form": _clew_facet_form(
+                agency=agency,
+                sub_agency=sub_agency,
+                recipient=recipient,
+                naics_codes=naics_codes,
+                psc_codes=psc_codes,
+            ),
+            "clew_guide": guide_for_clew(),
+        },
+    )
+
+
+@router.post("/partials/clew/queue-review", response_class=HTMLResponse)
+async def clew_queue_review(
+    request: Request,
+    agency: str = Form(""),
+    sub_agency: str = Form(""),
+    recipient: str = Form(""),
+    naics_codes: str = Form(""),
+    psc_codes: str = Form(""),
+    mode: str = Form("money_flow"),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    payload = {
+        "mode": mode,
+        "agency": agency.strip() or None,
+        "sub_agency": sub_agency.strip() or None,
+        "recipient": recipient.strip() or None,
+        "naics_codes": naics_codes.strip() or None,
+        "psc_codes": psc_codes.strip() or None,
+    }
+    result = await run_skill(settings, db, "clew_intel", payload)
+    drilldown = await build_drilldown(
+        db,
+        settings,
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        mode=mode,
+        run=True,
+        review_id=result.review_id,
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/clew_drawer_panel.html",
+        {
+            "drilldown": drilldown,
+            "facet_form": _clew_facet_form(
+                agency=agency,
+                sub_agency=sub_agency,
+                recipient=recipient,
+                naics_codes=naics_codes,
+                psc_codes=psc_codes,
+            ),
+            "clew_guide": guide_for_clew(),
+        },
     )
 
 
@@ -297,7 +418,7 @@ async def insights_radar_analyze(
         "naics_codes": naics_codes.strip() or None,
         "psc_codes": psc_codes.strip() or None,
     }
-    result = await run_skill(settings, db, "datarepublican_intel", payload)
+    result = await run_skill(settings, db, "clew_intel", payload)
     drilldown = await build_drilldown(
         db,
         settings,
@@ -476,12 +597,57 @@ async def review_page(
     )
 
 
+def _knowledge_template_context(settings: Settings, *, path: str = "", page: str = "") -> dict:
+    vault = build_vault_browser_context(settings, path=path, page=page)
+    return {
+        "app_name": settings.public_app_name,
+        "active_nav": "knowledge",
+        "vault": vault,
+    }
+
+
 @router.get("/knowledge", response_class=HTMLResponse)
 async def knowledge_page(
     request: Request,
+    path: str = Query(""),
+    page: str = Query(""),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    return _render_stub_page(request, settings, "knowledge")
+    return templates.TemplateResponse(
+        request,
+        "knowledge.html",
+        _knowledge_template_context(settings, path=path, page=page),
+    )
+
+
+@router.get("/partials/knowledge/tree", response_class=HTMLResponse)
+async def knowledge_tree_partial(
+    request: Request,
+    path: str = Query(""),
+    page: str = Query(""),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    ctx = _knowledge_template_context(settings, path=path, page=page)
+    return templates.TemplateResponse(
+        request,
+        "partials/knowledge_tree_panel.html",
+        ctx,
+    )
+
+
+@router.get("/partials/knowledge/page", response_class=HTMLResponse)
+async def knowledge_page_partial(
+    request: Request,
+    path: str = Query(""),
+    page: str = Query(""),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    ctx = _knowledge_template_context(settings, path=path, page=page)
+    return templates.TemplateResponse(
+        request,
+        "partials/knowledge_page_panel.html",
+        ctx,
+    )
 
 
 @router.get("/settings", response_class=HTMLResponse)
@@ -499,6 +665,185 @@ async def settings_page(
             "active_nav": "settings",
             "health": health,
         },
+    )
+
+
+def _clew_form_from_params(
+    *,
+    agency: str = "",
+    sub_agency: str = "",
+    recipient: str = "",
+    naics_codes: str = "",
+    psc_codes: str = "",
+    mode: str = "money_flow",
+    include_mcp: bool = False,
+) -> dict[str, str | bool]:
+    return {
+        "agency": agency,
+        "sub_agency": sub_agency,
+        "recipient": recipient,
+        "naics_codes": naics_codes,
+        "psc_codes": psc_codes,
+        "mode": mode if mode in {"money_flow", "spend_trend", "teaming", "recipient_landscape"} else "money_flow",
+        "include_mcp": include_mcp,
+    }
+
+
+async def _clew_page_context(
+    db: AsyncSession,
+    settings: Settings,
+    *,
+    agency: str = "",
+    sub_agency: str = "",
+    recipient: str = "",
+    naics_codes: str = "",
+    psc_codes: str = "",
+    mode: str = "money_flow",
+    run: bool = False,
+    review_id: str | None = None,
+    include_mcp: bool = False,
+) -> dict:
+    ctx = await build_insights_page_context(db, settings)
+    clew_form = _clew_form_from_params(
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        mode=mode,
+        include_mcp=include_mcp,
+    )
+    drilldown = await build_drilldown(
+        db,
+        settings,
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        mode=str(clew_form["mode"]),
+        run=run,
+        review_id=review_id,
+        include_mcp=include_mcp,
+    )
+    return {
+        "ctx": ctx,
+        "clew_form": clew_form,
+        "drilldown": drilldown,
+        "clew_guide": guide_for_clew(),
+    }
+
+
+@router.get("/clew", response_class=HTMLResponse)
+async def clew_page(
+    request: Request,
+    agency: str = Query(""),
+    sub_agency: str = Query(""),
+    recipient: str = Query(""),
+    naics_codes: str = Query(""),
+    psc_codes: str = Query(""),
+    mode: str = Query("money_flow"),
+    run: int = Query(0, ge=0, le=1),
+    include_mcp: int = Query(0, ge=0, le=1),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    page = await _clew_page_context(
+        db,
+        settings,
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        mode=mode,
+        run=bool(run),
+        include_mcp=bool(include_mcp),
+    )
+    return templates.TemplateResponse(
+        request,
+        "clew.html",
+        {
+            "app_name": settings.public_app_name,
+            "active_nav": "clew",
+            **page,
+        },
+    )
+
+
+@router.get("/partials/clew/results", response_class=HTMLResponse)
+async def clew_results_partial(
+    request: Request,
+    agency: str = Query(""),
+    sub_agency: str = Query(""),
+    recipient: str = Query(""),
+    naics_codes: str = Query(""),
+    psc_codes: str = Query(""),
+    mode: str = Query("money_flow"),
+    run: int = Query(0, ge=0, le=1),
+    include_mcp: int = Query(0, ge=0, le=1),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    page = await _clew_page_context(
+        db,
+        settings,
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        mode=mode,
+        run=bool(run),
+        include_mcp=bool(include_mcp),
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/clew_results.html",
+        page,
+    )
+
+
+@router.post("/clew/analyze", response_class=HTMLResponse)
+async def clew_analyze(
+    request: Request,
+    agency: str = Form(""),
+    sub_agency: str = Form(""),
+    recipient: str = Form(""),
+    naics_codes: str = Form(""),
+    psc_codes: str = Form(""),
+    mode: str = Form("money_flow"),
+    include_mcp: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    mcp_on = include_mcp in ("1", "on", "true", "yes")
+    payload = {
+        "mode": mode,
+        "agency": agency.strip() or None,
+        "sub_agency": sub_agency.strip() or None,
+        "recipient": recipient.strip() or None,
+        "naics_codes": naics_codes.strip() or None,
+        "psc_codes": psc_codes.strip() or None,
+    }
+    result = await run_skill(settings, db, "clew_intel", payload)
+    page = await _clew_page_context(
+        db,
+        settings,
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        mode=mode,
+        run=True,
+        review_id=result.review_id,
+        include_mcp=mcp_on,
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/clew_results.html",
+        page,
     )
 
 
@@ -578,6 +923,7 @@ async def tools_skills_page(
     request: Request,
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
+    mcp = build_mcp_tools_context(settings)
     return templates.TemplateResponse(
         request,
         "tools_skills.html",
@@ -585,6 +931,81 @@ async def tools_skills_page(
             "app_name": settings.public_app_name,
             "active_nav": "tools_skills",
             "skills": build_skills_tools_context(settings),
+            "mcp_servers": mcp["servers"],
+            "clew_modes": CLEW_MODES,
+        },
+    )
+
+
+@router.get("/partials/tools/skills/{skill_id}/panel", response_class=HTMLResponse)
+async def skills_run_panel_partial(
+    request: Request,
+    skill_id: str,
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    ctx = build_skills_tools_context(settings)
+    skill = next((s for s in ctx["skills"] if s["id"] == skill_id), None)
+    if not skill:
+        return HTMLResponse("Unknown skill", status_code=404)
+    mcp = build_mcp_tools_context(settings)
+    return templates.TemplateResponse(
+        request,
+        "partials/skills_run_panel.html",
+        {
+            "skill": skill,
+            "mcp_servers": mcp["servers"],
+            "clew_modes": CLEW_MODES,
+        },
+    )
+
+
+@router.post("/tools/skills/{skill_id}/run", response_class=HTMLResponse)
+async def tools_skill_run(
+    request: Request,
+    skill_id: str,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    if not skill_is_wired(skill_id):
+        return HTMLResponse("Skill handler not wired", status_code=404)
+
+    form = await request.form()
+    payload = payload_from_form(skill_id, form)
+    parse_error = payload.pop("_parse_error", None)
+    if parse_error:
+        return templates.TemplateResponse(
+            request,
+            "partials/skills_run_result.html",
+            {
+                "result": {
+                    "status": "error",
+                    "run_id": "—",
+                    "review_id": None,
+                    "errors": [f"Invalid arguments JSON: {parse_error}"],
+                    "output_json": "",
+                }
+            },
+        )
+
+    try:
+        run_result = await run_skill(settings, db, skill_id, payload)
+    except KeyError:
+        return HTMLResponse("Unknown skill", status_code=404)
+
+    await db.commit()
+
+    output_json = json.dumps(run_result.output, indent=2, default=str) if run_result.output else ""
+    return templates.TemplateResponse(
+        request,
+        "partials/skills_run_result.html",
+        {
+            "result": {
+                "status": run_result.status,
+                "run_id": run_result.run_id,
+                "review_id": run_result.review_id,
+                "errors": run_result.errors,
+                "output_json": output_json,
+            }
         },
     )
 
@@ -843,6 +1264,7 @@ async def opportunity_workspace(
     request: Request,
     opp_id: uuid.UUID,
     tab: str = Query("packet"),
+    slide: str = Query(""),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
@@ -850,7 +1272,7 @@ async def opportunity_workspace(
     if not opp:
         return HTMLResponse("Opportunity not found", status_code=404)
 
-    panel = await _panel_context(db, settings, opp_id, tab=tab)
+    panel = await _panel_context(db, settings, opp_id, tab=tab, slide=slide or None)
     return templates.TemplateResponse(
         request,
         "opportunity.html",
@@ -870,12 +1292,13 @@ async def opportunity_panel(
     request: Request,
     opp_id: uuid.UUID,
     tab: str = Query("packet"),
+    slide: str = Query(""),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
     if not await opp_svc.get_opportunity(db, opp_id):
         return HTMLResponse("Opportunity not found", status_code=404)
-    ctx = await _panel_context(db, settings, opp_id, tab=tab)
+    ctx = await _panel_context(db, settings, opp_id, tab=tab, slide=slide or None)
     return _render_panel(request, ctx)
 
 
@@ -889,10 +1312,11 @@ async def save_packet_field(
 ) -> HTMLResponse:
     answer = await opp_svc.update_packet_field(db, opp_id, field_key, value, as_candidate=True)
     await db.commit()
+    field = await enrich_packet_field_card(db, answer)
     return templates.TemplateResponse(
         request,
         "partials/packet_field.html",
-        {"field": answer, "opp_id": opp_id},
+        {"field": field, "opp_id": opp_id},
     )
 
 

@@ -11,7 +11,7 @@
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-2 text-[11px] font-mono shrink-0">
-      <span class="pill border border-neon-cyan/40 text-neon-cyan">{{ opp.current_milestone_gate }}</span>
+      <span class="pill border border-neon-cyan/40 text-neon-cyan">{{ opp.current_milestone_gate|milestone_label }}</span>
       <span class="pill text-slate-500">{{ opp.capture_phase_band }}</span>
       {% if opp.intel_provenance %}
       <span class="pill border border-neon-magenta/40 text-neon-magenta">intel signal</span>

@@ -1,17 +1,7 @@
-"""Follow-the-money analytics — DataRepublican methods on Thread PG intel.
+"""Clew analytics — trace money paths over migrated USAspending PostgreSQL intel.
 
-Inspiration (patterns only, no code dependency):
-- https://datarepublican.com — "connecting the dots" / expose where money flows
-- https://github.com/DataRepublican/datarepublican — award_search, relations, graphviz, browse/expose
-
-| DR surface              | Thread mode              |
-|-------------------------|--------------------------|
-| Charity graph / expose  | money_flow, spend_trend  |
-| Federal grant search    | recipient_landscape      |
-| People relations        | teaming (prime→sub)      |
-
-Data: capture-insights USAspending bulk in PostgreSQL — not DR charity/990 DB.
-PDF: MinerU 3.3 (Phase 19) — not DataRepublican pdfparser.
+Utility layer separate from raw USAspending explore (facet queries + pg_queries).
+Modes: spend_trend, money_flow, teaming, recipient_landscape.
 """
 
 from __future__ import annotations
@@ -206,7 +196,7 @@ async def _recipient_landscape(
         x["pct"] = round(100.0 * x["millions"] / peak, 1)
     return {
         "mode": "recipient_landscape",
-        "method": "Incumbent / competitor concentration — who captures spend in this facet slice.",
+        "method": "Recipient concentration — who captures spend in this facet slice.",
         "recipients": recipients,
         "summary": f"Top {len(recipients)} recipients by obligated spend",
     }

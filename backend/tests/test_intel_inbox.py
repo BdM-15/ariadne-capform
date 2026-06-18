@@ -40,11 +40,11 @@ def test_resolve_source_lane_insights_skill():
     item = ReviewQueueItem(
         review_id=uuid.uuid4(),
         entity_type="skill_run",
-        title="Skill: datarepublican_intel",
+        title="Skill: clew_intel",
         subtitle="Skill output",
         excerpt="3 contracts returned",
     )
-    lane, label, hint = _resolve_source_lane(item, skill_id="datarepublican_intel")
+    lane, label, hint = _resolve_source_lane(item, skill_id="clew_intel")
     assert lane == "insights"
     assert "Insights" in label
     assert "Data Insights" in (hint or "")

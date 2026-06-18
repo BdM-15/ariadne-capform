@@ -27,6 +27,14 @@ MS2_UP = (
     MilestoneGate.MILESTONE_3,
     MilestoneGate.MILESTONE_4,
 )
+MS3_UP = (
+    MilestoneGate.MILESTONE_3,
+    MilestoneGate.MILESTONE_4,
+)
+MS1_MS2 = (
+    MilestoneGate.MILESTONE_1,
+    MilestoneGate.MILESTONE_2,
+)
 
 
 @dataclass(frozen=True)
@@ -142,5 +150,49 @@ PACKET_FIELD_SEEDS: tuple[PacketFieldSeed, ...] = (
         "milestone_stage", "Milestone Stage", "Active MS gate for this packet review?",
         PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.TEXT, ALL_MS,
         PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_2_cover",
+    ),
+    # Slide 17 — MS1 & MS2 approval criteria (expand toward full dictionary)
+    PacketFieldSeed(
+        "ms1_strategic_fit_confirmed", "Strategic fit confirmed?",
+        "Is strategic fit confirmed for qualification?",
+        PacketSection.RECOMMENDATION_AND_NEXT_ACTIONS, PacketFieldValueKind.DECISION, MS1_ONLY,
+        PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_17_approval",
+    ),
+    PacketFieldSeed(
+        "ms1_capture_manager_available_qualified", "Capture Manager available and qualified?",
+        "Is a qualified Capture Manager available?",
+        PacketSection.RECOMMENDATION_AND_NEXT_ACTIONS, PacketFieldValueKind.DECISION, MS1_ONLY,
+        PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_17_approval",
+    ),
+    PacketFieldSeed(
+        "ms2_capture_strategy_plan_validated", "Capture strategy and plan validated?",
+        "Is the capture strategy and plan validated for pursuit?",
+        PacketSection.RECOMMENDATION_AND_NEXT_ACTIONS, PacketFieldValueKind.DECISION, MS2_UP,
+        PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_17_approval",
+    ),
+    PacketFieldSeed(
+        "ms2_pwin_reassessed_matured", "pWin reassessed and matured?",
+        "Has pWin been reassessed and matured for MS2?",
+        PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.DECISION, MS2_UP,
+        PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_17_approval",
+    ),
+    # Slide 18 — MS3 & MS4 approval criteria
+    PacketFieldSeed(
+        "ms3_win_strategy_validated", "Win strategy validated?",
+        "Is the win strategy validated for bid/no-bid?",
+        PacketSection.SOLUTION_STRATEGY, PacketFieldValueKind.DECISION, MS3_UP,
+        PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_18_approval",
+    ),
+    PacketFieldSeed(
+        "ms3_pricing_strategy_ptw_approved", "Pricing strategy and PTW approved?",
+        "Are pricing strategy and price-to-win approved?",
+        PacketSection.PRICE_TO_WIN, PacketFieldValueKind.DECISION, MS3_UP,
+        PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_18_approval",
+    ),
+    PacketFieldSeed(
+        "ms4_pricing_acceptable", "Pricing acceptable?",
+        "Is final pricing acceptable for submission?",
+        PacketSection.PRICE_TO_WIN, PacketFieldValueKind.DECISION, (MilestoneGate.MILESTONE_4,),
+        PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_18_approval",
     ),
 )

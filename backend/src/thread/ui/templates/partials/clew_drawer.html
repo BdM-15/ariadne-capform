@@ -1,0 +1,24 @@
+{# Global Clew drawer — Theseus-style right panel; body loaded via HTMX #}
+<div id="clew-drawer-root" class="clew-drawer-root clew-drawer-hidden" aria-hidden="true">
+  <button
+    type="button"
+    class="clew-drawer-backdrop"
+    aria-label="Close Clew"
+    onclick="closeClewDrawer()"
+  ></button>
+  <aside id="clew-drawer" class="clew-drawer" role="dialog" aria-labelledby="clew-drawer-title">
+    <header class="clew-drawer-head">
+      <div class="clew-drawer-head-main min-w-0">
+        <span class="pulse-panel-kicker text-neon-magenta/80">Research utility</span>
+        <h2 id="clew-drawer-title" class="clew-drawer-title text-neon-magenta">Clew</h2>
+        <p class="clew-drawer-sub text-[10px] text-slate-500">Trace money paths · candidate until review</p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-compact clew-drawer-close" onclick="closeClewDrawer()" title="Close">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </header>
+    <div id="clew-drawer-body" class="clew-drawer-body">
+      <p class="insights-idle-hint p-4">Open Clew from Insights, Pulse watchlist, or explore rows.</p>
+    </div>
+  </aside>
+</div>

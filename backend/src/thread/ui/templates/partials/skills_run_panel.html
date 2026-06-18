@@ -1,0 +1,69 @@
+<div class="skill-run-panel mt-4 pt-4 border-t border-edge/50 space-y-3" id="skill-run-panel-{{ skill.id }}">
+  {% if skill.wired %}
+  <form
+    class="space-y-3"
+    hx-post="/tools/skills/{{ skill.id }}/run"
+    hx-target="#skill-run-result-{{ skill.id }}"
+    hx-swap="innerHTML"
+    hx-indicator="#skill-run-spinner-{{ skill.id }}"
+  >
+    {% if skill.id == 'clew_intel' %}
+    <p class="text-[10px] text-slate-500 font-mono">
+      Facet-aware trace over PG intel — same modes as <a href="/clew" class="text-neon-magenta no-underline hover:underline">Clew</a>.
+      At least one facet for analysis modes.
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <input class="thread-input text-xs" name="agency" placeholder="Agency" />
+      <input class="thread-input text-xs" name="sub_agency" placeholder="Sub-agency" />
+      <input class="thread-input text-xs" name="recipient" placeholder="Recipient" />
+      <input class="thread-input text-xs" name="naics_codes" placeholder="NAICS (comma-sep)" />
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <select name="mode" class="thread-input text-xs max-w-[14rem]">
+        {% for value, label in clew_modes %}
+        <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+      <input class="thread-input text-xs w-16" name="limit" type="number" min="1" max="50" value="12" title="Top N rows" />
+      <button type="submit" class="btn btn-hero-magenta text-xs">
+        <i data-lucide="play" class="w-3.5 h-3.5"></i>
+        Run
+      </button>
+    </div>
+    {% elif skill.id == 'mcp_federal_tools' %}
+    <p class="text-[10px] text-slate-500 font-mono">
+      Invoke a vendored MCP tool — requires server keys on
+      <a href="/tools/mcp" class="text-neon-cyan no-underline hover:underline">MCP Servers</a>.
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <select name="server" class="thread-input text-xs" required>
+        <option value="">Server…</option>
+        {% for s in mcp_servers %}
+        <option value="{{ s.id }}">{{ s.id }}{% if not s.configured %} (needs keys){% endif %}</option>
+        {% endfor %}
+      </select>
+      <input class="thread-input text-xs font-mono" name="tool" placeholder="Tool name (tools/list)" required />
+    </div>
+    <textarea
+      class="thread-input text-xs font-mono min-h-[4rem]"
+      name="arguments"
+      placeholder='{"query": "..."}  — JSON object, optional'
+    ></textarea>
+    <button type="submit" class="btn btn-hero-cyan text-xs">
+      <i data-lucide="play" class="w-3.5 h-3.5"></i>
+      Invoke
+    </button>
+    {% elif skill.id == 'skill-creator' %}
+    <p class="text-[10px] text-slate-500 font-mono">Lists installed skills and scaffold hints — no inputs.</p>
+    <button type="submit" class="btn btn-primary text-xs">
+      <i data-lucide="play" class="w-3.5 h-3.5"></i>
+      Run
+    </button>
+    {% endif %}
+    <span id="skill-run-spinner-{{ skill.id }}" class="htmx-indicator text-[10px] text-slate-500">Running…</span>
+  </form>
+  {% else %}
+  <p class="text-xs text-slate-500 font-mono italic">Handler not wired — register in <code class="text-neon-cyan">skills/runner.py</code>.</p>
+  {% endif %}
+  <div id="skill-run-result-{{ skill.id }}" class="skill-run-result"></div>
+</div>

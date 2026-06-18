@@ -63,6 +63,12 @@
         <span>Tools</span>
       </div>
       <div class="space-y-1">
+        <a href="/clew" class="nav-item w-full no-underline {% if active_nav == 'clew' %}nav-item-active{% endif %}">
+          {% with icon="git-branch", tile_class="tile-magenta" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
+          <span>Clew</span>
+        </a>
         <a href="/tools/mcp" class="nav-item w-full no-underline {% if active_nav == 'tools_mcp' %}nav-item-active{% endif %}">
           {% with icon="plug", tile_class="tile-cyan" %}
           {% include "partials/nav_icon.html" %}

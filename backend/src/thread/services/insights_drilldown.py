@@ -9,8 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.config import Settings
 from thread.intel import pg_queries as intel_queries
-from thread.intel.datarepublican import ANALYSIS_MODES, run_facet_analysis
+from thread.clew import ANALYSIS_MODES, run_facet_analysis
+from thread.clew.charts import attach_echarts_option
 from thread.intel.facet_query import InsightFacetQuery, describe_query
+from thread.clew.mcp_overlay import fetch_mcp_overlay
 from thread.services.insights_explore import _facet_from_params
 from thread.services.mineru_stub import mineru_ingest_status
 
@@ -39,6 +41,7 @@ async def build_drilldown(
     mode: str = "money_flow",
     run: bool = False,
     review_id: str | None = None,
+    include_mcp: bool = False,
 ) -> DrilldownResult:
     stats = await intel_queries.get_intel_stats(session)
     intel_live = bool(stats.get("prime_awards_ready") and stats.get("prime_award_count", 0) > 0)
@@ -86,12 +89,16 @@ async def build_drilldown(
         )
 
     analysis = await run_facet_analysis(session, query, mode)
+    analysis = attach_echarts_option(analysis)
     analysis["mineru"] = mineru_ingest_status(settings)
     analysis["facet_summary"] = describe_query(query)
     analysis["intel_stats"] = {
         "prime_awards": stats.get("prime_award_count", 0),
         "subawards": stats.get("subaward_count", 0),
     }
+    analysis["mcp_overlay"] = await fetch_mcp_overlay(
+        settings, query, mode, include_mcp=include_mcp
+    )
     if analysis.get("error"):
         return DrilldownResult(
             query=query,

@@ -19,15 +19,9 @@
         </span>
       </div>
       <div class="flex flex-col gap-1 shrink-0">
-      <button
-        type="button"
-        class="btn btn-ghost btn-compact text-[10px]"
-        title="Connect the dots on this recipient"
-        hx-get="/partials/insights/radar-drilldown?run=1&mode=teaming&recipient={{ row.recipient|urlencode }}"
-        hx-include="#insights-radar-form"
-        hx-target="#insights-radar-drilldown-panel"
-        hx-swap="innerHTML"
-      >Dots</button>
+      {% with recipient=row.recipient or '', agency=row.agency or '', naics_codes=row.naics_code or '', mode='teaming', run='1', extra_class='' %}
+      {% include "partials/clew_link.html" %}
+      {% endwith %}
       <form hx-post="/watchlist/add/recompete" hx-target="#insights-body" hx-swap="outerHTML">
         <input type="hidden" name="award_key" value="{{ row.award_key }}" />
         <input type="hidden" name="title" value="{{ row.recipient or '' }}" />

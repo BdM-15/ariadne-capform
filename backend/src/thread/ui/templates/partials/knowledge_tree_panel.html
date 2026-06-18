@@ -1,0 +1,81 @@
+<div class="vault-tree-inner">
+  <div class="flex flex-wrap items-center gap-2 mb-2">
+    <span class="cc-section-label text-neon-magenta mb-0 text-[10px]">Browse</span>
+    <span class="text-[10px] font-mono text-slate-600 truncate" title="{{ vault.vault_path }}">knowledge/thread</span>
+  </div>
+
+  <nav class="vault-breadcrumbs text-[10px] font-mono mb-3 flex flex-wrap gap-1" aria-label="Vault path">
+    {% for crumb in vault.breadcrumbs %}
+    {% if not loop.last %}
+    <a
+      href="{{ vault_href(path=crumb.path) }}"
+      class="vault-crumb text-neon-magenta no-underline hover:underline"
+      hx-get="/partials/knowledge/tree?path={{ crumb.path|urlencode }}"
+      hx-target="#vault-tree-panel"
+      hx-swap="innerHTML"
+      hx-push-url="{{ vault_href(path=crumb.path) }}"
+    >{{ crumb.label }}</a>
+    <span class="text-slate-600">/</span>
+    {% else %}
+    <span class="text-slate-400">{{ crumb.label }}</span>
+    {% endif %}
+    {% endfor %}
+  </nav>
+
+  {% if vault.error and not vault.dirs and not vault.files %}
+  <p class="text-xs text-neon-amber">{{ vault.error }}</p>
+  {% endif %}
+
+  <ul class="vault-entry-list space-y-0.5" aria-label="Vault entries">
+    {% if vault.browse_path %}
+    <li>
+      <a
+        href="{{ vault_href(path=vault.parent_path) }}"
+        class="vault-entry vault-entry-dir no-underline"
+        hx-get="/partials/knowledge/tree?path={{ vault.parent_path|urlencode }}"
+        hx-target="#vault-tree-panel"
+        hx-swap="innerHTML"
+        hx-push-url="{{ vault_href(path=vault.parent_path) }}"
+      >
+        <i data-lucide="corner-left-up" class="w-3.5 h-3.5 shrink-0 text-slate-500"></i>
+        <span>..</span>
+      </a>
+    </li>
+    {% endif %}
+    {% for name in vault.dirs %}
+    <li>
+      <a
+        href="{{ child_dir_href(vault.browse_path, name) }}"
+        class="vault-entry vault-entry-dir no-underline"
+        hx-get="/partials/knowledge/tree?path={{ (vault.browse_path + '/' + name if vault.browse_path else name)|urlencode }}"
+        hx-target="#vault-tree-panel"
+        hx-swap="innerHTML"
+        hx-push-url="{{ child_dir_href(vault.browse_path, name) }}"
+      >
+        <i data-lucide="folder" class="w-3.5 h-3.5 shrink-0 text-neon-magenta/70"></i>
+        <span class="truncate">{{ name }}</span>
+      </a>
+    </li>
+    {% endfor %}
+    {% for name in vault.files %}
+    {% set file_rel = (vault.browse_path + '/' + name) if vault.browse_path else name %}
+    <li>
+      <a
+        href="{{ child_file_href(vault.browse_path, name) }}"
+        class="vault-entry vault-entry-file no-underline {% if vault.active_page == file_rel %}vault-entry-active{% endif %}"
+        hx-get="/partials/knowledge/page?page={{ file_rel|urlencode }}"
+        hx-target="#vault-page-panel"
+        hx-swap="innerHTML"
+        hx-push-url="{{ child_file_href(vault.browse_path, name) }}"
+      >
+        <i data-lucide="file-text" class="w-3.5 h-3.5 shrink-0 text-neon-cyan/70"></i>
+        <span class="truncate">{{ name }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% if vault.dirs|length == 0 and vault.files|length == 0 and not vault.error %}
+  <p class="text-xs text-slate-500 font-mono italic mt-2">Empty directory.</p>
+  {% endif %}
+</div>

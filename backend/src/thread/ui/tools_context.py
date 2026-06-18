@@ -8,6 +8,7 @@ from thread.config import Settings
 from thread.mcp.service import MCPService
 from thread.skills.registry import discover_skills
 from thread.ui.mcp_guides import guide_for_server
+from thread.ui.skill_forms import skill_is_wired
 
 
 def build_mcp_tools_context(settings: Settings) -> dict[str, Any]:
@@ -50,5 +51,12 @@ def build_skills_tools_context(settings: Settings) -> dict[str, Any]:
             path = str(rel).replace("\\", "/")
         except ValueError:
             path = str(s.path)
-        items.append({"id": s.id, "description": s.description, "path": path})
+        items.append(
+            {
+                "id": s.id,
+                "description": s.description,
+                "path": path,
+                "wired": skill_is_wired(s.id),
+            }
+        )
     return {"skills": items, "skills_root": str(skills_root)}

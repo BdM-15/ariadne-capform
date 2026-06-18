@@ -28,7 +28,7 @@ SOURCE_LANE_LABELS: dict[str, str] = {
     "insights": "Data Insights",
 }
 
-INSIGHTS_SKILLS = frozenset({"datarepublican_intel"})
+INSIGHTS_SKILLS = frozenset({"clew_intel"})
 
 
 @dataclass(frozen=True)

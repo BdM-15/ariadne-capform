@@ -16,7 +16,6 @@ async def _dispose_app_engine_after_ui_test():
         await db_session_module.engine.dispose()
 
 STUB_NAV_ROUTES = (
-    ("/knowledge", "Knowledge"),
     ("/settings", "Settings"),
     ("/tools/mcp", "MCP Servers"),
     ("/tools/skills", "Agent Skills"),
@@ -56,7 +55,8 @@ def test_insights_page_saved_lenses_not_stub():
     assert "Shell stub" not in res.text
 
     res = client.get("/knowledge")
-    assert "Capture" in res.text
+    assert "vault-browser-layout" in res.text
+    assert "Shell stub" not in res.text
 
 
 def test_theseus_sidebar_shell_not_topbar_app_nav():
@@ -122,7 +122,9 @@ def test_tools_skills_page_lists_skills():
     res = client.get("/tools/skills")
     html = res.text
     assert res.status_code == 200
-    assert "datarepublican_intel" in html or "skill-creator" in html
+    assert "clew_intel" in html or "skill-creator" in html
+    assert '/partials/tools/skills/' in html
+    assert "Phase 20" not in html
 
 
 def test_review_page_global_queue_not_stub():

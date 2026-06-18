@@ -12,7 +12,7 @@ from thread.config import Settings
 from thread.db.models import CapabilityRun
 from thread.domain.enums import TrustLevel
 from thread.intel import pg_queries
-from thread.intel.datarepublican import ANALYSIS_MODES, facet_from_payload, run_facet_analysis
+from thread.clew import ANALYSIS_MODES, facet_from_payload, run_facet_analysis
 from thread.intel.facet_query import describe_query
 from thread.mcp.service import MCPService
 from thread.services.review_gate import create_review_record
@@ -45,8 +45,8 @@ async def run_skill(
     errors: list[str] = []
     output: dict[str, Any]
 
-    if skill_id == "datarepublican_intel":
-        output = await _run_datarepublican_intel(settings, session, body, errors)
+    if skill_id == "clew_intel":
+        output = await _run_clew_intel(settings, session, body, errors)
     elif skill_id == "mcp_federal_tools":
         output = await _run_mcp_federal_tools(settings, body, errors)
     elif skill_id == "skill-creator":
@@ -85,7 +85,7 @@ async def run_skill(
     )
 
 
-async def _run_datarepublican_intel(
+async def _run_clew_intel(
     settings: Settings,
     session: AsyncSession,
     body: dict[str, Any],

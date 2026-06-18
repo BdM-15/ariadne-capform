@@ -3370,3 +3370,69 @@ details.acc .summary-actions {
   overflow-y: auto;
   line-height: 1.4;
 }
+
+/* === Vault browser (Phase 15) === */
+.vault-browser-layout {
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  min-height: 420px;
+}
+@media (max-width: 768px) {
+  .vault-browser-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.vault-tree-panel {
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+.vault-page-panel {
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+.vault-entry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.vault-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  color: var(--text-300);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.vault-entry:hover {
+  background: rgba(var(--neon-magenta-rgb), 0.08);
+  color: var(--text-100);
+}
+.vault-entry-active {
+  background: rgba(var(--neon-cyan-rgb), 0.1);
+  color: var(--neon-cyan);
+  border: 1px solid rgba(var(--neon-cyan-rgb), 0.25);
+}
+.vault-entry-dir span {
+  color: var(--text-200);
+}
+.vault-json {
+  padding: 12px;
+  background: rgba(var(--ink-950-rgb, 9, 14, 28), 0.6);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  line-height: 1.45;
+}
+.vault-page-empty {
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vault-wikilink {
+  color: var(--neon-cyan);
+}

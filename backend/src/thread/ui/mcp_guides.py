@@ -24,7 +24,7 @@ MCP_SERVER_GUIDES: dict[str, dict[str, Any]] = {
         "context_impact": "No API key required. Complements migrated DuckDB intel in PostgreSQL.",
         "tips": [
             "Use Data Insights / Pulse for portfolio-scale radar; MCP for pinpoint lookups.",
-            "Pair with datarepublican_intel skill for relationship graphs.",
+            "Pair with Clew (clew_intel skill) for money-path and relationship traces.",
         ],
     },
     "sam_gov": {

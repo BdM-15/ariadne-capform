@@ -1,5 +1,72 @@
-<section class="space-y-3">
-  {% for field in fields %}
-  {% include "partials/packet_field.html" %}
-  {% endfor %}
-</section>
+<div class="packet-deck-layout">
+  <aside class="packet-slide-nav card card-accent accent-cyan p-3 shrink-0">
+    <div class="flex flex-wrap items-center gap-2 mb-2">
+      <span class="cc-section-label text-neon-cyan mb-0 text-[10px]">Slides</span>
+      <span class="pill border border-neon-cyan/40 text-neon-cyan text-[9px] font-mono">
+        {{ packet.milestone_gate_label }}
+      </span>
+    </div>
+    {% if packet.progress %}
+    <div class="text-[10px] font-mono text-slate-500 mb-2 space-y-1">
+      <div class="flex justify-between gap-2">
+        <span>MS-critical</span>
+        <span>{{ packet.progress.filled }}/{{ packet.progress.total }} filled</span>
+      </div>
+      {% if packet.progress.pending_review > 0 %}
+      <div class="flex justify-between gap-2 text-neon-amber">
+        <span>Pending review</span>
+        <a href="/opportunities/{{ opp_id }}?tab=review" class="text-neon-amber no-underline hover:underline">
+          {{ packet.progress.pending_review }}
+        </a>
+      </div>
+      {% endif %}
+    </div>
+    <div
+      class="packet-progress-bar mb-3"
+      title="{{ packet.progress.pct }}% MS-critical fields filled for {{ packet.milestone_gate_label }}"
+    >
+      <div class="packet-progress-fill" style="width: {{ packet.progress.pct }}%"></div>
+    </div>
+    {% endif %}
+    <nav class="packet-slide-list space-y-1" aria-label="Briefing packet slides">
+      {% for s in packet.slide_nav %}
+      <a
+        href="/opportunities/{{ opp_id }}?tab=packet&amp;slide={{ s.id }}"
+        class="packet-slide-link {% if s.active %}packet-slide-link-active{% endif %} packet-slide-{{ s.applicability }} no-underline"
+        hx-get="/opportunities/{{ opp_id }}/panel?tab=packet&amp;slide={{ s.id }}"
+        hx-target="#workspace-panel"
+        hx-swap="innerHTML"
+        hx-push-url="/opportunities/{{ opp_id }}?tab=packet&amp;slide={{ s.id }}"
+        title="MS markers: {{ s.ms_markers|join(', ') }}"
+      >
+        <span class="packet-slide-title">{{ s.title }}</span>
+        <span class="packet-slide-meta text-slate-600">
+          {% if s.applicability == 'required' %}
+          <span class="text-neon-lime">{{ s.answered_count }}/{{ s.field_count }}</span>
+          {% else %}
+          {{ s.answered_count }}/{{ s.field_count }}
+          {% endif %}
+        </span>
+      </a>
+      {% endfor %}
+    </nav>
+    <p class="text-[9px] font-mono text-slate-600 mt-3 leading-relaxed">
+      Required slides match {{ packet.milestone_gate_label }} deck markers. Optional slides may be omitted per acquisition type.
+    </p>
+  </aside>
+  <section class="packet-slide-body min-w-0 flex-1 space-y-3">
+    <div class="flex flex-wrap items-center gap-2 mb-1">
+      <h2 class="text-sm font-semibold text-slate-200">{{ packet.active_slide_title }}</h2>
+      <span class="text-[10px] font-mono text-slate-600">{{ packet.active_slide }}</span>
+      {% if packet.active_slide.endswith('_approval') %}
+      <span class="pill pill-compact border border-neon-amber/40 text-neon-amber text-[9px]">approval criteria</span>
+      {% endif %}
+    </div>
+    {% for field in fields %}
+    {% include "partials/packet_field.html" %}
+    {% endfor %}
+    {% if fields|length == 0 %}
+    <p class="text-sm text-slate-500 font-mono italic">No MS-critical fields on this slide for {{ packet.milestone_gate_label }}.</p>
+    {% endif %}
+  </section>
+</div>

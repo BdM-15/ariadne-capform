@@ -20,10 +20,22 @@ def slugify(name: str) -> str:
 
 
 async def seed_packet_definitions(session: AsyncSession) -> None:
+    """Initial seed when table is empty (legacy)."""
     count = await session.scalar(select(func.count()).select_from(PacketFieldDefinition))
     if count and count > 0:
         return
+    await ensure_packet_definitions(session)
+
+
+async def ensure_packet_definitions(session: AsyncSession) -> None:
+    """Upsert packet field definitions from PACKET_FIELD_SEEDS."""
+    existing = {
+        row.key
+        for row in (await session.execute(select(PacketFieldDefinition))).scalars().all()
+    }
     for seed in PACKET_FIELD_SEEDS:
+        if seed.key in existing:
+            continue
         session.add(
             PacketFieldDefinition(
                 key=seed.key,
@@ -34,6 +46,32 @@ async def seed_packet_definitions(session: AsyncSession) -> None:
                 required_gates=[g.value for g in seed.required_gates],
                 route_kind=seed.route_kind.value,
                 reference_slide=seed.reference_slide,
+            )
+        )
+    await session.flush()
+
+
+async def ensure_packet_answers(session: AsyncSession, opp_id: uuid.UUID) -> None:
+    """Ensure every definition has an answer row for this opportunity."""
+    await ensure_packet_definitions(session)
+    existing = {
+        row.field_key
+        for row in (
+            await session.execute(
+                select(PacketFieldAnswer.field_key).where(PacketFieldAnswer.opportunity_id == opp_id)
+            )
+        ).all()
+    }
+    defs = (await session.execute(select(PacketFieldDefinition))).scalars().all()
+    for definition in defs:
+        if definition.key in existing:
+            continue
+        session.add(
+            PacketFieldAnswer(
+                opportunity_id=opp_id,
+                field_key=definition.key,
+                status=PacketFieldAnswerStatus.UNANSWERED.value,
+                trust_level=TrustLevel.INTAKE.value,
             )
         )
     await session.flush()
@@ -67,17 +105,7 @@ async def create_opportunity(session: AsyncSession, payload: OpportunityCreate) 
     session.add(opp)
     await session.flush()
 
-    defs = (await session.execute(select(PacketFieldDefinition))).scalars().all()
-    for definition in defs:
-        session.add(
-            PacketFieldAnswer(
-                opportunity_id=opp.id,
-                field_key=definition.key,
-                status=PacketFieldAnswerStatus.UNANSWERED.value,
-                trust_level=TrustLevel.INTAKE.value,
-            )
-        )
-    await session.flush()
+    await ensure_packet_answers(session, opp.id)
     return opp
 
 

@@ -1,9 +1,9 @@
-"""Phase 17b — Connect the dots / DataRepublican-method drill-down."""
+"""Phase 17b — Clew drill-down."""
 
 import pytest
 from fastapi.testclient import TestClient
 
-from thread.intel.datarepublican import ANALYSIS_MODES
+from thread.clew import ANALYSIS_MODES
 from thread.main import create_app
 
 
@@ -22,20 +22,18 @@ def test_analysis_modes_defined():
     assert "teaming" in ANALYSIS_MODES
 
 
-def test_insights_page_connect_dots_section():
+def test_insights_page_clew_section():
     client = TestClient(create_app())
     res = client.get("/insights")
     html = res.text
     assert res.status_code == 200
-    assert "Connect the dots" in html
-    assert "datarepublican.com" in html or "DataRepublican" in html
-    assert "radar-drilldown" in html
-    assert "Queue for review" in html
-    assert "guide-connect-dots" in html
+    assert 'href="/clew"' in html
+    assert 'id="insights-clew"' not in html
+    assert "insights-radar-drilldown-section" not in html
 
 
 def test_drilldown_partial_idle():
     client = TestClient(create_app())
     res = client.get("/partials/insights/radar-drilldown")
     assert res.status_code == 200
-    assert "DataRepublican" in res.text or "datarepublican" in res.text
+    assert "Clew" in res.text

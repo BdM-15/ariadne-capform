@@ -1,0 +1,30 @@
+<div id="knowledge-body" class="page-content space-y-4">
+  <p class="text-sm text-slate-400">
+    Karpathy-style synthesis layer — <span class="font-mono text-slate-500">entities/</span>,
+    <span class="font-mono text-slate-500">global/domain_intel/</span>, pursuits, training.
+    Trusted writes land here after review; MinerU ingest arrives in Phase 19.
+  </p>
+
+  {% if not vault.vault_ready %}
+  <section class="card card-accent accent-amber p-5">
+    <h2 class="font-semibold text-sm text-neon-amber mb-2">Vault not ready</h2>
+    <p class="text-sm text-slate-400">{{ vault.error }}</p>
+    <p class="text-[11px] font-mono text-slate-500 mt-2 truncate" title="{{ vault.vault_path }}">{{ vault.vault_path }}</p>
+  </section>
+  {% else %}
+  <div class="vault-browser-layout">
+    <aside
+      id="vault-tree-panel"
+      class="vault-tree-panel card card-accent accent-magenta p-3 shrink-0"
+    >
+      {% include "partials/knowledge_tree_panel.html" %}
+    </aside>
+    <section
+      id="vault-page-panel"
+      class="vault-page-panel card card-accent accent-cyan p-4 min-w-0 flex-1"
+    >
+      {% include "partials/knowledge_page_panel.html" %}
+    </section>
+  </div>
+  {% endif %}
+</div>

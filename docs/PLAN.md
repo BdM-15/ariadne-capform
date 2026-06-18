@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-18 (Identification funnel: Insights → Watchlist → Opportunity; knowledge compounding doctrine)
+**Last updated:** 2026-06-18 (pause checkpoint — Phase 14e + 15 + 17b done; pickup at 17b-vault)
 
 ---
 
@@ -51,7 +51,7 @@ Thread exists to help you do three jobs end-to-end — tailored solo-operator, r
 | Lane | What you need | Thread surfaces (build toward) |
 |------|----------------|--------------------------------|
 | **1. Opportunity identification** | Find and qualify pursuits before you invest capture | **Data Insights** (live explore), **Watchlist** on Pulse (potential + research → vault), Track → opp |
-| **2. Capture development** | MS-gated strategy, intel, customer engagement, gate decisions | Living Briefing Packet (slide deck), Actions, Research, Intel Context, vault, `datarepublican_intel`, MinerU ingest |
+| **2. Capture development** | MS-gated strategy, intel, customer engagement, gate decisions | Living Briefing Packet (slide deck), Actions, Research, Intel Context, vault, Clew (`clew_intel`), MinerU ingest |
 | **3. Winning proposals** | pWin artifacts: eval mapping, win themes, PTW, outline, compliant narrative | Activation band produce lane, Theseus solicitation merge, skills + Grok synthesis → handoff to humans |
 
 Lanes overlap on one **opportunity record** — identification feeds capture; capture feeds proposal produce. Review gate sits across all three.
@@ -64,7 +64,7 @@ Lanes overlap on one **opportunity record** — identification feeds capture; ca
 | [capture-insights](https://github.com/BdM-15/capture-insights) | USAspending intel, Karpathy vault, skill runtime | Vite/React UI stack |
 | [proj-theseus](https://github.com/BdM-15/proj-theseus) | **Skin only:** `theseus.css`, shell UX patterns; MCP manifest pattern | Graph/RAG/LightRAG plumbing |
 | [1102 MCP tools](https://github.com/1102tools/federal-contracting-mcps) | Deterministic federal data | — |
-| [DataRepublican](https://github.com/DataRepublican/datarepublican) · [datarepublican.com](https://datarepublican.com) | Connect-the-dots / follow-the-money **methods** (graphs, flows, cross-entity tracing) via `datarepublican_intel` + Insights drill-down | NGO/990 charity product surface, Jekyll app, DR pdfparser (use **MinerU 3.3**) |
+| [DataRepublican](https://github.com/DataRepublican/datarepublican) · [datarepublican.com](https://datarepublican.com) | Connect-the-dots / follow-the-money **methods** (graphs, flows, cross-entity tracing) via **Clew** (`clew_intel`) + Insights drill-down | NGO/990 charity product surface, Jekyll app, DR pdfparser (use **MinerU 3.3**) |
 
 ---
 
@@ -199,7 +199,7 @@ Compounding is **distributed** — any lane can add candidate knowledge; review 
 |------|-----------------|----------------|
 | **Identify** | Insights explore, Pulse watchlist Research | `entities/agencies/`, `entities/competitors/` |
 | **Capture** | Workspace Research, packet `route_kind` fills, Actions | `pursuits/{opp}/`, packet trusted fields |
-| **Intel** | MCP/skills (`datarepublican_intel`, USAspending, SAM) | Evidence + vault mirrors with provenance |
+| **Intel** | MCP/skills (`clew_intel`, USAspending, SAM) | Evidence + vault mirrors with provenance |
 | **Ingest** | MinerU PDF/doc upload (Phase 19) | Parsed chunks + wiki drafts |
 | **Produce** | Studio / Theseus artifacts (Phase 21) | Reusable insights, win-theme corpora |
 | **Operate** | Review Queue approve | Candidate → trusted everywhere |
@@ -494,6 +494,21 @@ python app.py
 
 **Bootstrap:** [`backend/src/thread/bootstrap/vault.py`](../backend/src/thread/bootstrap/vault.py) — idempotent; never overwrites existing wiki pages.
 
+### Clew → vault ingest (design TBD — do not ship dump-to-folder)
+
+Trusted Clew findings must compound via **Karpathy llm-wiki / Obsidian** practices — not orphan markdown files.
+
+| Rule | Requirement |
+|------|-------------|
+| **Review gate first** | No vault write until Clew output promoted candidate → trusted on `/review` |
+| **Entity anchors** | Synthesis updates `entities/competitors/`, `entities/agencies/`, or `global/domain_intel/` — never a new `clew-dumps/` folder |
+| **Wikilinks + backlinks** | Every note links `[[recipient]]`, `[[agency]]`, `award_key`; graph stays connected |
+| **Append / merge** | Grok polishes into existing entity page — no duplicate competitor stubs per Clew run |
+| **Provenance frontmatter** | `review_id`, facet slice, Clew mode, PG intel snapshot date, `award_key` lineage |
+| **No static artifact default** | Clew produces **live explorable views** (drawer → future interactive charts); vault gets synthesis summary + links, not PNG/HTML dumps |
+
+**Deferred button:** “Save to vault” waits for this spec + `vault_research` merge path (align with Pulse Research stubs).
+
 ---
 
 ## Core domain model
@@ -520,7 +535,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 1. **Command Center Shell** — Pulse, Data Insights, opportunity workspace, review queue
 2. **Knowledge Layer** — Obsidian vault, MinerU ingest, `domain_intel`
-3. **Developer Skills** — skill-creator, datarepublican_intel, mcp_federal_tools
+3. **Developer Skills** — skill-creator, clew_intel, mcp_federal_tools
 4. **Data & Intel** — PG intel, 1102 MCPs, web research, MinerU utility
 5. **Config & Stack** — FastAPI HTMX shell, PostgreSQL, Grok-primary reasoning
 
@@ -542,7 +557,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | POST | `/api/research/*` | ❌ |
 | GET/POST | `/api/skills/*` | ❌ |
 | POST | `/api/intel/mcp/{server}/invoke` | ❌ |
-| GET | `/api/knowledge/vault/*` | ❌ |
+| GET | `/api/knowledge/vault/*` | ✅ |
 
 ---
 
@@ -563,7 +578,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | Command Center (`/`) | Attention widgets, compact nav, pursuit rail — **not** analytics home | Widget row (12c–12h): reviews, phase band, hot signals, health strip, **quick actions**; anti-pattern: metrics dump |
 | Portfolio Pulse (`/pulse`) | Morning briefing: **watchlist** + inbox + digest + pursuits | Potential panel (watchlist + research stubs); not active-lens feeds |
 | Data Insights (`/insights`) | ✅ Live explore + bookmarks + Watch; **Connect the dots** (17b, DR-inspired) | PG18 vectors + MinerU search (17c) |
-| Opportunity workspace | Packet (raw keys), Actions, Review, Research tabs | Workspace templates (competitive / readiness); extra pills; slide-deck packet (Phase 14) |
+| Opportunity workspace | Packet slide deck UX (14a–14e): MS-gated slides, approval criteria, progression | Workspace templates; MS gate selector UI; extra pills |
 | Sidebar nav | Command / Identify / Capture / **Tools** / Win / System + Lucide icons | Studio route (Phase 21) |
 | Settings (`/settings`) | ✅ Read-only platform health | Editable keys deferred to Tools/MCP (12k) |
 | MCP Servers (`/tools/mcp`) | ✅ Catalog + guides + test handshake + .env key save | — |
@@ -584,7 +599,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | Skill | Path | Purpose |
 |-------|------|---------|
 | skill-creator | `skills/skill-creator/` | Scaffold new skills |
-| datarepublican_intel | `skills/datarepublican_intel/` | Award relationship queries |
+| clew_intel | `skills/clew_intel/` | Award relationship / money-path traces |
 | mcp_federal_tools | `skills/mcp_federal_tools/` | 1102 MCP adapter |
 
 ---
@@ -622,33 +637,56 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 |------------|--------|------------|-------|
 | USAspending intel | capture-insights → PG | Data Insights, recompete, packet deterministic fields | Done / 17 |
 | Data Insights | capture-insights intent | Multi-facet market deep dives — **not NAICS-defaulted** | 17 |
-| Follow-the-money | [DataRepublican methods](https://datarepublican.com) + capture-insights PG + `datarepublican_intel` | Insights drill-down, incumbent, packet fields | 17, 20 |
+| Follow-the-money | [DataRepublican methods](https://datarepublican.com) + capture-insights PG + `clew_intel` | Clew `/clew`, Insights drill-down, incumbent, packet fields | 17, 20 |
 | 1102 MCPs | federal-contracting-mcps | Deterministic award/agency fields | 20 |
 | **MinerU 3.3** | document parser (Theseus stack) | Vault ingest, solicitation PDF, opp attach — **not** DataRepublican pdfparser | 19 |
 | **Theseus** | proj-theseus | Solicitation merge, activation produce (outline, compliance) | 21+ |
 | Grok/xAI | cloud-primary | `model_synthesis` packet fields, vault polish, narratives | 20 |
 | Ollama | admin offload | Summaries, lint — not capture-critical path | ongoing |
 
-### DataRepublican inspiration (captured 2026-06)
+### DataRepublican inspiration (captured 2026-06, parity updated 2026-06-18)
 
 **Sources:** [datarepublican.com](https://datarepublican.com) (product vision) · [github.com/DataRepublican/datarepublican](https://github.com/DataRepublican/datarepublican) (open tooling).
 
 Core idea from the site: *“Connecting the dots between government grants, charities, and drawing connections to expose where the money flows.”* Thread applies that **doctrine** to **federal capture intel** (USAspending + SAM + subawards), not NGO/990 charity analytics.
 
-| DataRepublican surface | DR intent | Thread translation (Phase 17b+) |
-|------------------------|-----------|-------------------------------|
-| [Charity graph](https://datarepublican.com/expose) / expose | Visualize how money flows between orgs | Insights **Connect the dots** — `money_flow`, `spend_trend` bar charts on facet slice |
-| [Charity explorer](https://datarepublican.com/browse) / browse | Browse funding flows interactively | Collapsible drill-down panel on `/insights` (HTMX, candidate until review) |
-| [Federal grant search](https://datarepublican.com/award_search) / `award_search` | Map federal funds to connected orgs | Facet explore + **recipient_landscape** on `intel_usaspending_prime_awards` |
-| [People relations](https://datarepublican.com/relations) / `relations` | Relationship graph between entities | **teaming** (prime→sub on FFATA subawards); `intel_relationships` + `edges.jsonl` (future) |
-| [Principal officer search](https://datarepublican.com/officers) / `officers` | Cross-reference people across orgs | Deferred — SAM entity MCP + vault `entities/competitors/` (not DR 990 officers) |
-| `graphviz/` in repo | Graph layout for exposure tools | CSS bar charts first; graph export later (17c / Neo4j) |
+**Parity status (honest reference — not a DR fork):**
+
+| DR surface | DR *method* (what makes it work) | Clew / Thread today | Gap (future — do not rabbit-hole mid-slice) |
+|------------|----------------------------------|---------------------|---------------------------------------------|
+| [expose](https://datarepublican.com/expose/) | Multi-root **BFS** from seed EINs → subgraph; taxpayer $ on nodes; **edge-click zoom**; force/graph canvas | Facet slice → top-N SQL paths → **static** ECharts Sankey/bar on `/clew` | BFS subgraph expansion from recipient/agency/UEI seed; force-directed canvas (**17c-graph**) |
+| [browse](https://datarepublican.com/browse/) | **Exploratory** Sankey — click node → reveal hidden flows; focus/remove; trace back to USG | Same static Sankey from facet; zoom/hover only | Click node → narrow facet → re-run; progressive disclosure (**17b-interact**) |
+| [relations](https://datarepublican.com/relations/) | **People/entity** graph; name search; hover **trace connections** | `teaming` = prime→sub org edges only | People graph (SAM principals + vault entities); `intel_relationships` + `edges.jsonl` (**17c-graph**) |
+| [award_search](https://datarepublican.com/award_search/) | Map federal funds to connected orgs | Facet explore + `recipient_landscape` on `intel_usaspending_prime_awards` | — |
+| [officers](https://datarepublican.com/officers/) | Cross-reference people across orgs | Deferred — SAM entity MCP + vault `entities/competitors/` (not DR 990 officers) | SAM + vault people cross-ref (**20+**) |
+
+**Same doctrine today:** follow-the-money, connect recipients/agencies/primes/subs, candidate → review → vault compounding.
+
+**Not same interaction model yet:** graph-BFS expose, browse-style expansion, people relations graph, interactive canvas traversal.
+
+**Govcon target mapping (when built):**
+
+| DR surface | Govcon equivalent |
+|------------|-------------------|
+| expose | Seed recipient/agency/UEI → BFS over award + subaward edges; $ on nodes |
+| browse | Start at incumbent/customer → click Sankey/graph node to expand neighbors |
+| relations | Teaming + SAM principals + vault entity graph |
+
+**Facet discovery (future — high leverage, deferred):**
+
+| Need | Approach | Phase |
+|------|----------|-------|
+| Agency/recipient **autocomplete** | Distinct-value typeahead over PG intel (+ SAM entity names) | **17d** |
+| **Semantic** facet search ("Army CIO" → actual PG label) | `pgvector` on USAspending + SAM snapshots + vault entities | **17c** |
+| Unified retrieval | Hybrid search across PG intel, MCP snapshots, MinerU chunks | **17c** |
+
+Note: facets today use `ILIKE '%text%'` substring match — not exact equality. Pain is **discovery** (what substring to type), not strict string match.
 
 **Thread stack (not a DR fork):** capture-insights DuckDB→PG bulk (`intel_usaspending_*`) + facet queries + review gate. No dependency on DR’s Jekyll site or charity DB.
 
 **Document parsing boundary:** solicitation/PDF ingest uses **MinerU 3.3** (already on Theseus) — Phase 19. We do **not** port DataRepublican’s pdfparser.
 
-**Skill:** `datarepublican_intel` — modes `spend_trend`, `money_flow`, `teaming`, `recipient_landscape` (+ legacy snapshot/expiring/market). Outputs → `candidate` until `/review`.
+**Skill:** `clew_intel` — modes `spend_trend`, `money_flow`, `teaming`, `recipient_landscape` (+ legacy snapshot/expiring/market). Outputs → `candidate` until `/review`. Surface: standalone `/clew` (Tools sidebar).
 
 ### GovDash inspiration (captured 2026-06)
 
@@ -672,7 +710,7 @@ Shell first, then region widgets. One slice per PR. Concrete targets below — d
 | **12a** | Sidebar + stubs + Command Center shell | ✅ Dashboard `/`, Pulse `/pulse`, sidebar lanes, Theseus topbar |
 | **12b** | Settings / health (read-only) | ✅ Platform accordion; links to Tools for MCP/skills inventory |
 | **12k** | Tools — MCP ops | `/tools/mcp`: test connection, .env key save (Theseus settings-mcp pattern); guides already on page |
-| **12l** | Tools — Agent Skills UX | `/tools/skills`: run from page, detail drawer — **not** settings-skills-retrieval |
+| **12l** | Tools — Agent Skills UX | ✅ `/tools/skills`: inline run panel per wired skill, HTMX → review queue — **not** settings-skills-retrieval |
 | **12c** | Global review queue | ✅ `/review` human titles (`review_display`); approve works; **widget on Command Center**: pending count → `/review` |
 | **12d** | Pulse — active pursuits | ✅ Lifecycle-filtered opps; urgency/gate pills; **Command Center widget**: `phase_band` breakdown; compact multi-column layout |
 | **12e** | Intel / migration health | ✅ Settings + **Command Center widget**: blocking status (PG, migration %, vault, Grok) — not award analytics |
@@ -735,21 +773,33 @@ GovDash Proposal Cloud maps here. Route `/studio` deferred to Phase 21.
 
 Central artifact — not “parallel afterthought.”
 
-- 14a: Slide navigator (`reference_slide` from `packet_field_seed`)
-- 14b: Field cards: label, question, `route_kind`, trust, suggested fill
-- 14c: MS gate slide applicability
-- 14d: Approval criteria slides 17–18
-- 14e: Packet progression (% MS-critical, pending review)
+- **14a ✅ (2026-06-18):** Slide navigator on workspace Packet tab — `reference_slide` groups from `packet_field_seed`; HTMX slide switch; fill progress bar
+- **14b ✅ (2026-06-18):** Field cards show label, question, `route_kind` badge, trust/status (suggested fill deferred to 14b+ / route-driven fill)
+- **14c ✅ (2026-06-18):** MS gate slide applicability — deck markers filter slide nav; fields filtered by `required_gates` vs `opp.current_milestone_gate`
+- **14d ✅ (2026-06-18):** Approval slides 17–18 with starter criterion fields (`ms1_*`, `ms2_*`, `ms3_*`, `ms4_*`); expand toward full dictionary
+- **14e ✅ (2026-06-18):** Packet progression — MS-critical fill %, pending review count, trusted tally in slide nav
 
 ### Phase 17 — Data Insights
 
-`/insights` — agency, recipient, NAICS, PSC combos; **saved lenses** (named facet presets, GovDash Discover “profiles that match” pattern); drill-down; extend `datarepublican_intel` modes.
+`/insights` — agency, recipient, NAICS, PSC combos; **saved lenses** (named facet presets, GovDash Discover “profiles that match” pattern); drill-down; Clew deep-links for trace modes.
 
 **17a ✅ (2026-06-18):** Live explore (radar + SAM) with HTMX; **Watch** → `.thread/watchlist.json`; Pulse **Potential · Watchlist** panel; Research stubs → `entities/agencies/` + `entities/competitors/`; saved lenses = bookmarks only (save/delete/open); **removed Activate→Pulse**. No platform default facets. UI: per-server guides/tooltips, collapsible frame + section panels (localStorage), `btn-hero-magenta` / `btn-hero-cyan` / `btn-primary`.
 
-**17b (in progress):** **Connect the dots** drill-down on `/insights` — DataRepublican-method analytics (see inspiration table above): spend trend, money flow, teaming, recipient landscape; `datarepublican_intel` invoke; candidate → review. Educational copy cites [datarepublican.com](https://datarepublican.com) inspiration; PDF path = MinerU stub only.
+**17b-pre ✅ (2026-06-18):** **Clew** utility — `thread/clew/` + `clew_intel` skill; **standalone `/clew` page** (Tools sidebar, above MCP Servers). Insights/Pulse deep-link with pre-filled facets — no embedded card, no side drawer.
 
-**17c (future):** PG18 `pgvector` on vault + MinerU chunks; hybrid search across PG intel, parsed docs, and MCP snapshots; unified USAspending + SAM retrieval surface.
+**17b ✅ (2026-06-18):** ECharts on `/clew` — Sankey (money flow, teaming), bars (spend trend, landscape); dark ink/neon theme; collapsible data table; optional **Live MCP supplement** checkbox (USAspending + SAM subawards on teaming). Click-to-drill deferred to **17b-interact**.
+
+**17b-interact (future):** DR browse-style — Sankey node click → narrow facet → re-run; focus/remove node in slice.
+
+**17c (future):** PG `pgvector` on USAspending labels, SAM snapshots, vault entities, MinerU chunks; **semantic facet autocomplete**; hybrid search across PG intel, parsed docs, and MCP snapshots.
+
+**17c-graph (future):** BFS subgraph expansion (DR expose-style), force/graph canvas, `intel_relationships` + `edges.jsonl` export.
+
+**17d (future):** Distinct-value facet autocomplete (no vectors required) — quick win before 17c semantic search.
+
+### Phase 15 — Knowledge vault browser
+
+**15 ✅ (2026-06-18):** `/knowledge` replaces shell stub — two-pane HTMX browser over `knowledge/thread/` (read-only). Tree nav + breadcrumbs; `.md` rendered via marked + wikilink deep links; `.json` raw view. API already at `/api/knowledge/vault/*`. Pulse digest **Open** links deep-link to vault pages. Unblocks **17b-vault** (Clew trusted → wiki ingest).
 
 ### Phase 19 — MinerU document utility
 
@@ -798,17 +848,19 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 | 9 | Full API (skills, MCP, intel, capture-profile) | ✅ |
 | 10 | HTMX command center shell + Research tab (retire transitional Next) | ✅ |
 | 11 | E2E smoke + README verification | ✅ |
-| 12+ | Product command center + workspace UX | ❌ Planned (incremental — Phase 12) |
+| 12+ | Product command center + workspace UX | 🟡 incremental (12a–12l, 14a–14e, 15, 17a–17b ✅) |
 
 ---
 
-## Immediate next actions
+## Immediate next actions (resume here)
 
-1. **Intel migration** — finish in separate window; verify `Complete: True` + indexes
-2. **Phase 12e–12h** — remaining C&C widgets + **quick actions** strip (prioritize action over new metrics)
-3. **Phase 12f** — saved lenses; hot-signal widget; remove NAICS-only default; wire chain entry from radar
-4. **Phase 12i** — SAM strip on Pulse (live supplement; chain from incumbent/name)
-5. **Phase 17 seed** — Data Insights stub → first saved lens + USAspending analytics drill-down
+1. **Phase 17b-vault** — Clew trusted output → Karpathy wiki ingest (review gate first; vault browser ✅)
+2. **Phase 14 remainder** — MS gate selector on opportunity UI; expand approval criteria toward full dictionary
+3. **Intel migration** — finish in separate window; verify `Complete: True` + indexes
+4. **Phase 19** — MinerU stub → real parse → vault wiki ingest
+5. **Phase 20** — route-driven fill (`route_kind` → MCP/skill/research/Grok)
+
+**Paused:** 2026-06-18 — operator updating Grok Build; no in-flight slice.
 
 ---
 
@@ -843,7 +895,18 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 - [x] Phase 12i — SAM monitor on Pulse (MCP + operator queries)
 - [x] Phase 12j — Knowledge digest on Pulse (domain_intel)
 - [x] Phase 17a — Data Insights live explore + watchlist funnel + bookmarks UI (guides, collapsible panels)
-- [ ] Phase 17b — Insights drill-down analytics, trend charts, `datarepublican_intel` invoke (candidate until review)
-
+- [x] Phase 17b-pre — Clew standalone `/clew` page + `clew_intel` rename (candidate until review)
+- [x] Phase 17b — Clew ECharts viz + optional MCP live overlay on `/clew`
+- [x] Phase 14a — Packet slide navigator (`reference_slide` groups, HTMX)
+- [x] Phase 14b — Packet field cards (label, question, route_kind)
+- [x] Phase 14c — MS gate slide applicability
+- [x] Phase 14d — Approval criteria slides 17–18 (starter fields)
+- [x] Phase 14e — Packet progression (MS-critical %, pending review)
+- [x] Phase 15 — Knowledge vault browser (`/knowledge` HTMX tree + markdown viewer)
+- [ ] Phase 17b-vault — Clew trusted → Karpathy wiki ingest (**after Phase 15 — vault browser** ✅)
+- [ ] Phase 17b-interact — DR browse-style Sankey node expansion (future)
+- [ ] Phase 17c — vectorized USAspending + SAM semantic facet search (future)
+- [ ] Phase 17c-graph — BFS expose-style graph + people relations (future)
+- [ ] Phase 17d — facet distinct-value autocomplete (future)
 - [x] Phase 12k — MCP test connection + .env key editor on `/tools/mcp`
-- [ ] Phase 12l — Agent Skills run UX
+- [x] Phase 12l — Agent Skills run UX (`/tools/skills` inline run panel + review queue link)

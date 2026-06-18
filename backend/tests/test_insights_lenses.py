@@ -94,7 +94,7 @@ def test_insights_page_renders_live_explore():
     assert "btn-hero-magenta" in html
     assert "btn-hero-cyan" in html
     assert "insights-bookmarks-drawer" in html
-    assert "Connect the dots" in html
+    assert "Clew" in html
     assert "data-insights-collapse" in html
     assert 'id="insights-usaspending"' in html
     assert 'id="insights-sam"' in html

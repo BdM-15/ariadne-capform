@@ -19,3 +19,4 @@ data/graph/
 .DS_Store
 Thumbs.db
 /mcps/
+.tmp/
