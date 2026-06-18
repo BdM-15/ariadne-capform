@@ -12,6 +12,8 @@ from thread.config import Settings
 from thread.db.models import CapabilityRun
 from thread.domain.enums import TrustLevel
 from thread.intel import pg_queries
+from thread.intel.datarepublican import ANALYSIS_MODES, facet_from_payload, run_facet_analysis
+from thread.intel.facet_query import describe_query
 from thread.mcp.service import MCPService
 from thread.services.review_gate import create_review_record
 from thread.skills.registry import SkillDescriptor, discover_skills
@@ -89,13 +91,21 @@ async def _run_datarepublican_intel(
     body: dict[str, Any],
     errors: list[str],
 ) -> dict[str, Any]:
-    naics = str(body.get("naics") or settings.default_naics)
     mode = str(body.get("mode") or "snapshot")
     stats = await pg_queries.get_intel_stats(session)
     if not stats.get("prime_awards_ready") or stats.get("prime_award_count", 0) == 0:
         errors.append("Intel tables empty — run migration first")
-        return {"naics": naics, "mode": mode}
+        return {"mode": mode}
 
+    facet_query = facet_from_payload(body)
+    if facet_query and mode in ANALYSIS_MODES:
+        out = await run_facet_analysis(session, facet_query, mode, limit=int(body.get("limit", 12)))
+        if out.get("error"):
+            errors.append(str(out["error"]))
+        out["facet_summary"] = describe_query(facet_query)
+        return out
+
+    naics = str(body.get("naics") or settings.default_naics)
     if mode == "expiring":
         rows = await pg_queries.get_expiring_contracts(
             session, [naics], months_ahead=int(body.get("months_ahead", 24)), limit=int(body.get("limit", 10))

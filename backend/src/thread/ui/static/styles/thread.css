@@ -1018,6 +1018,104 @@
   align-items: center;
 }
 
+.insights-drilldown-shell {
+  min-height: 6rem;
+}
+
+.insights-drilldown-lead {
+  margin: 0 0 0.65rem;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: #94a3b8;
+}
+
+.insights-drilldown-bullets {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.insights-drilldown-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.insights-drilldown-method {
+  margin: 0;
+}
+
+.insights-trend-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.insights-trend-row,
+.insights-flow-row {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) 4rem auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.insights-flow-row {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 4rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--edge);
+}
+
+.insights-flow-row:last-child {
+  border-bottom: none;
+}
+
+.insights-trend-label {
+  font-size: 0.6875rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  color: #64748b;
+}
+
+.insights-trend-bar-wrap,
+.insights-flow-bar-wrap {
+  height: 0.5rem;
+  border-radius: 0.25rem;
+  background: rgba(var(--ink-900-rgb), 0.55);
+  overflow: hidden;
+}
+
+.insights-trend-bar {
+  height: 100%;
+  border-radius: 0.25rem;
+  min-width: 2px;
+}
+
+.insights-trend-bar-magenta {
+  background: linear-gradient(90deg, rgba(var(--neon-magenta-rgb, 236, 72, 153), 0.5), var(--neon-magenta));
+}
+
+.insights-trend-bar-cyan {
+  background: linear-gradient(90deg, rgba(var(--neon-cyan-rgb, 34, 211, 238), 0.45), var(--neon-cyan));
+}
+
+.insights-trend-val {
+  font-size: 0.6875rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  color: #e2e8f0;
+  text-align: right;
+}
+
+.insights-trend-actions {
+  font-size: 0.625rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+.insights-flow-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
 .pulse-page-layout {
   display: flex;
   flex-direction: column;

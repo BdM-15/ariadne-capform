@@ -18,6 +18,16 @@
           {% if row.naics_code %} · {{ row.naics_code }}{% endif %}
         </span>
       </div>
+      <div class="flex flex-col gap-1 shrink-0">
+      <button
+        type="button"
+        class="btn btn-ghost btn-compact text-[10px]"
+        title="Connect the dots on this recipient"
+        hx-get="/partials/insights/radar-drilldown?run=1&mode=teaming&recipient={{ row.recipient|urlencode }}"
+        hx-include="#insights-radar-form"
+        hx-target="#insights-radar-drilldown-panel"
+        hx-swap="innerHTML"
+      >Dots</button>
       <form hx-post="/watchlist/add/recompete" hx-target="#insights-body" hx-swap="outerHTML">
         <input type="hidden" name="award_key" value="{{ row.award_key }}" />
         <input type="hidden" name="title" value="{{ row.recipient or '' }}" />
@@ -28,6 +38,7 @@
         <input type="hidden" name="months_to_end" value="{{ row.months_to_end if row.months_to_end is not none else '' }}" />
         <button type="submit" class="btn btn-primary" title="Add to Pulse watchlist">Watch</button>
       </form>
+      </div>
     </li>
     {% endfor %}
   </ul>

@@ -64,7 +64,7 @@ Lanes overlap on one **opportunity record** — identification feeds capture; ca
 | [capture-insights](https://github.com/BdM-15/capture-insights) | USAspending intel, Karpathy vault, skill runtime | Vite/React UI stack |
 | [proj-theseus](https://github.com/BdM-15/proj-theseus) | **Skin only:** `theseus.css`, shell UX patterns; MCP manifest pattern | Graph/RAG/LightRAG plumbing |
 | [1102 MCP tools](https://github.com/1102tools/federal-contracting-mcps) | Deterministic federal data | — |
-| DataRepublican | Follow-the-money via `datarepublican_intel` skill | — |
+| [DataRepublican](https://github.com/DataRepublican/datarepublican) · [datarepublican.com](https://datarepublican.com) | Connect-the-dots / follow-the-money **methods** (graphs, flows, cross-entity tracing) via `datarepublican_intel` + Insights drill-down | NGO/990 charity product surface, Jekyll app, DR pdfparser (use **MinerU 3.3**) |
 
 ---
 
@@ -562,7 +562,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 |--------|------------|-------------|
 | Command Center (`/`) | Attention widgets, compact nav, pursuit rail — **not** analytics home | Widget row (12c–12h): reviews, phase band, hot signals, health strip, **quick actions**; anti-pattern: metrics dump |
 | Portfolio Pulse (`/pulse`) | Morning briefing: **watchlist** + inbox + digest + pursuits | Potential panel (watchlist + research stubs); not active-lens feeds |
-| Data Insights (`/insights`) | ✅ Live explore + bookmarks + Watch; guides; collapsible panels | Trends/drill-down 🟡 (17b); PG18 vectors + MinerU search (future) |
+| Data Insights (`/insights`) | ✅ Live explore + bookmarks + Watch; **Connect the dots** (17b, DR-inspired) | PG18 vectors + MinerU search (17c) |
 | Opportunity workspace | Packet (raw keys), Actions, Review, Research tabs | Workspace templates (competitive / readiness); extra pills; slide-deck packet (Phase 14) |
 | Sidebar nav | Command / Identify / Capture / **Tools** / Win / System + Lucide icons | Studio route (Phase 21) |
 | Settings (`/settings`) | ✅ Read-only platform health | Editable keys deferred to Tools/MCP (12k) |
@@ -622,12 +622,33 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 |------------|--------|------------|-------|
 | USAspending intel | capture-insights → PG | Data Insights, recompete, packet deterministic fields | Done / 17 |
 | Data Insights | capture-insights intent | Multi-facet market deep dives — **not NAICS-defaulted** | 17 |
-| Follow-the-money | DataRepublican + `datarepublican_intel` | Insights drill-down, incumbent, packet fields | 17, 20 |
+| Follow-the-money | [DataRepublican methods](https://datarepublican.com) + capture-insights PG + `datarepublican_intel` | Insights drill-down, incumbent, packet fields | 17, 20 |
 | 1102 MCPs | federal-contracting-mcps | Deterministic award/agency fields | 20 |
-| **MinerU** | document parser utility | Vault ingest, quick capture, PDF for DataRepublican, all uploads | 19 |
+| **MinerU 3.3** | document parser (Theseus stack) | Vault ingest, solicitation PDF, opp attach — **not** DataRepublican pdfparser | 19 |
 | **Theseus** | proj-theseus | Solicitation merge, activation produce (outline, compliance) | 21+ |
 | Grok/xAI | cloud-primary | `model_synthesis` packet fields, vault polish, narratives | 20 |
 | Ollama | admin offload | Summaries, lint — not capture-critical path | ongoing |
+
+### DataRepublican inspiration (captured 2026-06)
+
+**Sources:** [datarepublican.com](https://datarepublican.com) (product vision) · [github.com/DataRepublican/datarepublican](https://github.com/DataRepublican/datarepublican) (open tooling).
+
+Core idea from the site: *“Connecting the dots between government grants, charities, and drawing connections to expose where the money flows.”* Thread applies that **doctrine** to **federal capture intel** (USAspending + SAM + subawards), not NGO/990 charity analytics.
+
+| DataRepublican surface | DR intent | Thread translation (Phase 17b+) |
+|------------------------|-----------|-------------------------------|
+| [Charity graph](https://datarepublican.com/expose) / expose | Visualize how money flows between orgs | Insights **Connect the dots** — `money_flow`, `spend_trend` bar charts on facet slice |
+| [Charity explorer](https://datarepublican.com/browse) / browse | Browse funding flows interactively | Collapsible drill-down panel on `/insights` (HTMX, candidate until review) |
+| [Federal grant search](https://datarepublican.com/award_search) / `award_search` | Map federal funds to connected orgs | Facet explore + **recipient_landscape** on `intel_usaspending_prime_awards` |
+| [People relations](https://datarepublican.com/relations) / `relations` | Relationship graph between entities | **teaming** (prime→sub on FFATA subawards); `intel_relationships` + `edges.jsonl` (future) |
+| [Principal officer search](https://datarepublican.com/officers) / `officers` | Cross-reference people across orgs | Deferred — SAM entity MCP + vault `entities/competitors/` (not DR 990 officers) |
+| `graphviz/` in repo | Graph layout for exposure tools | CSS bar charts first; graph export later (17c / Neo4j) |
+
+**Thread stack (not a DR fork):** capture-insights DuckDB→PG bulk (`intel_usaspending_*`) + facet queries + review gate. No dependency on DR’s Jekyll site or charity DB.
+
+**Document parsing boundary:** solicitation/PDF ingest uses **MinerU 3.3** (already on Theseus) — Phase 19. We do **not** port DataRepublican’s pdfparser.
+
+**Skill:** `datarepublican_intel` — modes `spend_trend`, `money_flow`, `teaming`, `recipient_landscape` (+ legacy snapshot/expiring/market). Outputs → `candidate` until `/review`.
 
 ### GovDash inspiration (captured 2026-06)
 
@@ -726,13 +747,13 @@ Central artifact — not “parallel afterthought.”
 
 **17a ✅ (2026-06-18):** Live explore (radar + SAM) with HTMX; **Watch** → `.thread/watchlist.json`; Pulse **Potential · Watchlist** panel; Research stubs → `entities/agencies/` + `entities/competitors/`; saved lenses = bookmarks only (save/delete/open); **removed Activate→Pulse**. No platform default facets. UI: per-server guides/tooltips, collapsible frame + section panels (localStorage), `btn-hero-magenta` / `btn-hero-cyan` / `btn-primary`.
 
-**17b (next):** Drill-down analytics panels, trend charts, `datarepublican_intel` invoke from Insights — outputs stay `candidate` until review.
+**17b (in progress):** **Connect the dots** drill-down on `/insights` — DataRepublican-method analytics (see inspiration table above): spend trend, money flow, teaming, recipient landscape; `datarepublican_intel` invoke; candidate → review. Educational copy cites [datarepublican.com](https://datarepublican.com) inspiration; PDF path = MinerU stub only.
 
 **17c (future):** PG18 `pgvector` on vault + MinerU chunks; hybrid search across PG intel, parsed docs, and MCP snapshots; unified USAspending + SAM retrieval surface.
 
 ### Phase 19 — MinerU document utility
 
-General parser — **not** solicitation-only. Parse API → vault wiki ingest (notes + Grok polish) → opp doc attach → DataRepublican PDF input. Optional 19e: solicitation → `ExtractionBundle` candidate fields.
+General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault wiki ingest (notes + Grok polish) → opp doc attach. **Not** DataRepublican pdfparser. Optional 19e: solicitation → `ExtractionBundle` candidate fields.
 
 ### Phase 20 — Route-driven fill
 
@@ -753,7 +774,7 @@ General parser — **not** solicitation-only. Parse API → vault wiki ingest (n
 
 ### Deferred — other post-foundation
 
-5. **MinerU document utility** — general parse → vault wiki / candidates / DataRepublican PDF; optional ExtractionBundle
+5. **MinerU 3.3 document utility** — general parse → vault wiki / candidates (not DR pdfparser); optional ExtractionBundle
 6. **Theseus** on `:9621` — solicitation merge (activation Ph 4–6), not general parsing
 7. Full capture profile + stance/gap analysis
 8. Semantic vault search (OpenAI embeddings)

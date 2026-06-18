@@ -117,6 +117,68 @@
         </form>
 
         <details
+          id="insights-radar-drilldown-section"
+          class="insights-section-collapse"
+          data-insights-collapse
+          open
+        >
+          <summary class="insights-section-summary">
+            <span class="pulse-collapse-toggle" aria-hidden="true">
+              <i data-lucide="chevron-down" class="w-3 h-3 pulse-collapse-chevron"></i>
+            </span>
+            <span class="pulse-panel-kicker text-neon-magenta/80">Connect the dots</span>
+            <span class="cc-section-label text-neon-magenta mb-0">DataRepublican methods</span>
+            <button
+              type="button"
+              class="btn btn-ghost btn-compact text-[10px] shrink-0"
+              onclick="event.stopPropagation(); openGuideDialog('guide-connect-dots')"
+            >Guide</button>
+            <span class="settings-label-tip" title="Inspired by datarepublican.com — follow-the-money on your facet slice. Candidate until review.">?</span>
+          </summary>
+          <div class="insights-section-body">
+            <div class="insights-drilldown-controls flex flex-wrap items-center gap-2 mb-3">
+              <select id="insights-drilldown-mode" name="mode" class="thread-input text-xs" form="insights-drilldown-run">
+                <option value="money_flow">Money flow</option>
+                <option value="spend_trend">Spend trend</option>
+                <option value="teaming">Teaming (prime→sub)</option>
+                <option value="recipient_landscape">Recipient landscape</option>
+              </select>
+              <button
+                type="submit"
+                form="insights-drilldown-run"
+                class="btn btn-hero-magenta"
+              >Run analysis</button>
+              <button
+                type="submit"
+                form="insights-drilldown-review"
+                class="btn btn-primary"
+              >Queue for review</button>
+            </div>
+            <form
+              id="insights-drilldown-run"
+              hx-get="/partials/insights/radar-drilldown"
+              hx-target="#insights-radar-drilldown-panel"
+              hx-swap="innerHTML"
+              hx-include="#insights-radar-form, #insights-drilldown-mode"
+            >
+              <input type="hidden" name="run" value="1" />
+            </form>
+            <form
+              id="insights-drilldown-review"
+              hx-post="/insights/radar/analyze"
+              hx-target="#insights-radar-drilldown-panel"
+              hx-swap="innerHTML"
+              hx-include="#insights-radar-form, #insights-drilldown-mode"
+            >
+              <input type="hidden" name="run" value="1" />
+            </form>
+            <div class="insights-results-shell insights-drilldown-shell" id="insights-radar-drilldown-panel">
+              {% include "partials/insights_radar_drilldown.html" %}
+            </div>
+          </div>
+        </details>
+
+        <details
           id="insights-radar-bookmarks"
           class="insights-section-collapse insights-bookmarks-drawer"
           data-insights-collapse
@@ -342,6 +404,9 @@
 
   {% set guide_id = "usaspending-explore" %}
   {% set guide = radar_guide %}
+  {% include "partials/insights_guide_dialog.html" %}
+  {% set guide_id = "connect-dots" %}
+  {% set guide = connect_dots_guide %}
   {% include "partials/insights_guide_dialog.html" %}
   {% set guide_id = "sam-explore" %}
   {% set guide = sam_guide %}

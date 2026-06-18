@@ -37,7 +37,9 @@ from thread.intel.sam_query import (
     save_sam_query,
 )
 from thread.services.insights_explore import explore_radar, explore_sam
-from thread.ui.insights_guides import guide_for_explore
+from thread.ui.insights_guides import guide_for_connect_dots, guide_for_explore
+from thread.services.insights_drilldown import build_drilldown
+from thread.skills.runner import run_skill
 from thread.services.vault_research import ensure_watchlist_research_stubs
 from thread.services.watchlist import (
     add_watchlist_item,
@@ -166,6 +168,7 @@ async def _render_insights_body(
     ctx = await build_insights_page_context(db, settings)
     explore = await explore_radar(db, settings)
     sam_explore = await explore_sam(settings)
+    drilldown = await build_drilldown(db, settings)
     return templates.TemplateResponse(
         request,
         "partials/insights_body.html",
@@ -174,10 +177,12 @@ async def _render_insights_body(
             "flash": flash,
             "explore": explore,
             "sam_explore": sam_explore,
+            "drilldown": drilldown,
             "radar_form": radar_form,
             "sam_form": sam_form,
             "radar_guide": guide_for_explore("usaspending_explore"),
             "sam_guide": guide_for_explore("sam_explore"),
+            "connect_dots_guide": guide_for_connect_dots(),
         },
     )
 
@@ -191,6 +196,7 @@ async def insights_page(
     ctx = await build_insights_page_context(db, settings)
     explore = await explore_radar(db, settings)
     sam_explore = await explore_sam(settings)
+    drilldown = await build_drilldown(db, settings)
     return templates.TemplateResponse(
         request,
         "insights.html",
@@ -201,10 +207,12 @@ async def insights_page(
             "flash": None,
             "explore": explore,
             "sam_explore": sam_explore,
+            "drilldown": drilldown,
             "radar_form": None,
             "sam_form": None,
             "radar_guide": guide_for_explore("usaspending_explore"),
             "sam_guide": guide_for_explore("sam_explore"),
+            "connect_dots_guide": guide_for_connect_dots(),
         },
     )
 
@@ -235,6 +243,77 @@ async def insights_radar_explore_partial(
         request,
         "partials/insights_radar_explore.html",
         {"explore": explore},
+    )
+
+
+@router.get("/partials/insights/radar-drilldown", response_class=HTMLResponse)
+async def insights_radar_drilldown_partial(
+    request: Request,
+    agency: str = Query(""),
+    sub_agency: str = Query(""),
+    recipient: str = Query(""),
+    naics_codes: str = Query(""),
+    psc_codes: str = Query(""),
+    mode: str = Query("money_flow"),
+    run: int = Query(0, ge=0, le=1),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    drilldown = await build_drilldown(
+        db,
+        settings,
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        mode=mode,
+        run=bool(run),
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/insights_radar_drilldown.html",
+        {"drilldown": drilldown},
+    )
+
+
+@router.post("/insights/radar/analyze", response_class=HTMLResponse)
+async def insights_radar_analyze(
+    request: Request,
+    agency: str = Form(""),
+    sub_agency: str = Form(""),
+    recipient: str = Form(""),
+    naics_codes: str = Form(""),
+    psc_codes: str = Form(""),
+    mode: str = Form("money_flow"),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    payload = {
+        "mode": mode,
+        "agency": agency.strip() or None,
+        "sub_agency": sub_agency.strip() or None,
+        "recipient": recipient.strip() or None,
+        "naics_codes": naics_codes.strip() or None,
+        "psc_codes": psc_codes.strip() or None,
+    }
+    result = await run_skill(settings, db, "datarepublican_intel", payload)
+    drilldown = await build_drilldown(
+        db,
+        settings,
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        mode=mode,
+        run=True,
+        review_id=result.review_id,
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/insights_radar_drilldown.html",
+        {"drilldown": drilldown},
     )
 
 

@@ -1,0 +1,113 @@
+<div class="insights-drilldown-inner">
+  {% if drilldown.status == 'idle' %}
+  <div class="insights-drilldown-edu">
+    <p class="insights-drilldown-lead">
+      Inspired by <a href="https://datarepublican.com" target="_blank" rel="noopener" class="text-neon-cyan no-underline hover:underline">DataRepublican</a>
+      (<a href="https://github.com/DataRepublican/datarepublican" target="_blank" rel="noopener" class="text-neon-cyan no-underline hover:underline">open repo</a>) —
+      <em>connecting the dots</em> on where money flows. Thread runs the same doctrine on
+      USAspending + subaward bulk in PostgreSQL (capture-insights migration), not DR's charity graph or 990 data.
+    </p>
+    <ul class="insights-drilldown-bullets text-[11px] text-slate-400 space-y-1">
+      <li><span class="text-slate-300">Spend trend</span> — like funding-over-time exposure (charity graph / expose pattern).</li>
+      <li><span class="text-slate-300">Money flow</span> — recipient → agency paths (who wins, who buys).</li>
+      <li><span class="text-slate-300">Teaming</span> — prime → sub edges (relations / beyond prime-only awards).</li>
+      <li><span class="text-slate-300">Recipient landscape</span> — federal grant search style incumbent map in your slice.</li>
+    </ul>
+    <p class="insights-drilldown-note text-[10px] font-mono text-slate-600 mt-2">
+      Outputs are <span class="text-neon-amber">candidate</span> until review.
+      PDF/solicitation parsing → <span class="text-neon-cyan">MinerU 3.3</span> (Theseus), not DataRepublican pdfparser —
+      {% if drilldown.analysis.mineru.enabled %}enabled{% else %}stub until Phase 19{% endif %}.
+      Live SAM subaward search supplements bulk via <a href="/tools/mcp" class="text-neon-cyan no-underline hover:underline">MCP</a>.
+    </p>
+  </div>
+  <p class="insights-idle-hint">Run explore first, pick a mode, then <strong>Run analysis</strong>.</p>
+
+  {% elif drilldown.error %}
+  <p class="insights-explore-msg insights-explore-msg-warn">{{ drilldown.error }}</p>
+
+  {% elif drilldown.status == 'ready' %}
+  {% set a = drilldown.analysis %}
+  <div class="insights-drilldown-meta">
+    <span class="pill pill-compact border border-neon-amber/40 text-neon-amber text-[10px]">candidate</span>
+    {% if drilldown.review_id %}
+    <span class="text-[10px] font-mono text-slate-500">review {{ drilldown.review_id[:8] }}…</span>
+    {% endif %}
+    <span class="text-[10px] font-mono text-slate-500">{{ a.summary or drilldown.summary }}</span>
+  </div>
+  <p class="insights-drilldown-method text-[10px] text-slate-500 mb-2">{{ a.method }}</p>
+
+  {% if a.mode == 'spend_trend' and a.bars %}
+  <div class="insights-trend-chart">
+    {% for bar in a.bars %}
+    <div class="insights-trend-row">
+      <span class="insights-trend-label">{{ bar.year }}</span>
+      <div class="insights-trend-bar-wrap">
+        <div class="insights-trend-bar insights-trend-bar-magenta" style="width: {{ bar.pct }}%"></div>
+      </div>
+      <span class="insights-trend-val">${{ bar.millions }}M</span>
+      <span class="insights-trend-actions text-slate-600">{{ bar.actions }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% elif a.mode == 'money_flow' and a.flows %}
+  <ul class="insights-flow-list">
+    {% for flow in a.flows %}
+    <li class="insights-flow-row">
+      <div class="insights-flow-main min-w-0">
+        <span class="insights-result-title">{{ flow.recipient }}</span>
+        <span class="insights-result-sub">→ {{ flow.agency }}</span>
+      </div>
+      <div class="insights-flow-bar-wrap">
+        <div class="insights-trend-bar insights-trend-bar-magenta" style="width: {{ flow.pct }}%"></div>
+      </div>
+      <span class="insights-trend-val shrink-0">${{ flow.millions }}M</span>
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% elif a.mode == 'teaming' and a.edges %}
+  <ul class="insights-flow-list">
+    {% for edge in a.edges %}
+    <li class="insights-flow-row">
+      <div class="insights-flow-main min-w-0">
+        <span class="insights-result-title">{{ edge.prime }}</span>
+        <span class="insights-result-sub">→ {{ edge.sub }}</span>
+      </div>
+      <div class="insights-flow-bar-wrap">
+        <div class="insights-trend-bar insights-trend-bar-cyan" style="width: {{ edge.pct }}%"></div>
+      </div>
+      <span class="insights-trend-val shrink-0">${{ edge.millions }}M</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if a.live_supplement %}
+  <p class="insights-drilldown-note text-[10px] font-mono text-slate-600 mt-2">{{ a.live_supplement }}</p>
+  {% endif %}
+
+  {% elif a.mode == 'recipient_landscape' and a.recipients %}
+  <ul class="insights-flow-list">
+    {% for r in a.recipients %}
+    <li class="insights-flow-row">
+      <div class="insights-flow-main min-w-0">
+        <span class="insights-result-title">{{ r.recipient }}</span>
+        <span class="insights-result-sub">{{ r.agency_count }} agencies · {{ r.actions }} actions</span>
+      </div>
+      <div class="insights-flow-bar-wrap">
+        <div class="insights-trend-bar insights-trend-bar-magenta" style="width: {{ r.pct }}%"></div>
+      </div>
+      <span class="insights-trend-val shrink-0">${{ r.millions }}M</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="insights-idle-hint">No chart data for this mode and facet slice.</p>
+  {% endif %}
+
+  {% if a.intel_stats %}
+  <p class="insights-drilldown-note text-[10px] font-mono text-slate-600 mt-3">
+    PG: {{ "{:,}".format(a.intel_stats.prime_awards) }} prime{% if a.intel_stats.subawards %} · {{ "{:,}".format(a.intel_stats.subawards) }} subaward rows{% endif %}
+  </p>
+  {% endif %}
+  {% endif %}
+</div>
