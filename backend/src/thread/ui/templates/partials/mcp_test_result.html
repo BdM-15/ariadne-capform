@@ -1,0 +1,10 @@
+<span id="mcp-test-{{ server_id }}" class="mcp-test-result text-[10px] font-mono {% if result.ok %}text-neon-lime{% else %}text-neon-amber{% endif %}">
+  {% if result.ok %}
+  OK · {{ result.tool_count }} tool{% if result.tool_count != 1 %}s{% endif %}
+  {% if result.sample_tools %}
+  <span class="text-slate-500">({{ result.sample_tools|join(", ") }}{% if result.tool_count > result.sample_tools|length %}…{% endif %})</span>
+  {% endif %}
+  {% else %}
+  Failed — {{ result.error }}
+  {% endif %}
+</span>

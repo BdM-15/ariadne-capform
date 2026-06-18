@@ -12,7 +12,9 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from thread.config import Settings, get_settings
+from thread.config import MCP_ENV_CANONICAL, Settings, apply_env_to_process, get_settings, reload_settings
+from thread.mcp.service import MCPService
+from thread.services.env_file import upsert_env_var
 from thread.db.models import PacketFieldAnswer
 from thread.db.session import get_db
 from thread.domain.enums import ResearchLens
@@ -425,6 +427,7 @@ async def settings_page(
 async def tools_mcp_page(
     request: Request,
     settings: Settings = Depends(get_settings),
+    flash: str | None = Query(None),
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
@@ -433,6 +436,60 @@ async def tools_mcp_page(
             "app_name": settings.public_app_name,
             "active_nav": "tools_mcp",
             "mcp": build_mcp_tools_context(settings),
+            "flash": flash,
+        },
+    )
+
+
+@router.post("/tools/mcp/{server_id}/test", response_class=HTMLResponse)
+async def mcp_test_connection(
+    request: Request,
+    server_id: str,
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    service = MCPService(settings)
+    result = await service.test_connection(server_id)
+    return templates.TemplateResponse(
+        request,
+        "partials/mcp_test_result.html",
+        {"server_id": server_id, "result": result},
+    )
+
+
+@router.post("/tools/mcp/{server_id}/env", response_class=HTMLResponse)
+async def mcp_save_env_keys(
+    request: Request,
+    server_id: str,
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    service = MCPService(settings)
+    manifest = service.get_manifest(server_id)
+    if not manifest:
+        return HTMLResponse("Unknown MCP server", status_code=404)
+
+    form = await request.form()
+    env_path = settings.repo_root / ".env"
+    saved: list[str] = []
+    for key in [*manifest.env_required, *manifest.env_optional]:
+        raw = form.get(key)
+        if raw is None:
+            continue
+        value = str(raw).strip()
+        if not value:
+            continue
+        canonical = MCP_ENV_CANONICAL.get(key, key)
+        upsert_env_var(env_path, canonical, value)
+        apply_env_to_process(canonical, value)
+        saved.append(canonical)
+
+    settings = reload_settings()
+    flash = f"Saved {', '.join(saved)} for {server_id}" if saved else f"No keys updated for {server_id}"
+    return templates.TemplateResponse(
+        request,
+        "partials/mcp_tools_body.html",
+        {
+            "mcp": build_mcp_tools_context(settings),
+            "flash": flash,
         },
     )
 

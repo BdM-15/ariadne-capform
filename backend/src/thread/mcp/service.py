@@ -9,6 +9,8 @@ from thread.config import Settings
 from thread.mcp.manifest import MCPManifest, discover_manifests
 from thread.mcp.session import MCPError, MCPSession
 
+_MAX_TEST_TOOL_NAMES = 8
+
 
 class MCPService:
     def __init__(self, settings: Settings):
@@ -35,6 +37,25 @@ class MCPService:
 
     def get_manifest(self, server_id: str) -> MCPManifest | None:
         return self._manifests.get(server_id)
+
+    async def test_connection(self, server_id: str) -> dict[str, Any]:
+        """Handshake + tools/list — no tool invoke."""
+        if not self._settings.enable_live_mcps:
+            return {"ok": False, "error": "Live MCP disabled (ENABLE_LIVE_MCPS=false)"}
+        try:
+            tools = await self.list_tools(server_id)
+        except KeyError:
+            return {"ok": False, "error": f"Unknown MCP server: {server_id}"}
+        except MCPError as exc:
+            return {"ok": False, "error": str(exc)}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+        names = [t["name"] for t in tools]
+        return {
+            "ok": True,
+            "tool_count": len(names),
+            "sample_tools": names[:_MAX_TEST_TOOL_NAMES],
+        }
 
     async def list_tools(self, server_id: str) -> list[dict[str, Any]]:
         manifest = self._require(server_id)

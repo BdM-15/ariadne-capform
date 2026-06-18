@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -9,6 +10,12 @@ from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[3]
+
+# Manifest env var names → canonical .env key (Phase 12k editor)
+MCP_ENV_CANONICAL: dict[str, str] = {
+    "SAM_API_KEY": "SAM_GOV_API_KEY",
+    "DATA_GOV_API_KEY": "API_DATA_GOV_KEY",
+}
 
 
 class Settings(BaseSettings):
@@ -153,3 +160,19 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def reload_settings() -> Settings:
+    """Re-read .env after MCP key save (clears lru_cache)."""
+    get_settings.cache_clear()
+    return get_settings()
+
+
+def apply_env_to_process(key: str, value: str) -> None:
+    """Update os.environ so subprocess MCP spawns see new keys without restart."""
+    canonical = MCP_ENV_CANONICAL.get(key, key)
+    os.environ[canonical] = value
+    if canonical == "SAM_GOV_API_KEY":
+        os.environ.setdefault("SAM_API_KEY", value)
+    if canonical == "API_DATA_GOV_KEY":
+        os.environ.setdefault("DATA_GOV_API_KEY", value)

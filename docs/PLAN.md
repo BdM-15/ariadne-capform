@@ -566,7 +566,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | Opportunity workspace | Packet (raw keys), Actions, Review, Research tabs | Workspace templates (competitive / readiness); extra pills; slide-deck packet (Phase 14) |
 | Sidebar nav | Command / Identify / Capture / **Tools** / Win / System + Lucide icons | Studio route (Phase 21) |
 | Settings (`/settings`) | ✅ Read-only platform health | Editable keys deferred to Tools/MCP (12k) |
-| MCP Servers (`/tools/mcp`) | ✅ Catalog + per-server guides/tooltips | Test connection, .env key editor (12k) |
+| MCP Servers (`/tools/mcp`) | ✅ Catalog + guides + test handshake + .env key save | — |
 | Agent Skills (`/tools/skills`) | ✅ Skill card grid from `skills/` | Run/install UX (Phase 20); **not** Theseus Skills Retrieval settings |
 
 **Shell IA (Theseus pattern):** `topbar-vibrant` = brand + health (no route links). Left `sidebar-vibrant` = app lanes (Command / Identify / Capture / **Tools** / Win / System). Top `glass-section-bar` = **per-page** nav only. Main canvas = `panel-canvas` aurora.
@@ -824,4 +824,5 @@ General parser — **not** solicitation-only. Parse API → vault wiki ingest (n
 - [x] Phase 17a — Data Insights live explore + watchlist funnel + bookmarks UI (guides, collapsible panels)
 - [ ] Phase 17b — Insights drill-down analytics, trend charts, `datarepublican_intel` invoke (candidate until review)
 
-- [ ] Phase 12k–12l — MCP test/key editor; Agent Skills run UX
+- [x] Phase 12k — MCP test connection + .env key editor on `/tools/mcp`
+- [ ] Phase 12l — Agent Skills run UX
