@@ -1,0 +1,103 @@
+{# Potential · Watchlist — explicit leads from Insights explore #}
+{% set wl = pulse.watchlist %}
+<details id="potential-watchlist" class="pulse-collapse pulse-panel" data-pulse-collapse open>
+  <summary class="pulse-panel-head">
+    <div class="flex items-center gap-2 min-w-0">
+      <span class="pulse-collapse-toggle" aria-hidden="true">
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 pulse-collapse-chevron"></i>
+      </span>
+      <i data-lucide="eye" class="w-4 h-4 text-neon-magenta shrink-0"></i>
+      <span class="pulse-panel-kicker text-neon-magenta/80">Potential</span>
+      <span class="pulse-panel-title">Watchlist</span>
+      {% if wl.count > 0 %}
+      <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">{{ wl.count }}</span>
+      {% endif %}
+      {% if wl.hot_count > 0 %}
+      <span class="pill pill-compact border border-neon-amber/35 text-neon-amber text-[10px]">{{ wl.hot_count }} hot</span>
+      {% endif %}
+    </div>
+    <a href="/insights" class="text-[10px] text-neon-cyan no-underline hover:underline shrink-0" onclick="event.stopPropagation()">Explore →</a>
+  </summary>
+  <div class="pulse-panel-body {% if wl.count > 4 %}pulse-panel-body-scroll{% endif %}">
+    <p class="text-[10px] text-slate-600 mb-2">
+      Explicit potential from <span class="text-slate-500">Data Insights</span>.
+      <span class="text-slate-500">Research</span> seeds agency/competitor vault notes (one platform ingress).
+      <span class="text-slate-500">Track</span> commits to opportunity workspace.
+    </p>
+    {% if wl.count == 0 %}
+    <p class="text-xs text-slate-400 py-1">
+      Empty — explore expiring awards or SAM notices in
+      <a href="/insights" class="text-neon-cyan no-underline hover:underline">Data Insights</a>
+      and <span class="text-slate-500">Watch</span> rows with potential.
+    </p>
+    {% else %}
+    <div class="pulse-lead-stack">
+      {% for row in wl.items %}
+      {% set item = row.item %}
+      <article class="pulse-lead-card">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-1.5 mb-1">
+              <span class="pill pill-compact border {% if item.kind == 'sam_notice' %}border-neon-cyan/35 text-neon-cyan{% else %}border-neon-magenta/40 text-neon-magenta{% endif %}">
+                {{ item.kind|replace('_', ' ') }}
+              </span>
+              <span class="pill pill-compact border border-edge text-slate-500 text-[10px]">potential</span>
+              {% if item.naics_code %}
+              <span class="pill pill-compact text-slate-500">NAICS {{ item.naics_code }}</span>
+              {% endif %}
+              {% if row.hot %}
+              <span class="pill pill-compact border border-neon-amber/35 text-neon-amber">Hot</span>
+              {% endif %}
+            </div>
+            <p class="text-sm font-semibold text-slate-100 truncate">{{ item.title }}</p>
+            <p class="text-xs text-slate-500 truncate">{{ item.agency or 'Unknown agency' }}</p>
+            {% if item.solicitation_number %}
+            <p class="text-[10px] font-mono text-slate-600 mt-1">Sol {{ item.solicitation_number }}</p>
+            {% endif %}
+          </div>
+          <div class="flex flex-col gap-1 shrink-0">
+            {% if item.kind == 'recompete' %}
+            <form hx-post="/signals/track" hx-swap="none" title="Commit → opportunity workspace">
+              <input type="hidden" name="award_key" value="{{ item.award_key }}" />
+              <input type="hidden" name="title" value="{{ item.title }}" />
+              <input type="hidden" name="agency" value="{{ item.agency }}" />
+              <input type="hidden" name="naics_code" value="{{ item.naics_code or '' }}" />
+              <button type="submit" class="btn btn-primary btn-compact">Track</button>
+            </form>
+            {% else %}
+            <form hx-post="/sam/track" hx-swap="none" title="Commit SAM lead → opportunity workspace">
+              <input type="hidden" name="notice_id" value="{{ item.notice_id }}" />
+              <input type="hidden" name="title" value="{{ item.title }}" />
+              <input type="hidden" name="agency" value="{{ item.agency }}" />
+              <input type="hidden" name="solicitation_number" value="{{ item.solicitation_number or '' }}" />
+              <input type="hidden" name="notice_type" value="{{ item.notice_type or '' }}" />
+              <input type="hidden" name="naics_code" value="{{ item.naics_code or '' }}" />
+              <button type="submit" class="btn btn-primary btn-compact">Track</button>
+            </form>
+            {% endif %}
+            <form hx-post="/watchlist/{{ item.id }}/research" hx-target="#pulse-body" hx-swap="outerHTML">
+              <button type="submit" class="btn btn-ghost btn-compact text-[10px]">Research</button>
+            </form>
+            <form hx-post="/watchlist/{{ item.id }}/remove" hx-target="#pulse-body" hx-swap="outerHTML">
+              <button type="submit" class="btn btn-ghost btn-compact text-[10px]">Remove</button>
+            </form>
+          </div>
+        </div>
+        <div class="mt-1.5 flex flex-wrap gap-3 text-[10px] font-mono text-slate-500">
+          {% if item.end_date %}
+          <span>ends <span class="text-slate-400">{{ item.end_date|datefmt }}</span></span>
+          {% endif %}
+          {% if item.months_to_end is not none %}
+          <span class="{% if row.hot %}text-neon-amber{% endif %}">{{ item.months_to_end|urgency }}</span>
+          {% endif %}
+          {% if item.obligation is not none %}
+          <span>{{ item.obligation|money }}</span>
+          {% endif %}
+          <span class="text-slate-600">src {{ item.source }}</span>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</details>

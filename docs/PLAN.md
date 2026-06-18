@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-17 (foundation complete; Product Vision v2.2 — C&C doctrine + data composition)
+**Last updated:** 2026-06-18 (Identification funnel: Insights → Watchlist → Opportunity; knowledge compounding doctrine)
 
 ---
 
@@ -27,7 +27,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Web research module | ❌ Not started | Config + docker profile only |
 | Skill runtime (3 skills) | ❌ Not started | SKILL.md stubs exist |
 | MCP manifests | 🟡 Partial | USAspending only; 7 more planned |
-| Frontend command center | 🟡 Foundation shell | HTMX Command Center dashboard, Pulse (`/pulse`), sidebar nav, opp workspace; Phase 12b–12j in progress |
+| Frontend command center | 🟡 Foundation shell | HTMX Command Center dashboard, Pulse (`/pulse`), sidebar nav, opp workspace; Phase 12b–12j largely ✅ — Insights UI (17) next |
 | Theseus visual language | ✅ Done | `frontend/styles/theseus.css` synced from proj-theseus |
 | Orchestration (LangGraph) | 🟡 Placeholder | Env + tracing bootstrap; runtime deferred |
 | Git | ✅ Done | Repo pushed; commit early/often |
@@ -42,7 +42,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 - **Python package:** `thread` in [`backend/src/thread/`](../backend/src/thread/)
 - **Workspace:** `ariadne-capform`
 - **Ports:** API `9622` · LangGraph Studio `9623` · UI `3000` · Postgres `55432`
-- **Philosophy:** Global opportunity command center; Shipley-aligned capture; human-in-the-loop everywhere; knowledge compounds; focused modules
+- **Philosophy:** Global opportunity command center; Shipley-aligned capture; human-in-the-loop everywhere; **knowledge compounds platform-wide** (vault + PG + review gate — not one screen); focused modules
 
 ### Three product lanes (operator summary)
 
@@ -50,7 +50,7 @@ Thread exists to help you do three jobs end-to-end — tailored solo-operator, r
 
 | Lane | What you need | Thread surfaces (build toward) |
 |------|----------------|--------------------------------|
-| **1. Opportunity identification** | Find and qualify pursuits before you invest capture | Portfolio Pulse, **Data Insights**, recompete radar, SAM monitor, track signal → opp |
+| **1. Opportunity identification** | Find and qualify pursuits before you invest capture | **Data Insights** (live explore), **Watchlist** on Pulse (potential + research → vault), Track → opp |
 | **2. Capture development** | MS-gated strategy, intel, customer engagement, gate decisions | Living Briefing Packet (slide deck), Actions, Research, Intel Context, vault, `datarepublican_intel`, MinerU ingest |
 | **3. Winning proposals** | pWin artifacts: eval mapping, win themes, PTW, outline, compliant narrative | Activation band produce lane, Theseus solicitation merge, skills + Grok synthesis → handoff to humans |
 
@@ -75,7 +75,7 @@ Lanes overlap on one **opportunity record** — identification feeds capture; ca
 3. **Full provenance** — evidence links, citations, MCP refs, web URLs, award_key lineage.
 4. **Phase separation** — Phase 0–3 evergreen intel vs Phase 4–6 solicitation activation.
 5. **Living Milestone Decision Briefing Packet** — slide-deck-shaped MS artifact; data elements from dictionary; `route_kind` drives fill (deterministic vs Grok/skills); living across MS gates and lifecycle; eventual approver export.
-6. **Two-store knowledge** — Obsidian vault (synthesis) vs PostgreSQL (execution truth).
+6. **Two-store knowledge + compounding doctrine** — Obsidian vault (synthesis) vs PostgreSQL (execution truth). Every lane writes candidate → review → trusted; trusted synthesis appends to vault and feeds later analysis (see **Knowledge compounding**).
 7. **PostgreSQL only** — single DB for workflow AND intel (DuckDB = one-time migration source only).
 8. **Theseus visual language** — ink/neon dark theme from proj-theseus (presentation layer only).
 9. **One command to run** — `python app.py` from root `.venv` (single Python process at steady state).
@@ -146,11 +146,75 @@ USAspending PG intel supports **multi-facet search** — any combination the ope
 | `naics_codes` | Industry slice when relevant — not the default dimension |
 | `psc_codes` | Product/service line drill-down |
 
-- **Storage:** `.thread/insight_queries.json` (saved queries) + `.thread/active_insight_query.json` (which query feeds Pulse radar).
+- **Storage:** `.thread/insight_queries.json` + `.thread/sam_queries.json` — **saved bookmarks only** (reopen analysis). `.thread/watchlist.json` — explicit potential on Pulse.
+- **Deprecated:** `active_insight_query.json` / `active_sam_query.json` remote-controlling Pulse — removed. Insights does not push feeds to Pulse.
 - **Operator presets yes; platform presets no** — you save named facet queries you create; Thread ships with **zero** hardcoded search presets.
-- **No `default_naics` fallback** for radar, Pulse, or `/api/intel/expiring`. Empty until you define and activate a query.
-- **Data Insights (`/insights`)** — UI to compose, save, and activate facet queries; analytics and trends live here, not on Command Center.
-- **Anti-pattern:** NAICS-only presets, single-code defaults, or implying NAICS is the primary search key.
+- **No `default_naics` fallback** for explore, Pulse, or `/api/intel/expiring`.
+- **Data Insights (`/insights`)** — **live HTMX explore** (no save required); **Watch** promotes rows to Pulse watchlist; saved lenses = bookmarks.
+- **Anti-pattern:** NAICS-only presets, single-code defaults, Activate→Pulse coupling, or implying NAICS is the primary search key.
+
+---
+
+## Identification funnel (Insights → Watchlist → Opportunity)
+
+Thread identification is **explicit promotion**, not passive dashboard feeds.
+
+```
+Data Insights — live explore (USAspending PG + SAM MCP)
+    → Watch (operator choice) → .thread/watchlist.json
+        → Pulse · Potential / Watchlist
+            → Research (agency / awardee stubs → vault entities/)
+            → Track → Opportunity workspace (Living Briefing Packet)
+```
+
+| Stage | Surface | State | Action |
+|-------|---------|-------|--------|
+| **Explore** | `/insights` | Ephemeral query results | Run facets live; saved lenses reopen only |
+| **Watch** | Insights row action | `watchlist.json` entry | Deduped by `award_key` or `notice_id` |
+| **Potential** | `/pulse#potential-watchlist` | Untracked but intentional | Research → vault; Track → opp |
+| **Track** | Pulse / workspace | Opportunity record | `entry_reason` + provenance |
+| **Capture** | Workspace tabs | Living Briefing Packet | MS gates, research chains |
+
+**Pulse is not fed by active lenses.** Morning briefing shows **watchlist + inbox + digest + tracked pursuits** — not “whatever query was last activated.”
+
+---
+
+## Knowledge compounding — platform doctrine (holistic, not one screen)
+
+**This is Ariadne’s core intent across the whole platform** — not a feature of Pulse, Insights, or Knowledge alone. Thread is built so that **the more you use it, the smarter the corpus gets** for analysis, comparison, chains, and specialized model training.
+
+**Core loop:** use → information becomes knowledge → knowledge compounds → better analysis, fill, and retrieval on the *next* pursuit.
+
+| Layer | Store | Role |
+|-------|-------|------|
+| **Raw** | PostgreSQL intel, MCP snapshots, MinerU parses, research runs | Immutable execution truth |
+| **Wiki** | Obsidian vault (`entities/`, `global/domain_intel/`, `pursuits/`, `training/`) | Synthesis, wikilinks, append-never-erase |
+| **Schema** | `foundation/capture-llm-wiki.md` | Contract for how LLM maintains Layer 2 |
+
+### Ingress surfaces (many doors, one vault brain)
+
+Compounding is **distributed** — any lane can add candidate knowledge; review gate promotes to trusted; trusted appends to vault and PG-backed search.
+
+| Lane | Example ingress | Compounds into |
+|------|-----------------|----------------|
+| **Identify** | Insights explore, Pulse watchlist Research | `entities/agencies/`, `entities/competitors/` |
+| **Capture** | Workspace Research, packet `route_kind` fills, Actions | `pursuits/{opp}/`, packet trusted fields |
+| **Intel** | MCP/skills (`datarepublican_intel`, USAspending, SAM) | Evidence + vault mirrors with provenance |
+| **Ingest** | MinerU PDF/doc upload (Phase 19) | Parsed chunks + wiki drafts |
+| **Produce** | Studio / Theseus artifacts (Phase 21) | Reusable insights, win-theme corpora |
+| **Operate** | Review Queue approve | Candidate → trusted everywhere |
+
+**Watchlist Research on Pulse is one ingress** — convenient for identification triage. It does **not** define or limit compounding; workspace research, skill chains, MinerU, and packet promotion are equally first-class.
+
+### What compounding enables (roadmap)
+
+- Richer **bid-fit** via `domain_intel` cross-links and wikilinks between agency offices and awardees
+- **Named retrieval chains** — `award_key` → incumbent → SAM UEI → web → vault note → packet field
+- **Training export** under `training/` — e.g. company-specific SLM corpus (1B trained on Amentum-only for black-hat / specialized tasks)
+- **PG18 + pgvector** — embed vault notes + MinerU chunks for hybrid search across collected data
+- **Unified federal search** — USAspending PG + SAM MCP + complementary MCPs (Phase 17c+)
+
+Karpathy/Obsidian style = lightweight **pseudo knowledge-graph brain**: every surface feeds the same vault; the vault makes every surface smarter on the next pass.
 
 ---
 
@@ -497,8 +561,8 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | Screen | Foundation | Product gap |
 |--------|------------|-------------|
 | Command Center (`/`) | Attention widgets, compact nav, pursuit rail — **not** analytics home | Widget row (12c–12h): reviews, phase band, hot signals, health strip, **quick actions**; anti-pattern: metrics dump |
-| Portfolio Pulse (`/pulse`) | Morning briefing: radar + pursuits + rail actions | SAM strip (12i), intel inbox (12g), active pursuits (12d); USAspending historical signals, not deep analytics |
-| Data Insights (`/insights`) | — | Trends, saved lenses, multi-facet USAspending analytics; incumbent/agency/NAICS combos |
+| Portfolio Pulse (`/pulse`) | Morning briefing: **watchlist** + inbox + digest + pursuits | Potential panel (watchlist + research stubs); not active-lens feeds |
+| Data Insights (`/insights`) | ✅ Live explore + bookmarks + Watch; guides; collapsible panels | Trends/drill-down 🟡 (17b); PG18 vectors + MinerU search (future) |
 | Opportunity workspace | Packet (raw keys), Actions, Review, Research tabs | Workspace templates (competitive / readiness); extra pills; slide-deck packet (Phase 14) |
 | Sidebar nav | Command / Identify / Capture / **Tools** / Win / System + Lucide icons | Studio route (Phase 21) |
 | Settings (`/settings`) | ✅ Read-only platform health | Editable keys deferred to Tools/MCP (12k) |
@@ -591,11 +655,11 @@ Shell first, then region widgets. One slice per PR. Concrete targets below — d
 | **12c** | Global review queue | ✅ `/review` human titles (`review_display`); approve works; **widget on Command Center**: pending count → `/review` |
 | **12d** | Pulse — active pursuits | ✅ Lifecycle-filtered opps; urgency/gate pills; **Command Center widget**: `phase_band` breakdown; compact multi-column layout |
 | **12e** | Intel / migration health | ✅ Settings + **Command Center widget**: blocking status (PG, migration %, vault, Grok) — not award analytics |
-| **12f** | Recompete radar v2 | 🟡 Hot ≤6mo widget ✅; **facet queries** (`facet_query.py`) — no NAICS default; Insights UI to save/activate queries (Phase 17) |
-| **12g** | Intel inbox | Recent candidates → review — **Pulse region** (morning briefing), not dashboard home |
+| **12f** | Recompete radar v2 | ✅ Hot ≤6mo widget; **facet queries** (`facet_query.py`) — no NAICS default; lenses managed on Insights (17) |
+| **12g** | Intel inbox | ✅ Recent candidates → review — **Pulse region** (morning briefing), source lanes + chain hints; not dashboard home |
 | **12h** | Quick actions | ✅ **Command Center strip**: track signal, run research, insights, vault, review; hot-signal chip when ≤6 mo |
-| **12i** | SAM monitor | **Pulse region**: new-opportunity strip (stub → live SAM adapter) |
-| **12j** | Knowledge digest | **Pulse region**: `domain_intel` highlights |
+| **12i** | SAM monitor | ✅ **Pulse region**: SAM.gov MCP `search_opportunities` leads, operator `sam_queries.json`, cache, Track → opp |
+| **12j** | Knowledge digest | ✅ **Pulse region**: `domain_intel` capabilities/UEI highlights → bid-fit context before Track |
 
 #### Command Center dashboard (`/`) — widget row (solo GovDash pattern)
 
@@ -611,10 +675,23 @@ Not the morning briefing — that stays on **Portfolio Pulse** (`/pulse`). Not a
 
 #### Portfolio Pulse (`/pulse`) — morning briefing only
 
-- **Recompete radar** (primary — already foundation)
-- **SAM / new-opportunity strip** (12i)
-- **Intel inbox candidates** (12g)
-- Active pursuits panel moves here or stays linked from dashboard widget (12d) — not duplicate full metric grid
+**Not** GovDash Capture CRM, **not** pipeline management, **not** award analytics. Daily identification horizon for solo operator.
+
+**Funnel (UI + copy):** Data Insights (live explore) → Watch (explicit) → Pulse watchlist (potential + research) → Track → Workspace.
+
+| Region | Role | Object state |
+|--------|------|--------------|
+| Doctrine banner | Explains Insights / Watch / Research / Track | — |
+| **Potential · watchlist** | Operator-watched recompete + SAM leads | Untracked potential — Research → vault; Track → opp |
+| **Candidates · intel inbox** (12g) | Review-gated triage preview | Candidate until approve |
+| **Context · knowledge digest** (12j) | `domain_intel` capabilities / UEI highlights | Bid-fit before Track — not analytics |
+| **Tracked · pursuits** (12d) | Snapshot of committed opps | Workspace owns packet/MS progression |
+| Rail funnel | 4-step identify → workspace | No prime-award hero counts |
+
+**Retired on Pulse:** recompete-radar + SAM-monitor panels driven by `active_*_query.json` — explore moved to Insights; SAM live fetch on explicit Run only.
+
+- Collapsible panels + per-item cards (leads, inbox) — collapse to reach other regions without page scroll
+- Active pursuits panel — compact cards linking to workspace; capture work not on Pulse
 
 #### Opportunity workspace — templates (no CRM bloat)
 
@@ -629,9 +706,9 @@ GovDash Proposal Cloud maps here. Route `/studio` deferred to Phase 21.
 - pWin artifacts: win themes, eval map, outline, compliance shred candidates
 - **Theseus** merge = activation produce (solicitation merge), not general CRM
 
-#### Data Insights — saved lenses (Discover pattern)
+#### Data Insights — live explore + bookmarks (Discover pattern)
 
-**Home for USAspending historical analytics** — trends, combos, incumbent spend patterns, agency/recipient/NAICS/PSC lenses. Saved profiles that improve over time → **named saved lenses** with facets (agency + NAICS + incumbent, PSC combos). Not profile spam. Phase 17 primary; seed UX in 12f. Insights actions may invoke MCP/skill chains; results stay `candidate` until review.
+**Home for USAspending historical analytics** — live facet explore (HTMX, no save required), SAM explore on explicit Run, **Watch** per row → Pulse watchlist. Saved lenses = **bookmarks** to reopen analysis — not Pulse remote control. Phase 17 primary. Insights actions may invoke MCP/skill chains; results stay `candidate` until review.
 
 ### Phase 14 — Living Briefing Packet (slide deck UX)
 
@@ -646,6 +723,12 @@ Central artifact — not “parallel afterthought.”
 ### Phase 17 — Data Insights
 
 `/insights` — agency, recipient, NAICS, PSC combos; **saved lenses** (named facet presets, GovDash Discover “profiles that match” pattern); drill-down; extend `datarepublican_intel` modes.
+
+**17a ✅ (2026-06-18):** Live explore (radar + SAM) with HTMX; **Watch** → `.thread/watchlist.json`; Pulse **Potential · Watchlist** panel; Research stubs → `entities/agencies/` + `entities/competitors/`; saved lenses = bookmarks only (save/delete/open); **removed Activate→Pulse**. No platform default facets. UI: per-server guides/tooltips, collapsible frame + section panels (localStorage), `btn-hero-magenta` / `btn-hero-cyan` / `btn-primary`.
+
+**17b (next):** Drill-down analytics panels, trend charts, `datarepublican_intel` invoke from Insights — outputs stay `candidate` until review.
+
+**17c (future):** PG18 `pgvector` on vault + MinerU chunks; hybrid search across PG intel, parsed docs, and MCP snapshots; unified USAspending + SAM retrieval surface.
 
 ### Phase 19 — MinerU document utility
 
@@ -735,5 +818,10 @@ General parser — **not** solicitation-only. Parse API → vault wiki ingest (n
 - [x] Phase 12f — hot recompete widget (partial)
 - [x] Facet query model — no NAICS/search defaults; radar empty until operator defines query
 - [x] Phase 12e — platform health widget on Command Center
-- [ ] Phase 12g, 12i–12j — Pulse regions
+- [x] Phase 12g — Intel inbox on Pulse
+- [x] Phase 12i — SAM monitor on Pulse (MCP + operator queries)
+- [x] Phase 12j — Knowledge digest on Pulse (domain_intel)
+- [x] Phase 17a — Data Insights live explore + watchlist funnel + bookmarks UI (guides, collapsible panels)
+- [ ] Phase 17b — Insights drill-down analytics, trend charts, `datarepublican_intel` invoke (candidate until review)
+
 - [ ] Phase 12k–12l — MCP test/key editor; Agent Skills run UX

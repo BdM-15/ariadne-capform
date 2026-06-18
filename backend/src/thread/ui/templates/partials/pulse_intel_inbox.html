@@ -1,0 +1,90 @@
+{# GovDash morning briefing — gated candidates on Pulse only (12g) #}
+<details
+  id="intel-inbox"
+  class="pulse-collapse pulse-panel {% if inbox.needs_attention %}pulse-panel-attention{% endif %}"
+  data-pulse-collapse
+  {% if inbox.needs_attention %}open{% endif %}
+>
+  <summary class="pulse-panel-head">
+    <div class="flex items-center gap-2 min-w-0">
+      <span class="pulse-collapse-toggle" aria-hidden="true">
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 pulse-collapse-chevron"></i>
+      </span>
+      <i data-lucide="inbox" class="w-4 h-4 {% if inbox.needs_attention %}text-neon-amber{% else %}text-neon-lime{% endif %} shrink-0"></i>
+      <span class="pulse-panel-kicker text-neon-amber/80">Candidates</span>
+      <span class="pulse-panel-title">Intel inbox</span>
+      {% if inbox.needs_attention %}
+      <span class="pill pill-compact border border-neon-amber/45 text-neon-amber">{{ inbox.count }}</span>
+      {% endif %}
+    </div>
+    <div class="flex items-center gap-2 shrink-0" onclick="event.stopPropagation()">
+      {% if inbox.lane_summary %}
+      <span class="text-[10px] font-mono text-slate-600 truncate max-w-[12rem]" title="{{ inbox.lane_summary }}">{{ inbox.lane_summary }}</span>
+      {% endif %}
+      <a href="/review" class="btn btn-ghost btn-compact text-[10px] no-underline">
+        {% if inbox.needs_attention %}Review all{% else %}Queue{% endif %}
+        <i data-lucide="arrow-right" class="w-3 h-3"></i>
+      </a>
+    </div>
+  </summary>
+
+  <div class="pulse-panel-body {% if inbox.items|length > 3 %}pulse-panel-body-scroll{% endif %}">
+    {% if flash %}
+    <p class="text-xs text-neon-amber py-1 mb-2">{{ flash }}</p>
+    {% endif %}
+
+    {% if not inbox.needs_attention %}
+    <div class="py-1">
+      <p class="text-xs text-slate-400">No candidates waiting — research, skills, and MCP outputs stay gated until you approve in inbox or <a href="/review" class="text-neon-cyan no-underline hover:underline">review queue</a>.</p>
+      <p class="text-[10px] text-slate-600 mt-1.5 leading-relaxed">
+        Radar discovers expiring awards; inbox triages gated intel.
+        SAM.gov and USAspending MCP chains wire here after 12i / packet fill.
+        DataRepublican trends stay on <a href="/insights" class="text-neon-cyan no-underline hover:underline">Data Insights</a>.
+      </p>
+    </div>
+    {% else %}
+    <div class="pulse-inbox-stack">
+      {% for item in inbox.items %}
+      <article class="pulse-inbox-card">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-1.5 mb-1">
+              <span class="pill pill-compact border border-neon-cyan/35 text-neon-cyan">{{ item.source_label }}</span>
+              <span class="pill pill-compact border border-neon-magenta/30 text-neon-magenta text-[10px]">{{ item.trust_level }}</span>
+              {% if item.opportunity_id %}
+              <a href="/opportunities/{{ item.opportunity_id }}?tab=review" class="pill pill-compact border border-neon-lime/35 text-neon-lime text-[10px] no-underline hover:underline truncate max-w-[9rem]">
+                {{ item.opportunity_name or 'Pursuit' }}
+              </a>
+              {% endif %}
+            </div>
+            <p class="text-sm font-semibold text-slate-100 truncate" title="{{ item.title }}">{{ item.title }}</p>
+            <p class="text-xs text-slate-500 truncate">{{ item.subtitle }}</p>
+            {% if item.excerpt %}
+            <p class="text-[11px] text-slate-400 mt-1 line-clamp-2">{{ item.excerpt }}</p>
+            {% endif %}
+            <p class="text-[10px] font-mono text-slate-600 mt-1">{{ item.suggested_action }}</p>
+            {% if item.chain_hint %}
+            <p class="text-[10px] text-slate-600 mt-0.5 italic">{{ item.chain_hint }}</p>
+            {% endif %}
+          </div>
+          <form
+            class="shrink-0 flex flex-col gap-1 items-end"
+            hx-post="/review/{{ item.review_id }}/approve"
+            hx-target="#intel-inbox"
+            hx-swap="outerHTML"
+          >
+            <input type="hidden" name="return_scope" value="pulse_inbox" />
+            <button type="submit" class="btn btn-primary btn-compact">Approve</button>
+          </form>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% if inbox.count > inbox.items|length %}
+    <p class="text-[10px] text-slate-600 pt-2">
+      +{{ inbox.count - inbox.items|length }} more in <a href="/review" class="text-neon-cyan no-underline hover:underline">review queue</a>
+    </p>
+    {% endif %}
+    {% endif %}
+  </div>
+</details>

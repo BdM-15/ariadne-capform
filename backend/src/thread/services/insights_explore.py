@@ -1,0 +1,265 @@
+"""Live Data Insights explore — no save/activate required."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from thread.config import Settings
+from thread.intel import pg_queries as intel_queries
+from thread.intel.facet_query import InsightFacetQuery, describe_query, query_from_dict
+from thread.intel.sam_query import SamMonitorQuery, describe_sam_query, query_from_dict as sam_from_dict
+from thread.mcp.service import MCPService
+from thread.services.sam_monitor import build_sam_explore_results
+
+
+def _sam_configured(settings: Settings) -> bool:
+    mcp = MCPService(settings)
+    sam_srv = next((s for s in mcp.list_servers() if s["id"] == "sam_gov"), None)
+    return bool(sam_srv and sam_srv["configured"])
+
+
+@dataclass(frozen=True)
+class RadarExploreResult:
+    query: InsightFacetQuery | None
+    summary: str
+    rows: tuple[dict[str, Any], ...]
+    intel_live: bool
+    status: str = "idle"
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class SamExploreResult:
+    query: SamMonitorQuery | None
+    summary: str
+    notices: tuple[dict[str, Any], ...]
+    status: str
+    error: str | None
+    configured: bool
+
+
+def _facet_from_params(
+    *,
+    agency: str = "",
+    sub_agency: str = "",
+    recipient: str = "",
+    naics_codes: str = "",
+    psc_codes: str = "",
+) -> InsightFacetQuery | None:
+    raw = {
+        "id": "explore",
+        "name": "Live explore",
+        "agency": agency.strip() or None,
+        "sub_agency": sub_agency.strip() or None,
+        "recipient": recipient.strip() or None,
+        "naics_codes": naics_codes.strip(),
+        "psc_codes": psc_codes.strip(),
+    }
+    return query_from_dict(raw)
+
+
+def _sam_from_params(
+    *,
+    title: str = "",
+    agency_keyword: str = "",
+    naics_code: str = "",
+    psc_code: str = "",
+    notice_type: str = "",
+    set_aside: str = "",
+    days_back: int = 14,
+    limit: int = 12,
+) -> SamMonitorQuery | None:
+    raw = {
+        "id": "sam-explore",
+        "name": "SAM explore",
+        "title": title.strip() or None,
+        "agency_keyword": agency_keyword.strip() or None,
+        "naics_code": naics_code.strip() or None,
+        "psc_code": psc_code.strip() or None,
+        "notice_type": notice_type.strip() or None,
+        "set_aside": set_aside.strip() or None,
+        "days_back": days_back,
+        "limit": limit,
+    }
+    return sam_from_dict(raw)
+
+
+def _radar_has_input(
+    *,
+    agency: str = "",
+    sub_agency: str = "",
+    recipient: str = "",
+    naics_codes: str = "",
+    psc_codes: str = "",
+) -> bool:
+    return bool(
+        agency.strip()
+        or sub_agency.strip()
+        or recipient.strip()
+        or naics_codes.strip()
+        or psc_codes.strip()
+    )
+
+
+async def explore_radar(
+    session: AsyncSession,
+    settings: Settings,
+    *,
+    agency: str = "",
+    sub_agency: str = "",
+    recipient: str = "",
+    naics_codes: str = "",
+    psc_codes: str = "",
+    limit: int = 15,
+    run: bool = False,
+) -> RadarExploreResult:
+    stats = await intel_queries.get_intel_stats(session)
+    intel_live = bool(stats.get("prime_awards_ready") and stats.get("prime_award_count", 0) > 0)
+    query = _facet_from_params(
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+    )
+    if query is None:
+        if not run and not _radar_has_input(
+            agency=agency,
+            sub_agency=sub_agency,
+            recipient=recipient,
+            naics_codes=naics_codes,
+            psc_codes=psc_codes,
+        ):
+            return RadarExploreResult(
+                query=None,
+                summary="",
+                rows=(),
+                intel_live=intel_live,
+                status="idle",
+            )
+        return RadarExploreResult(
+            query=None,
+            summary="",
+            rows=(),
+            intel_live=intel_live,
+            status="no_query",
+            error="Add at least one facet — agency, recipient, NAICS, PSC, or combo.",
+        )
+    if not intel_live:
+        return RadarExploreResult(
+            query=query,
+            summary=describe_query(query),
+            rows=(),
+            intel_live=False,
+            status="loading",
+            error="PG intel not ready — resume migration.",
+        )
+    rows = await intel_queries.get_expiring_contracts_for_query(
+        session,
+        query,
+        months_ahead=18,
+        limit=limit,
+    )
+    status = "ready" if rows else "empty"
+    return RadarExploreResult(
+        query=query,
+        summary=describe_query(query),
+        rows=tuple(rows),
+        intel_live=True,
+        status=status,
+    )
+
+
+def _sam_has_input(
+    *,
+    title: str = "",
+    agency_keyword: str = "",
+    naics_code: str = "",
+    psc_code: str = "",
+    notice_type: str = "",
+    set_aside: str = "",
+) -> bool:
+    return bool(
+        title.strip()
+        or agency_keyword.strip()
+        or naics_code.strip()
+        or psc_code.strip()
+        or notice_type.strip()
+        or set_aside.strip()
+    )
+
+
+async def explore_sam(
+    settings: Settings,
+    *,
+    title: str = "",
+    agency_keyword: str = "",
+    naics_code: str = "",
+    psc_code: str = "",
+    notice_type: str = "",
+    set_aside: str = "",
+    days_back: int = 14,
+    limit: int = 12,
+    run: bool = False,
+) -> SamExploreResult:
+    query = _sam_from_params(
+        title=title,
+        agency_keyword=agency_keyword,
+        naics_code=naics_code,
+        psc_code=psc_code,
+        notice_type=notice_type,
+        set_aside=set_aside,
+        days_back=days_back,
+        limit=limit,
+    )
+    if query is None:
+        if not run and not _sam_has_input(
+            title=title,
+            agency_keyword=agency_keyword,
+            naics_code=naics_code,
+            psc_code=psc_code,
+            notice_type=notice_type,
+            set_aside=set_aside,
+        ):
+            return SamExploreResult(
+                query=None,
+                summary="",
+                notices=(),
+                status="idle",
+                error=None,
+                configured=_sam_configured(settings),
+            )
+        return SamExploreResult(
+            query=None,
+            summary="",
+            notices=(),
+            status="no_query",
+            error="Add at least one SAM facet besides date window.",
+            configured=False,
+        )
+    widget = await build_sam_explore_results(settings, query)
+    notices = [
+        {
+            "notice_id": n.notice_id,
+            "title": n.title,
+            "agency": n.agency,
+            "solicitation_number": n.solicitation_number,
+            "notice_type": n.notice_type,
+            "set_aside": n.set_aside,
+            "naics_code": n.naics_code,
+            "posted_date": n.posted_date,
+            "response_deadline": n.response_deadline,
+        }
+        for n in widget.notices
+    ]
+    return SamExploreResult(
+        query=query,
+        summary=describe_sam_query(query),
+        notices=tuple(notices),
+        status=widget.status,
+        error=widget.error,
+        configured=widget.configured,
+    )

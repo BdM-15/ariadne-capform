@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Data Insights — {{ app_name }}{% endblock %}
+{% block page_header %}
+<header class="page-nav-bar glass-section-bar h-12 shrink-0 flex items-center px-6 justify-between gap-4">
+  <div class="flex items-center gap-3 min-w-0">
+    <h1 class="text-base font-semibold tracking-tight h1-gradient shrink-0">Data Insights</h1>
+    <span class="pill border border-neon-cyan/40 text-neon-cyan text-[10px] font-mono uppercase">Identify</span>
+  </div>
+  <a href="/pulse#potential-watchlist" class="btn btn-ghost text-xs no-underline shrink-0">Watchlist →</a>
+</header>
+{% endblock %}
+{% block content %}
+{% include "partials/insights_body.html" %}
+{% endblock %}

@@ -5,153 +5,123 @@
 
   {% set stats = pulse.intel_stats %}
   {% set intel_live = stats.prime_awards_ready and stats.prime_award_count > 0 %}
-  {% set signals = pulse.intel_signals %}
   {% set opps = pulse.opportunities %}
   {% set band_widget = pulse.phase_band_widget %}
-  {% set query_summary = pulse.radar_query_summary %}
-  {% set has_radar_query = pulse.active_insight_query is not none %}
+  {% set wl = pulse.watchlist %}
 
-  <div class="cc-stat-grid">
-    <div class="cc-stat-tile">
-      <div class="cc-stat-tile-label text-neon-cyan">Prime</div>
-      <div class="cc-stat-tile-value text-neon-cyan">{{ "{:,}".format(stats.prime_award_count) }}</div>
-      <div class="cc-stat-tile-sub">Awards indexed</div>
-    </div>
-    <div class="cc-stat-tile">
-      <div class="cc-stat-tile-label text-neon-magenta">Radar</div>
-      <div class="cc-stat-tile-value text-neon-magenta">{{ signals|length }}</div>
-      <div class="cc-stat-tile-sub">18 mo expiring</div>
-    </div>
-    <div class="cc-stat-tile">
-      <div class="cc-stat-tile-label text-neon-lime">Pursuits</div>
-      <div class="cc-stat-tile-value text-neon-lime">{{ opps|length }}</div>
-      <div class="cc-stat-tile-sub">Active capture</div>
-    </div>
-    <div class="cc-stat-tile">
-      <div class="cc-stat-tile-label text-neon-amber">Intel</div>
-      <div class="cc-stat-tile-value text-base {% if intel_live %}text-neon-lime{% else %}text-neon-amber{% endif %}">
-        {% if intel_live %}LIVE{% else %}LOAD{% endif %}
-      </div>
-      <div class="cc-stat-tile-sub">Migration</div>
-    </div>
+  <div class="pulse-doctrine card card-accent accent-cyan p-3">
+    <p class="text-xs text-slate-300 leading-relaxed">
+      <span class="text-neon-cyan font-semibold">Morning briefing</span> — triage potential before capture work.
+      <span class="text-slate-500">Insights</span> explores live;
+      <span class="text-slate-500">Watch</span> promotes to watchlist;
+      <span class="text-slate-500">Research</span> feeds platform vault (among workspace, skills, ingest);
+      <span class="text-slate-500">Track</span> commits to opportunity workspace.
+      Deep analytics → <a href="/insights" class="text-neon-cyan no-underline hover:underline">Data Insights</a>.
+    </p>
   </div>
 
   <div class="pulse-split">
     <div class="pulse-main space-y-3">
-      <section id="recompete-radar" class="pulse-panel">
-        <div class="pulse-panel-head">
-          <div class="flex items-center gap-2">
-            <i data-lucide="radar" class="w-4 h-4 text-neon-magenta"></i>
-            <span>Recompete radar</span>
+      {% include "partials/pulse_watchlist.html" %}
+
+      {% set inbox = pulse.intel_inbox %}
+      {% include "partials/pulse_intel_inbox.html" %}
+
+      {% include "partials/pulse_knowledge_digest.html" %}
+
+      <details id="tracked-pursuits" class="pulse-collapse pulse-panel" data-pulse-collapse open>
+        <summary class="pulse-panel-head">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="pulse-collapse-toggle" aria-hidden="true">
+              <i data-lucide="chevron-down" class="w-3.5 h-3.5 pulse-collapse-chevron"></i>
+            </span>
+            <i data-lucide="target" class="w-4 h-4 text-neon-lime shrink-0"></i>
+            <span class="pulse-panel-kicker text-neon-lime/80">Tracked</span>
+            <span class="pulse-panel-title">Pursuits</span>
+            <span class="pill pill-compact border border-neon-lime/40 text-neon-lime">{{ opps|length }}</span>
           </div>
-          {% if intel_live and has_radar_query %}
-          <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">{{ signals|length }}</span>
-          <span class="text-[10px] font-mono text-slate-600 truncate max-w-[14rem]" title="{{ query_summary }}">{{ query_summary }}</span>
-          {% endif %}
-        </div>
-        <div class="pulse-panel-body space-y-0">
-          {% if not intel_live %}
-          <p class="text-xs text-slate-400 py-1">No intel rows yet — resume migration, then Refresh.</p>
-          {% elif not has_radar_query %}
-          <p class="text-xs text-slate-400 py-1">
-            No active search. Define a facet query in
-            <a href="/insights" class="text-neon-cyan no-underline hover:underline">Data Insights</a>
-            — agency, sub-agency, recipient, NAICS, PSC, or any combo. No platform default filter.
+        </summary>
+        <div class="pulse-panel-body {% if opps|length > 2 %}pulse-panel-body-scroll{% endif %}">
+          <p class="text-[10px] text-slate-600 mb-2">
+            Committed opportunities — open workspace for Living Briefing Packet, Actions, Research.
+            Not full pipeline CRM; capture progression happens per opp.
           </p>
-          {% elif signals|length == 0 %}
-          <p class="text-xs text-slate-400 py-1">No expiring contracts match your active search (18 mo).</p>
-          {% endif %}
-
-          {% for signal in signals %}
-          {% set hot = signal.months_to_end is not none and signal.months_to_end <= 6 %}
-          <div class="pulse-signal-row">
-            <div class="flex flex-wrap items-start justify-between gap-2">
-              <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-center gap-1.5 mb-1">
-                  <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">{{ signal.kind|replace('_', ' ') }}</span>
-                  {% if signal.naics_code %}
-                  <span class="pill pill-compact text-slate-500">NAICS {{ signal.naics_code }}</span>
-                  {% endif %}
-                  {% if hot %}
-                  <span class="pill pill-compact border border-neon-amber/35 text-neon-amber">Hot</span>
-                  {% endif %}
-                </div>
-                <p class="text-sm font-semibold text-slate-100 truncate">{{ signal.title or 'Unknown recipient' }}</p>
-                <p class="text-xs text-slate-500 truncate">{{ signal.agency or 'Unknown agency' }}</p>
-              </div>
-              <form hx-post="/signals/track" hx-swap="none" class="shrink-0">
-                <input type="hidden" name="award_key" value="{{ signal.award_key }}" />
-                <input type="hidden" name="title" value="{{ signal.title or '' }}" />
-                <input type="hidden" name="agency" value="{{ signal.agency or '' }}" />
-                <input type="hidden" name="naics_code" value="{{ signal.naics_code or '' }}" />
-                <button type="submit" class="btn btn-primary btn-compact">Track</button>
-              </form>
-            </div>
-            <div class="mt-1.5 flex flex-wrap gap-3 text-[10px] font-mono text-slate-500">
-              <span>ends <span class="text-slate-400">{{ signal.end_date|datefmt }}</span></span>
-              <span class="{% if hot %}text-neon-amber{% endif %}">{{ signal.months_to_end|urgency }}</span>
-              <span>{{ signal.obligation|money }}</span>
-            </div>
+          {% if opps|length == 0 %}
+          <p class="text-xs text-slate-400">
+            No tracked pursuits — <span class="text-slate-500">Track</span> from watchlist or create one in the rail →
+          </p>
+          {% else %}
+          <div class="pursuit-grid">
+            {% for o in opps %}
+            {% set pursuit = o %}
+            {% include "partials/pursuit_card_compact.html" %}
+            {% endfor %}
           </div>
-          {% endfor %}
+          {% endif %}
         </div>
-      </section>
-
-      <section>
-        <div class="cc-section-label">Active pursuits</div>
-        {% if opps|length == 0 %}
-        <div class="pulse-rail-card text-xs text-slate-400">
-          No active pursuits — track a radar signal or create one in the rail →
-        </div>
-        {% else %}
-        <div class="pursuit-grid">
-          {% for o in opps %}
-          {% set pursuit = o %}
-          {% include "partials/pursuit_card_compact.html" %}
-          {% endfor %}
-        </div>
-        {% endif %}
-      </section>
+      </details>
     </div>
 
     <aside class="pulse-rail">
+      <div class="pulse-rail-card pulse-funnel-card">
+        <div class="cc-section-label mb-2">Identify funnel</div>
+        <ol class="pulse-funnel-steps text-[10px] text-slate-500 space-y-1.5 list-none m-0 p-0">
+          <li><a href="/insights" class="text-neon-cyan no-underline hover:underline">1 · Data Insights</a> — live explore trends</li>
+          <li><a href="#potential-watchlist" class="text-neon-cyan no-underline hover:underline">2 · Watchlist</a> — explicit potential + research</li>
+          <li><span class="text-slate-400">3 · Track</span> — commit to opportunity</li>
+          <li><span class="text-slate-400">4 · Workspace</span> — Living Briefing Packet</li>
+        </ol>
+      </div>
+
       <div class="pulse-rail-card">
         <div class="flex items-center gap-2 mb-2 text-xs font-semibold">
           <i data-lucide="folder-plus" class="w-3.5 h-3.5 text-neon-lime"></i>
-          New opportunity
+          Commit manually
         </div>
+        <p class="text-[10px] text-slate-600 mb-2">Skip watchlist — create tracked opp directly.</p>
         <form hx-post="/opportunities" hx-swap="none" class="pulse-inline-form">
-          <input class="thread-input" name="name" placeholder="Name" required />
+          <input class="thread-input" name="name" placeholder="Opportunity name" required />
           <button type="submit" class="btn-hero-cyan">Create</button>
         </form>
       </div>
 
-      <div class="pulse-rail-card text-[10px] font-mono uppercase tracking-wider text-slate-500 space-y-1.5">
+      <div class="pulse-rail-card text-[10px] space-y-1.5">
         <div class="flex items-center justify-between">
-          <span class="text-slate-400">Intel</span>
+          <span class="cc-section-label">Intel layer</span>
           <span class="pill pill-compact border {% if intel_live %}border-neon-lime/40 text-neon-lime{% else %}border-neon-amber/40 text-neon-amber{% endif %}">
-            {% if intel_live %}live{% else %}load{% endif %}
+            {% if intel_live %}ready{% else %}loading{% endif %}
           </span>
         </div>
-        <div><span class="text-neon-cyan">{{ "{:,}".format(stats.prime_award_count) }}</span> prime</div>
-        {% if stats.subaward_count > 0 %}
-        <div><span class="text-neon-magenta">{{ "{:,}".format(stats.subaward_count) }}</span> sub</div>
-        {% endif %}
-      </div>
-
-      <div class="pulse-rail-card">
-        <div class="cc-section-label mb-2">Active search</div>
-        {% if has_radar_query %}
-        <p class="text-[10px] text-slate-400 leading-relaxed">{{ query_summary }}</p>
-        {% else %}
-        <p class="text-[10px] text-slate-500 leading-relaxed">
-          None — <a href="/insights" class="text-neon-cyan no-underline hover:underline">Data Insights</a> to save facet queries.
+        <p class="text-slate-600 leading-relaxed">
+          {% if intel_live %}
+          PG migration ready. Explore on <a href="/insights" class="text-neon-cyan no-underline hover:underline">Insights</a>.
+          {% else %}
+          Migration in progress — <a href="/settings" class="text-neon-cyan no-underline hover:underline">Settings</a> for status.
+          {% endif %}
         </p>
-        {% endif %}
       </div>
 
       <div class="pulse-rail-card">
-        <div class="cc-section-label mb-2">Phase bands</div>
+        <div class="cc-section-label mb-2">Watchlist</div>
+        <p class="text-[10px] text-slate-400 leading-relaxed">
+          {{ wl.count }} item{% if wl.count != 1 %}s{% endif %}
+          {% if wl.hot_count > 0 %} · {{ wl.hot_count }} hot ≤6mo{% endif %}
+        </p>
+      </div>
+
+      <div class="pulse-rail-card">
+        <div class="cc-section-label mb-2">Knowledge vault</div>
+        <p class="text-[10px] text-slate-600 mb-2">
+          Platform-wide compounding — Pulse Research, workspace, MinerU, skills, and review gate all append to
+          <a href="/knowledge" class="text-neon-cyan no-underline hover:underline">entities/</a> and <span class="text-slate-500">domain_intel</span>.
+        </p>
+      </div>
+
+      <div class="pulse-rail-card">
+        <div class="cc-section-label mb-2">Phase snapshot</div>
+        <p class="text-[10px] text-slate-600 mb-2">
+          <a href="#tracked-pursuits" class="text-neon-lime no-underline hover:underline">Tracked pursuits</a> by band — drill into workspace for MS gates.
+        </p>
         <div class="cc-band-grid">
           {% for slice in band_widget.bands %}
           <div class="cc-band-chip {% if slice.count == 0 %}cc-band-chip-empty{% endif %}">
@@ -166,3 +136,50 @@
     </aside>
   </div>
 </div>
+<script>
+(function () {
+  var KEY = "pulse-collapse-v1";
+  function panels() {
+    return document.querySelectorAll("[data-pulse-collapse]");
+  }
+  function loadState() {
+    var saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+    } catch (_) {}
+    panels().forEach(function (el) {
+      if (el.id && Object.prototype.hasOwnProperty.call(saved, el.id)) {
+        el.open = !!saved[el.id];
+      }
+    });
+  }
+  function bindState() {
+    panels().forEach(function (el) {
+      if (el.dataset.pulseCollapseBound) return;
+      el.dataset.pulseCollapseBound = "1";
+      el.addEventListener("toggle", function () {
+        if (!el.id) return;
+        var saved = {};
+        try {
+          saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+        } catch (_) {}
+        saved[el.id] = el.open;
+        localStorage.setItem(KEY, JSON.stringify(saved));
+      });
+    });
+  }
+  function initPulseCollapse() {
+    loadState();
+    bindState();
+    if (window.lucide) window.lucide.createIcons();
+  }
+  initPulseCollapse();
+  document.body.addEventListener("htmx:afterSwap", function (e) {
+    var t = e.detail && e.detail.target;
+    if (!t) return;
+    if (t.id === "pulse-body" || t.id === "intel-inbox" || (t.closest && t.closest("#pulse-body"))) {
+      initPulseCollapse();
+    }
+  });
+})();
+</script>

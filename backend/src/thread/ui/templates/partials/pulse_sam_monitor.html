@@ -1,0 +1,117 @@
+{# Leads · SAM.gov notices via MCP (12i) #}
+{% set sam = pulse.sam_monitor %}
+<details
+  id="sam-monitor"
+  class="pulse-collapse pulse-panel {% if sam.notices|length > 0 %}pulse-panel-attention{% elif not sam.configured %}pulse-panel-stub{% endif %}"
+  data-pulse-collapse
+  {% if sam.notices|length > 0 %}open{% endif %}
+>
+  <summary class="pulse-panel-head">
+    <div class="flex items-center gap-2 min-w-0">
+      <span class="pulse-collapse-toggle" aria-hidden="true">
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 pulse-collapse-chevron"></i>
+      </span>
+      <i data-lucide="bell-ring" class="w-4 h-4 text-neon-cyan shrink-0"></i>
+      <span class="pulse-panel-kicker text-neon-cyan/80">Leads</span>
+      <span class="pulse-panel-title">SAM monitor</span>
+      {% if sam.notices|length > 0 %}
+      <span class="pill pill-compact border border-neon-cyan/40 text-neon-cyan">{{ sam.notices|length }}</span>
+      {% elif sam.status == 'error' %}
+      <span class="pill pill-compact border border-neon-amber/40 text-neon-amber">error</span>
+      {% endif %}
+    </div>
+    <div class="flex items-center gap-2 shrink-0" onclick="event.stopPropagation()">
+      {% if sam.query_summary and sam.status not in ('not_configured',) %}
+      <span class="text-[10px] font-mono text-slate-600 truncate max-w-[12rem]" title="{{ sam.query_summary }}">{{ sam.query_summary }}</span>
+      {% endif %}
+      {% if sam.configured and sam.active_query %}
+      <button
+        type="button"
+        class="btn btn-ghost btn-compact text-[10px]"
+        hx-get="/partials/pulse?sam_refresh=1"
+        hx-target="#pulse-body"
+        hx-swap="outerHTML"
+        title="Refresh SAM notices (bypasses 60m cache — SAM API ~1000 req/day)"
+      >
+        ↻ SAM
+      </button>
+      {% endif %}
+    </div>
+  </summary>
+
+  <div class="pulse-panel-body {% if sam.notices|length > 3 %}pulse-panel-body-scroll{% endif %}">
+    <p class="text-[10px] text-slate-600 mb-2">
+      Live solicitations from SAM.gov MCP — untracked leads. Historical recompete → radar above.
+      API quota ~1000 req/day; key rotates every 90 days — cache 60m, use ↻ SAM sparingly.
+    </p>
+
+    {% if not sam.configured %}
+    <p class="text-xs text-slate-400">
+      SAM.gov API key not configured. Add <span class="font-mono">SAM_GOV_API_KEY</span> to
+      <span class="font-mono">.env</span> — see <a href="/tools/mcp" class="text-neon-cyan no-underline hover:underline">Tools → MCP</a>.
+    </p>
+    {% elif sam.status == 'no_query' %}
+    <p class="text-xs text-slate-400">
+      No active SAM search — save and activate a lens in
+      <a href="/insights" class="text-neon-cyan no-underline hover:underline">Data Insights</a>.
+      No platform default filter.
+    </p>
+    {% elif sam.status == 'error' %}
+    <p class="text-xs text-neon-amber">{{ sam.error }}</p>
+    {% elif sam.status == 'empty' %}
+    <p class="text-xs text-slate-400">No notices match your active SAM search in the posted window.</p>
+    {% if sam.fetched_at %}
+    <p class="text-[10px] text-slate-600 mt-1">Last fetch {{ sam.fetched_at.strftime('%H:%M UTC') if sam.fetched_at else '' }}{% if sam.cache_hit %} · cached{% endif %}</p>
+    {% endif %}
+    {% else %}
+    <div class="pulse-lead-stack">
+      {% for notice in sam.notices %}
+      <article class="pulse-lead-card pulse-lead-card-sam">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-1.5 mb-1">
+              <span class="pill pill-compact border border-neon-cyan/35 text-neon-cyan">sam notice</span>
+              <span class="pill pill-compact border border-edge text-slate-500 text-[10px]">untracked</span>
+              {% if notice.notice_type %}
+              <span class="pill pill-compact text-slate-500">{{ notice.notice_type }}</span>
+              {% endif %}
+              {% if notice.set_aside %}
+              <span class="pill pill-compact border border-neon-lime/30 text-neon-lime/90 text-[10px]">{{ notice.set_aside }}</span>
+              {% endif %}
+            </div>
+            <p class="text-sm font-semibold text-slate-100 line-clamp-2" title="{{ notice.title }}">{{ notice.title }}</p>
+            <p class="text-xs text-slate-500 truncate">{{ notice.agency }}</p>
+            {% if notice.solicitation_number %}
+            <p class="text-[10px] font-mono text-slate-600 mt-1">Sol {{ notice.solicitation_number }}</p>
+            {% endif %}
+          </div>
+          <form hx-post="/sam/track" hx-swap="none" class="shrink-0" title="Commit SAM lead → opportunity workspace">
+            <input type="hidden" name="notice_id" value="{{ notice.notice_id }}" />
+            <input type="hidden" name="title" value="{{ notice.title }}" />
+            <input type="hidden" name="agency" value="{{ notice.agency }}" />
+            <input type="hidden" name="solicitation_number" value="{{ notice.solicitation_number or '' }}" />
+            <input type="hidden" name="notice_type" value="{{ notice.notice_type or '' }}" />
+            <input type="hidden" name="naics_code" value="{{ notice.naics_code or '' }}" />
+            <button type="submit" class="btn btn-primary btn-compact">Track</button>
+          </form>
+        </div>
+        <div class="mt-1.5 flex flex-wrap gap-3 text-[10px] font-mono text-slate-500">
+          {% if notice.posted_date %}
+          <span>posted <span class="text-slate-400">{{ notice.posted_date }}</span></span>
+          {% endif %}
+          {% if notice.response_deadline %}
+          <span>due <span class="text-slate-400">{{ notice.response_deadline }}</span></span>
+          {% endif %}
+          <span class="text-slate-600">id {{ notice.notice_id[:16] }}{% if notice.notice_id|length > 16 %}…{% endif %}</span>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% if sam.fetched_at %}
+    <p class="text-[10px] text-slate-600 pt-2">
+      Fetched {{ sam.fetched_at.strftime('%Y-%m-%d %H:%M UTC') }}{% if sam.cache_hit %} · cache{% endif %}
+    </p>
+    {% endif %}
+    {% endif %}
+  </div>
+</details>

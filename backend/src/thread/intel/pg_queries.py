@@ -157,6 +157,64 @@ async def get_expiring_contracts(
     )
 
 
+async def count_expiring_for_query(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    months_ahead: int = 18,
+) -> int:
+    if not query.has_filters():
+        return 0
+    facet_sql, facet_params = build_facet_sql(query)
+    sql = f"""
+        SELECT COUNT(*) AS n
+        FROM {PRIME_TABLE}
+        WHERE period_of_performance_current_end_date IS NOT NULL
+          AND period_of_performance_current_end_date <= CURRENT_DATE + (:months_ahead || ' months')::interval
+          AND period_of_performance_current_end_date >= CURRENT_DATE
+          {facet_sql}
+    """
+    params = {**facet_params, "months_ahead": str(months_ahead)}
+    row = (await session.execute(text(sql), params)).first()
+    return int(row.n if row else 0)
+
+
+async def get_awards_by_keys(
+    session: AsyncSession,
+    award_keys: list[str],
+) -> dict[str, dict[str, Any]]:
+    """Batch lookup for watchlist enrichment."""
+    keys = [k.strip() for k in award_keys if k and str(k).strip()]
+    if not keys or not await table_exists(session, PRIME_TABLE):
+        return {}
+    placeholders = ", ".join(f":key_{i}" for i in range(len(keys)))
+    params = {f"key_{i}": k for i, k in enumerate(keys)}
+    sql = f"""
+        SELECT
+            contract_award_unique_key AS award_key,
+            recipient_name AS recipient,
+            federal_action_obligation AS obligation,
+            period_of_performance_current_end_date AS end_date,
+            {AGENCY_EXPR} AS agency,
+            {MONTHS_TO_END_EXPR} AS months_to_end,
+            naics_code
+        FROM {PRIME_TABLE}
+        WHERE contract_award_unique_key IN ({placeholders})
+    """
+    rows = (await session.execute(text(sql), params)).all()
+    out: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        out[r.award_key] = {
+            "award_key": r.award_key,
+            "recipient": r.recipient,
+            "obligation": float(r.obligation) if r.obligation is not None else None,
+            "end_date": str(r.end_date) if r.end_date else None,
+            "agency": r.agency,
+            "months_to_end": int(r.months_to_end or 0),
+            "naics_code": r.naics_code,
+        }
+    return out
+
+
 async def get_expiring_contracts_for_query(
     session: AsyncSession,
     query: InsightFacetQuery,

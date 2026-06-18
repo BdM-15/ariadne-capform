@@ -1,0 +1,42 @@
+<div class="insights-explore-inner">
+  {% if explore.status == 'idle' %}
+  <p class="insights-idle-hint">Set facets above, then run explore.</p>
+  {% elif explore.status == 'not_configured' %}
+  <p class="insights-explore-msg">
+    Add <span class="font-mono text-neon-cyan">SAM_GOV_API_KEY</span> to
+    <span class="font-mono">.env</span> —
+    <a href="/tools/mcp" class="text-neon-cyan no-underline hover:underline">Tools → MCP</a>
+  </p>
+  {% elif explore.error and explore.status == 'no_query' %}
+  <p class="insights-explore-msg insights-explore-msg-warn">{{ explore.error }}</p>
+  {% elif explore.status == 'error' %}
+  <p class="insights-explore-msg insights-explore-msg-warn">{{ explore.error }}</p>
+  {% elif explore.notices|length > 0 %}
+  <p class="insights-explore-meta">{{ explore.summary }} · {{ explore.notices|length }} notices</p>
+  <ul class="insights-result-list">
+    {% for notice in explore.notices %}
+    <li class="insights-result-row">
+      <div class="insights-result-main">
+        <span class="insights-result-title">{{ notice.title }}</span>
+        <span class="insights-result-sub">{{ notice.agency }}</span>
+        {% if notice.solicitation_number %}
+        <span class="insights-result-mono">Sol {{ notice.solicitation_number }}</span>
+        {% endif %}
+      </div>
+      <form hx-post="/watchlist/add/sam" hx-target="#insights-body" hx-swap="outerHTML">
+        <input type="hidden" name="notice_id" value="{{ notice.notice_id }}" />
+        <input type="hidden" name="title" value="{{ notice.title }}" />
+        <input type="hidden" name="agency" value="{{ notice.agency }}" />
+        <input type="hidden" name="solicitation_number" value="{{ notice.solicitation_number or '' }}" />
+        <input type="hidden" name="notice_type" value="{{ notice.notice_type or '' }}" />
+        <input type="hidden" name="naics_code" value="{{ notice.naics_code or '' }}" />
+        <button type="submit" class="btn btn-primary" title="Add to Pulse watchlist">Watch</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif explore.status == 'empty' %}
+  <p class="insights-explore-meta">{{ explore.summary }}</p>
+  <p class="insights-idle-hint">No notices in posted window.</p>
+  {% endif %}
+</div>

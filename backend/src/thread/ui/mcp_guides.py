@@ -29,12 +29,13 @@ MCP_SERVER_GUIDES: dict[str, dict[str, Any]] = {
     },
     "sam_gov": {
         "purpose": "SAM.gov entity and notice data for active solicitations and registrants.",
-        "when": "Validate teaming partner UEIs, pull notice metadata, or monitor new opportunities (12i).",
+        "when": "Validate teaming partner UEIs, pull notice metadata, or live SAM explore on Data Insights.",
         "output": "Notice IDs, set-aside flags, response deadlines — candidate inputs for opportunity records.",
-        "context_impact": "Requires SAM_GOV_API_KEY in .env — set via Settings when key editing lands.",
+        "context_impact": "Requires SAM_GOV_API_KEY in .env (~1000 requests/day; rotate key every 90 days at sam.gov).",
         "tips": [
-            "SAM monitor on Pulse will call this adapter once 12i is live.",
+            "Data Insights SAM explore caches results 60 minutes — avoid repeated Run clicks.",
             "Store notice provenance on the opportunity record, not in free text only.",
+            "Pair with Knowledge digest capabilities for bid/no-bid fit before Track.",
         ],
     },
     "ecfr": {

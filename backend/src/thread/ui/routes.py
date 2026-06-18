@@ -22,7 +22,28 @@ from thread.research.providers import build_provider_registry
 from thread.services import opportunities as opp_svc
 from thread.services.portfolio import build_portfolio_pulse, signal_opportunity_name
 from thread.services.platform_health import build_platform_health_widget
+from thread.services.insights_display import build_insights_page_context
 from thread.services.quick_actions import build_quick_actions
+from thread.intel.facet_query import (
+    delete_insight_query,
+    new_insight_query_from_form,
+    save_insight_query,
+)
+from thread.intel.sam_query import (
+    delete_sam_query,
+    new_sam_query_from_form,
+    save_sam_query,
+)
+from thread.services.insights_explore import explore_radar, explore_sam
+from thread.ui.insights_guides import guide_for_explore
+from thread.services.vault_research import ensure_watchlist_research_stubs
+from thread.services.watchlist import (
+    add_watchlist_item,
+    load_watchlist,
+    new_recompete_watch_item,
+    new_sam_watch_item,
+    remove_watchlist_item,
+)
 from thread.services.review_gate import ReviewGateError, approve_review
 from thread.ui.formatters import format_date, format_money, urgency_label
 from thread.services.pursuits_display import lifecycle_label, milestone_gate_label, phase_band_label
@@ -57,17 +78,6 @@ WORKSPACE_TABS = [
 ]
 
 SHELL_STUB_PAGES: dict[str, dict[str, str]] = {
-    "insights": {
-        "page_title": "Data Insights",
-        "page_subtitle": "Opportunity identification",
-        "product_lane": "Identify",
-        "page_description": (
-            "Market deep dives over USAspending — agency, competitor, NAICS, PSC, and combos. "
-            "Not NAICS-only. Successor to capture-insights exploration."
-        ),
-        "next_phase": "17",
-        "stub_message": "Phase 12a shell only. Phase 17 wires multi-facet queries and saved lenses.",
-    },
     "knowledge": {
         "page_title": "Knowledge",
         "page_subtitle": "Capture development",
@@ -142,12 +152,227 @@ def _render_panel(request: Request, ctx: dict) -> HTMLResponse:
     return templates.TemplateResponse(request, "partials/workspace_panel.html", ctx)
 
 
+async def _render_insights_body(
+    request: Request,
+    db: AsyncSession,
+    settings: Settings,
+    *,
+    flash: str | None = None,
+    radar_form: dict | None = None,
+    sam_form: dict | None = None,
+) -> HTMLResponse:
+    ctx = await build_insights_page_context(db, settings)
+    explore = await explore_radar(db, settings)
+    sam_explore = await explore_sam(settings)
+    return templates.TemplateResponse(
+        request,
+        "partials/insights_body.html",
+        {
+            "ctx": ctx,
+            "flash": flash,
+            "explore": explore,
+            "sam_explore": sam_explore,
+            "radar_form": radar_form,
+            "sam_form": sam_form,
+            "radar_guide": guide_for_explore("usaspending_explore"),
+            "sam_guide": guide_for_explore("sam_explore"),
+        },
+    )
+
+
 @router.get("/insights", response_class=HTMLResponse)
 async def insights_page(
     request: Request,
+    db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    return _render_stub_page(request, settings, "insights")
+    ctx = await build_insights_page_context(db, settings)
+    explore = await explore_radar(db, settings)
+    sam_explore = await explore_sam(settings)
+    return templates.TemplateResponse(
+        request,
+        "insights.html",
+        {
+            "app_name": settings.public_app_name,
+            "active_nav": "insights",
+            "ctx": ctx,
+            "flash": None,
+            "explore": explore,
+            "sam_explore": sam_explore,
+            "radar_form": None,
+            "sam_form": None,
+            "radar_guide": guide_for_explore("usaspending_explore"),
+            "sam_guide": guide_for_explore("sam_explore"),
+        },
+    )
+
+
+@router.get("/partials/insights/radar-explore", response_class=HTMLResponse)
+async def insights_radar_explore_partial(
+    request: Request,
+    agency: str = Query(""),
+    sub_agency: str = Query(""),
+    recipient: str = Query(""),
+    naics_codes: str = Query(""),
+    psc_codes: str = Query(""),
+    run: int = Query(0, ge=0, le=1),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    explore = await explore_radar(
+        db,
+        settings,
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        run=bool(run),
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/insights_radar_explore.html",
+        {"explore": explore},
+    )
+
+
+@router.get("/partials/insights/sam-explore", response_class=HTMLResponse)
+async def insights_sam_explore_partial(
+    request: Request,
+    title: str = Query(""),
+    agency_keyword: str = Query(""),
+    naics_code: str = Query(""),
+    psc_code: str = Query(""),
+    notice_type: str = Query(""),
+    set_aside: str = Query(""),
+    days_back: int = Query(14, ge=1, le=90),
+    run: int = Query(0, ge=0, le=1),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    explore = await explore_sam(
+        settings,
+        title=title,
+        agency_keyword=agency_keyword,
+        naics_code=naics_code,
+        psc_code=psc_code,
+        notice_type=notice_type,
+        set_aside=set_aside,
+        days_back=days_back,
+        run=bool(run),
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/insights_sam_explore.html",
+        {"explore": explore},
+    )
+
+
+@router.post("/insights/radar/save", response_class=HTMLResponse)
+async def insights_save_radar_lens(
+    request: Request,
+    name: str = Form(...),
+    agency: str = Form(""),
+    sub_agency: str = Form(""),
+    recipient: str = Form(""),
+    naics_codes: str = Form(""),
+    psc_codes: str = Form(""),
+    description: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    query = new_insight_query_from_form(
+        settings,
+        name=name,
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        description=description,
+    )
+    if query is None:
+        return await _render_insights_body(
+            request,
+            db,
+            settings,
+            flash="Radar lens needs at least one facet (agency, recipient, NAICS, PSC, etc.).",
+        )
+    save_insight_query(settings, query)
+    return await _render_insights_body(
+        request,
+        db,
+        settings,
+        flash=f"Saved radar bookmark “{query.name}”.",
+    )
+
+
+@router.post("/insights/radar/{query_id}/delete", response_class=HTMLResponse)
+async def insights_delete_radar_lens(
+    request: Request,
+    query_id: str,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    if not delete_insight_query(settings, query_id):
+        return await _render_insights_body(request, db, settings, flash="Radar lens not found.")
+    return await _render_insights_body(request, db, settings, flash="Radar lens deleted.")
+
+
+@router.post("/insights/sam/save", response_class=HTMLResponse)
+async def insights_save_sam_lens(
+    request: Request,
+    name: str = Form(...),
+    title: str = Form(""),
+    naics_code: str = Form(""),
+    psc_code: str = Form(""),
+    agency_keyword: str = Form(""),
+    notice_type: str = Form(""),
+    set_aside: str = Form(""),
+    days_back: int = Form(14),
+    limit: int = Form(12),
+    description: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    query = new_sam_query_from_form(
+        settings,
+        name=name,
+        title=title,
+        naics_code=naics_code,
+        psc_code=psc_code,
+        agency_keyword=agency_keyword,
+        notice_type=notice_type,
+        set_aside=set_aside,
+        days_back=days_back,
+        limit=limit,
+        description=description,
+    )
+    if query is None:
+        return await _render_insights_body(
+            request,
+            db,
+            settings,
+            flash="SAM lens needs at least one search facet (title, agency, NAICS, notice type, etc.).",
+        )
+    save_sam_query(settings, query)
+    return await _render_insights_body(
+        request,
+        db,
+        settings,
+        flash=f"Saved SAM bookmark “{query.name}”.",
+    )
+
+
+@router.post("/insights/sam/{query_id}/delete", response_class=HTMLResponse)
+async def insights_delete_sam_lens(
+    request: Request,
+    query_id: str,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    if not delete_sam_query(settings, query_id):
+        return await _render_insights_body(request, db, settings, flash="SAM lens not found.")
+    return await _render_insights_body(request, db, settings, flash="SAM lens deleted.")
 
 
 @router.get("/review", response_class=HTMLResponse)
@@ -276,18 +501,136 @@ async def pulse_page(
     )
 
 
+async def _render_pulse_body(
+    request: Request,
+    db: AsyncSession,
+    settings: Settings,
+    *,
+    flash: str | None = None,
+) -> HTMLResponse:
+    pulse = await build_portfolio_pulse(db, settings)
+    return templates.TemplateResponse(
+        request,
+        "partials/pulse_body.html",
+        {"pulse": pulse, "flash": flash},
+    )
+
+
 @router.get("/partials/pulse", response_class=HTMLResponse)
 async def pulse_partial(
     request: Request,
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    pulse = await build_portfolio_pulse(db, settings)
-    return templates.TemplateResponse(
-        request,
-        "partials/pulse_body.html",
-        {"pulse": pulse, "flash": None},
+    return await _render_pulse_body(request, db, settings)
+
+
+@router.post("/watchlist/add/recompete", response_class=HTMLResponse)
+async def watchlist_add_recompete(
+    request: Request,
+    award_key: str = Form(...),
+    title: str = Form(""),
+    agency: str = Form(""),
+    naics_code: str = Form(""),
+    end_date: str = Form(""),
+    obligation: str = Form(""),
+    months_to_end: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    obl: float | None = None
+    if obligation.strip():
+        try:
+            obl = float(obligation.strip())
+        except ValueError:
+            obl = None
+    months: int | None = None
+    if months_to_end.strip():
+        try:
+            months = int(months_to_end.strip())
+        except ValueError:
+            months = None
+    item = new_recompete_watch_item(
+        award_key=award_key,
+        title=title,
+        agency=agency,
+        naics_code=naics_code.strip() or None,
+        end_date=end_date.strip() or None,
+        obligation=obl,
+        months_to_end=months,
     )
+    add_watchlist_item(settings, item)
+    return await _render_insights_body(
+        request,
+        db,
+        settings,
+        flash=f"Watching {item.title} — see Pulse watchlist.",
+    )
+
+
+@router.post("/watchlist/add/sam", response_class=HTMLResponse)
+async def watchlist_add_sam(
+    request: Request,
+    notice_id: str = Form(...),
+    title: str = Form(""),
+    agency: str = Form(""),
+    solicitation_number: str = Form(""),
+    notice_type: str = Form(""),
+    naics_code: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    item = new_sam_watch_item(
+        notice_id=notice_id,
+        title=title,
+        agency=agency,
+        solicitation_number=solicitation_number.strip() or None,
+        notice_type=notice_type.strip() or None,
+        naics_code=naics_code.strip() or None,
+    )
+    add_watchlist_item(settings, item)
+    return await _render_insights_body(
+        request,
+        db,
+        settings,
+        flash=f"Watching SAM notice — see Pulse watchlist.",
+    )
+
+
+@router.post("/watchlist/{item_id}/remove", response_class=HTMLResponse)
+async def watchlist_remove(
+    request: Request,
+    item_id: str,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    if not remove_watchlist_item(settings, item_id):
+        return await _render_pulse_body(request, db, settings, flash="Watchlist item not found.")
+    return await _render_pulse_body(request, db, settings, flash="Removed from watchlist.")
+
+
+@router.post("/watchlist/{item_id}/research", response_class=HTMLResponse)
+async def watchlist_research(
+    request: Request,
+    item_id: str,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    item = next((i for i in load_watchlist(settings) if i.id == item_id), None)
+    if item is None:
+        return await _render_pulse_body(request, db, settings, flash="Watchlist item not found.")
+    result = ensure_watchlist_research_stubs(
+        settings,
+        title=item.title,
+        agency=item.agency,
+        award_key=item.award_key,
+        notice_id=item.notice_id,
+    )
+    if result.created:
+        flash = f"Vault stubs created: {', '.join(result.created)}"
+    else:
+        flash = "Vault entity notes already exist — open Knowledge to enrich."
+    return await _render_pulse_body(request, db, settings, flash=flash)
 
 
 @router.post("/opportunities", response_class=HTMLResponse)
@@ -300,6 +643,35 @@ async def create_opportunity_form(
     if not name:
         return _htmx_redirect("/pulse")
     opp = await opp_svc.create_opportunity(db, OpportunityCreate(name=name))
+    await db.commit()
+    if request.headers.get("HX-Request"):
+        return _htmx_redirect(f"/opportunities/{opp.id}")
+    return RedirectResponse(url=f"/opportunities/{opp.id}", status_code=303)
+
+
+@router.post("/sam/track", response_class=HTMLResponse)
+async def track_sam_notice_form(
+    request: Request,
+    notice_id: str = Form(...),
+    title: str = Form(""),
+    agency: str = Form(""),
+    solicitation_number: str = Form(""),
+    notice_type: str = Form(""),
+    naics_code: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    clean_title = (title or "").strip() or f"SAM notice {notice_id[:12]}"
+    opp = await opp_svc.create_opportunity(
+        db,
+        OpportunityCreate(
+            name=signal_opportunity_name(title=clean_title, agency=agency),
+            sam_notice_id=notice_id.strip(),
+            solicitation_number=solicitation_number.strip() or None,
+            notice_type=notice_type.strip() or None,
+            naics_code=naics_code.strip() or None,
+            entry_reason="sam_notice",
+        ),
+    )
     await db.commit()
     if request.headers.get("HX-Request"):
         return _htmx_redirect(f"/opportunities/{opp.id}")
@@ -477,6 +849,17 @@ async def approve_review_form(
             "partials/global_review_queue.html",
             {
                 "review_items": review_items,
+                "flash": flash,
+            },
+        )
+
+    if return_scope == "pulse_inbox":
+        pulse = await build_portfolio_pulse(db, settings)
+        return templates.TemplateResponse(
+            request,
+            "partials/pulse_intel_inbox.html",
+            {
+                "inbox": pulse["intel_inbox"],
                 "flash": flash,
             },
         )

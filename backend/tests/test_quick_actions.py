@@ -6,7 +6,7 @@ from thread.services.quick_actions import build_quick_actions
 def test_build_quick_actions_includes_core_links():
     actions = build_quick_actions(opportunities=[], intel_signals=[])
     by_id = {a.id: a for a in actions}
-    assert by_id["track"].href == "/pulse#recompete-radar"
+    assert by_id["track"].href == "/pulse#potential-watchlist"
     assert by_id["insights"].href == "/insights"
     assert by_id["vault"].href == "/knowledge"
     assert by_id["research"].enabled is False

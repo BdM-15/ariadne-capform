@@ -84,5 +84,5 @@ async def test_portfolio_pulse_includes_phase_band_widget(db_session, settings):
     assert hasattr(pulse["phase_band_widget"], "total")
     assert hasattr(pulse["phase_band_widget"], "bands")
     assert "hot_signals_widget" in pulse
-    assert pulse["radar_query_summary"] == "No active search"
-    assert pulse["active_insight_query"] is None
+    assert "watchlist" in pulse
+    assert pulse["watchlist"].count == 0

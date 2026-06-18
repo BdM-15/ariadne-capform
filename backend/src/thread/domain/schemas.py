@@ -33,6 +33,9 @@ class OpportunityCreate(BaseModel):
     entry_reason: str = "new_lead"
     award_key: str | None = None
     naics_code: str | None = None
+    sam_notice_id: str | None = None
+    solicitation_number: str | None = None
+    notice_type: str | None = None
 
 
 class OpportunityOut(BaseModel):

@@ -78,6 +78,95 @@ def query_from_dict(raw: dict[str, Any]) -> InsightFacetQuery | None:
     return q if q.has_filters() else None
 
 
+def _slug_id(name: str, existing: set[str]) -> str:
+    base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "lens"
+    candidate = base[:48]
+    suffix = 2
+    while candidate in existing:
+        candidate = f"{base[:40]}-{suffix}"
+        suffix += 1
+    return candidate
+
+
+def _write_queries(settings: Settings, queries: list[InsightFacetQuery]) -> None:
+    path = _queries_path(settings)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = [
+        {
+            "id": q.id,
+            "name": q.name,
+            "naics_codes": list(q.naics_codes),
+            "agency": q.agency,
+            "sub_agency": q.sub_agency,
+            "recipient": q.recipient,
+            "psc_codes": list(q.psc_codes),
+            "description": q.description,
+        }
+        for q in queries
+    ]
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def save_insight_query(settings: Settings, query: InsightFacetQuery) -> InsightFacetQuery:
+    queries = list(load_insight_queries(settings))
+    by_id = {q.id: q for q in queries}
+    by_id[query.id] = query
+    ordered = sorted(by_id.values(), key=lambda q: q.name.lower())
+    _write_queries(settings, ordered)
+    return query
+
+
+def delete_insight_query(settings: Settings, query_id: str) -> bool:
+    before = load_insight_queries(settings)
+    queries = [q for q in before if q.id != query_id]
+    if len(queries) == len(before):
+        return False
+    _write_queries(settings, list(queries))
+    active_path = _active_path(settings)
+    if active_path.is_file():
+        try:
+            payload = json.loads(active_path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict) and payload.get("id") == query_id:
+                active_path.unlink(missing_ok=True)
+        except (OSError, json.JSONDecodeError):
+            pass
+    return True
+
+
+def activate_insight_query(settings: Settings, query_id: str) -> bool:
+    if not any(q.id == query_id for q in load_insight_queries(settings)):
+        return False
+    path = _active_path(settings)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"id": query_id}, indent=2), encoding="utf-8")
+    return True
+
+
+def new_insight_query_from_form(
+    settings: Settings,
+    *,
+    name: str,
+    agency: str = "",
+    sub_agency: str = "",
+    recipient: str = "",
+    naics_codes: str = "",
+    psc_codes: str = "",
+    description: str = "",
+) -> InsightFacetQuery | None:
+    raw = {
+        "name": name.strip(),
+        "agency": agency.strip() or None,
+        "sub_agency": sub_agency.strip() or None,
+        "recipient": recipient.strip() or None,
+        "naics_codes": naics_codes.strip(),
+        "psc_codes": psc_codes.strip(),
+        "description": description.strip(),
+    }
+    existing = {q.id for q in load_insight_queries(settings)}
+    raw["id"] = _slug_id(raw["name"], existing)
+    return query_from_dict(raw)
+
+
 def load_insight_queries(settings: Settings) -> tuple[InsightFacetQuery, ...]:
     path = _queries_path(settings)
     if not path.is_file():

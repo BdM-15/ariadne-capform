@@ -143,7 +143,11 @@ class Settings(BaseSettings):
             "DATA_GOV_API_KEY": self.api_data_gov_key,
             "PERDIEM_API_KEY": self.perdiem_api_key or self.api_data_gov_key,
         }
-        return {key: value for key in env_required if (value := catalog.get(key))}
+        out = {key: value for key in env_required if (value := catalog.get(key))}
+        if self.sam_gov_api_key:
+            out.setdefault("SAM_API_KEY", self.sam_gov_api_key)
+            out.setdefault("SAM_GOV_API_KEY", self.sam_gov_api_key)
+        return out
 
 
 @lru_cache

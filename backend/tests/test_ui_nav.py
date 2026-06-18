@@ -16,7 +16,6 @@ async def _dispose_app_engine_after_ui_test():
         await db_session_module.engine.dispose()
 
 STUB_NAV_ROUTES = (
-    ("/insights", "Data Insights"),
     ("/knowledge", "Knowledge"),
     ("/settings", "Settings"),
     ("/tools/mcp", "MCP Servers"),
@@ -47,12 +46,14 @@ def test_shell_db_nav_routes_return_200(path: str, heading: str):
     assert heading in res.text
 
 
-def test_shell_stub_pages_declare_product_lane():
+def test_insights_page_saved_lenses_not_stub():
     client = TestClient(create_app())
     res = client.get("/insights")
     assert res.status_code == 200
+    assert "Data Insights" in res.text
     assert "Identify" in res.text
-    assert "Phase 17" in res.text
+    assert "insights-frame" in res.text or "USAspending" in res.text
+    assert "Shell stub" not in res.text
 
     res = client.get("/knowledge")
     assert "Capture" in res.text
@@ -168,8 +169,8 @@ def test_dashboard_hot_signals_widget():
     html = res.text
     assert res.status_code == 200
     assert "cc-widget-hot-signals" in html
-    assert "Hot recompete" in html
-    assert "/pulse#recompete-radar" in html
+    assert "Hot potential" in html
+    assert "/pulse#potential-watchlist" in html
     assert "cc-widget-grid-3" in html
 
 
@@ -180,8 +181,8 @@ def test_dashboard_quick_actions_strip():
     html = res.text
     assert res.status_code == 200
     assert "cc-quick-actions" in html
-    assert "Track signal" in html
-    assert "/pulse#recompete-radar" in html
+    assert "Watchlist" in html
+    assert "/pulse#potential-watchlist" in html
     assert 'href="/insights"' in html
     assert 'href="/knowledge"' in html
 
@@ -208,4 +209,46 @@ def test_pulse_compact_split_layout():
     assert "pulse-split" in html
     assert "pulse-rail" in html
     assert "pursuit-grid" in html or "pursuit-card" in html
-    assert "cc-stat-tile" in html
+    assert "cc-stat-tile" not in html
+
+
+def test_pulse_intel_inbox_region():
+    """Phase 12g — morning briefing inbox between radar and pursuits."""
+    client = TestClient(create_app())
+    res = client.get("/pulse")
+    html = res.text
+    assert res.status_code == 200
+    assert "pulse-doctrine" in html
+    assert "Living Briefing Packet" in html
+    assert "Potential" in html
+    assert "Tracked" in html
+    assert 'id="intel-inbox"' in html
+    assert "Intel inbox" in html
+    assert "pulse-inbox-card" in html or "No candidates waiting" in html
+    assert "pulse-collapse" in html
+    assert "data-pulse-collapse" in html
+    assert 'id="potential-watchlist"' in html
+    assert 'href="/review"' in html
+    assert "Data Insights" in html
+    assert "Identify funnel" in html
+    watch_idx = html.index("potential-watchlist")
+    inbox_idx = html.index("intel-inbox")
+    digest_idx = html.index("knowledge-digest")
+    pursuits_idx = html.index("tracked-pursuits")
+    assert watch_idx < inbox_idx < digest_idx < pursuits_idx
+    assert "Watchlist" in html
+    assert "recompete-radar" not in html
+    assert "sam-monitor" not in html
+    assert "Knowledge digest" in html
+    assert "domain_intel" in html or "bid-fit" in html.lower()
+
+
+def test_pulse_not_pipeline_crm_copy():
+    """Pulse doctrine — not full pipeline CRM; analytics on Insights."""
+    client = TestClient(create_app())
+    res = client.get("/pulse")
+    html = res.text
+    assert res.status_code == 200
+    assert "not full pipeline" in html.lower()
+    assert "Award totals live on" in html or "Insights" in html
+    assert "cc-stat-tile" not in html

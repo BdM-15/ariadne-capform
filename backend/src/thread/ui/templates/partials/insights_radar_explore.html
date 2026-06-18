@@ -1,0 +1,38 @@
+<div class="insights-explore-inner">
+  {% if explore.status == 'idle' %}
+  <p class="insights-idle-hint">Set facets above, then run explore.</p>
+  {% elif explore.error %}
+  <p class="insights-explore-msg insights-explore-msg-warn">{{ explore.error }}</p>
+  {% elif explore.status == 'loading' %}
+  <p class="insights-explore-msg">{{ explore.error or 'Intel loading…' }}</p>
+  {% elif explore.rows|length > 0 %}
+  <p class="insights-explore-meta">{{ explore.summary }} · {{ explore.rows|length }} expiring (18 mo)</p>
+  <ul class="insights-result-list">
+    {% for row in explore.rows %}
+    <li class="insights-result-row">
+      <div class="insights-result-main">
+        <span class="insights-result-title">{{ row.recipient or 'Unknown recipient' }}</span>
+        <span class="insights-result-sub">{{ row.agency or 'Unknown agency' }}</span>
+        <span class="insights-result-mono">
+          {{ row.end_date|datefmt }} · {{ row.months_to_end|urgency }} · {{ row.obligation|money }}
+          {% if row.naics_code %} · {{ row.naics_code }}{% endif %}
+        </span>
+      </div>
+      <form hx-post="/watchlist/add/recompete" hx-target="#insights-body" hx-swap="outerHTML">
+        <input type="hidden" name="award_key" value="{{ row.award_key }}" />
+        <input type="hidden" name="title" value="{{ row.recipient or '' }}" />
+        <input type="hidden" name="agency" value="{{ row.agency or '' }}" />
+        <input type="hidden" name="naics_code" value="{{ row.naics_code or '' }}" />
+        <input type="hidden" name="end_date" value="{{ row.end_date or '' }}" />
+        <input type="hidden" name="obligation" value="{{ row.obligation if row.obligation is not none else '' }}" />
+        <input type="hidden" name="months_to_end" value="{{ row.months_to_end if row.months_to_end is not none else '' }}" />
+        <button type="submit" class="btn btn-primary" title="Add to Pulse watchlist">Watch</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif explore.status == 'empty' %}
+  <p class="insights-explore-meta">{{ explore.summary }}</p>
+  <p class="insights-idle-hint">No expiring contracts in 18 mo window.</p>
+  {% endif %}
+</div>

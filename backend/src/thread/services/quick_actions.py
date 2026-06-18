@@ -28,8 +28,8 @@ def build_quick_actions(
     opportunities: list[dict[str, Any]],
     intel_signals: list[dict[str, Any]],
 ) -> tuple[QuickAction, ...]:
-    research_href = "/pulse"
-    research_hint = "Track a signal or create pursuit first"
+    research_href = "/pulse#potential-watchlist"
+    research_hint = "Watch a lead from Insights explore first"
     if opportunities:
         research_href = f"/opportunities/{opportunities[0]['id']}?tab=research"
         research_hint = f"Research tab · {opportunities[0]['name'][:48]}"
@@ -37,10 +37,10 @@ def build_quick_actions(
     actions: list[QuickAction] = [
         QuickAction(
             id="track",
-            label="Track signal",
-            href="/pulse#recompete-radar",
-            icon="crosshair",
-            hint="Morning briefing · recompete radar",
+            label="Watchlist",
+            href="/pulse#potential-watchlist",
+            icon="eye",
+            hint="Morning briefing · explicit potential",
         ),
         QuickAction(
             id="research",
@@ -55,7 +55,7 @@ def build_quick_actions(
             label="Data insights",
             href="/insights",
             icon="chart-no-axes-combined",
-            hint="USAspending trends · saved lenses (Phase 17)",
+            hint="Live explore · saved bookmarks",
         ),
         QuickAction(
             id="vault",
@@ -80,7 +80,7 @@ def build_quick_actions(
             QuickAction(
                 id="track-hot",
                 label="Track hot signal",
-                href="/pulse#recompete-radar",
+                href="/pulse#potential-watchlist",
                 icon="flame",
                 hint=f"{hottest.get('title', 'Recipient')[:40]} · ≤6 mo",
             ),

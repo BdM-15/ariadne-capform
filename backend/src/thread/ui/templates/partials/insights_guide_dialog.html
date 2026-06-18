@@ -1,0 +1,48 @@
+{# Reusable guide dialog for Data Insights explore cards #}
+<dialog id="guide-{{ guide_id }}" class="guide-modal" aria-labelledby="guide-title-{{ guide_id }}">
+  <div class="modal-canvas rounded-2xl overflow-hidden flex flex-col max-h-[85vh] border {% if guide.accent == 'cyan' %}border-neon-cyan/30{% else %}border-neon-magenta/30{% endif %} w-full">
+    <div class="px-5 py-4 glass-section-bar flex items-center justify-between shrink-0">
+      <div class="min-w-0">
+        <h3 id="guide-title-{{ guide_id }}" class="font-semibold flex items-center gap-2 {% if guide.accent == 'cyan' %}text-neon-cyan{% else %}text-neon-magenta{% endif %}">
+          <i data-lucide="book-open" class="w-4 h-4 shrink-0"></i>
+          <span class="truncate">{{ guide.title }}</span>
+        </h3>
+        <p class="text-xs text-slate-500 mt-0.5">When to use · what you get · how it feeds the platform</p>
+      </div>
+      <button type="button" class="btn btn-ghost text-slate-500 shrink-0" onclick="closeGuideDialog('guide-{{ guide_id }}')" title="Close (Esc)">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div class="tuning-guide-body overflow-y-auto p-5 space-y-5 text-sm">
+      <div class="settings-tip-box">
+        <strong class="text-slate-300">Purpose:</strong>
+        <span class="text-slate-400">{{ guide.purpose }}</span>
+      </div>
+      <section>
+        <h4 class="tuning-guide-h">When to use</h4>
+        <p class="text-slate-400 leading-relaxed">{{ guide.when }}</p>
+      </section>
+      <section>
+        <h4 class="tuning-guide-h">What you get</h4>
+        <p class="text-slate-400 leading-relaxed">{{ guide.output }}</p>
+      </section>
+      <section>
+        <h4 class="tuning-guide-h">Facets &amp; constraints</h4>
+        <p class="text-slate-400 leading-relaxed">{{ guide.context_impact }}</p>
+      </section>
+      {% if guide.tips %}
+      <section>
+        <h4 class="tuning-guide-h">Tips</h4>
+        <ul class="tuning-guide-list text-slate-400">
+          {% for tip in guide.tips %}
+          <li>{{ tip }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+    </div>
+    <div class="px-5 py-3 border-t border-edge flex justify-end shrink-0 bg-ink-900/40">
+      <button type="button" class="btn btn-primary text-xs" onclick="closeGuideDialog('guide-{{ guide_id }}')">Got it</button>
+    </div>
+  </div>
+</dialog>

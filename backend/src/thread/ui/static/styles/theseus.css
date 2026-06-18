@@ -1255,6 +1255,8 @@ details.acc .summary-actions {
 
 /* New-chat / send hero button: shimmering gradient */
 .btn-hero-cyan {
+  color: var(--ink-950);
+  font-weight: 600;
   background: linear-gradient(
     110deg,
     var(--neon-cyan) 0%,
@@ -1275,6 +1277,7 @@ details.acc .summary-actions {
     0 1px 0 rgba(255, 255, 255, 0.5) inset;
 }
 .btn-hero-cyan:hover {
+  color: var(--ink-950);
   background-position: 0% 0;
   box-shadow:
     0 0 0 1px rgba(var(--neon-cyan-rgb), 0.8),

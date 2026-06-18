@@ -1,0 +1,69 @@
+{# domain_intel highlights — bid-fit context on Pulse (12j) #}
+{% set digest = pulse.knowledge_digest %}
+<details
+  id="knowledge-digest"
+  class="pulse-collapse pulse-panel"
+  data-pulse-collapse
+  {% if digest.has_domain_intel %}open{% endif %}
+>
+  <summary class="pulse-panel-head">
+    <div class="flex items-center gap-2 min-w-0">
+      <span class="pulse-collapse-toggle" aria-hidden="true">
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 pulse-collapse-chevron"></i>
+      </span>
+      <i data-lucide="book-marked" class="w-4 h-4 text-neon-magenta shrink-0"></i>
+      <span class="pulse-panel-kicker text-neon-magenta/80">Context</span>
+      <span class="pulse-panel-title">Knowledge digest</span>
+      {% if digest.capability_count > 0 %}
+      <span class="pill pill-compact border border-neon-magenta/35 text-neon-magenta">{{ digest.capability_count }} cap</span>
+      {% endif %}
+    </div>
+    <a href="/knowledge" class="btn btn-ghost btn-compact text-[10px] no-underline shrink-0" onclick="event.stopPropagation()">
+      Vault
+      <i data-lucide="arrow-right" class="w-3 h-3"></i>
+    </a>
+  </summary>
+
+  <div class="pulse-panel-body {% if digest.items|length > 3 %}pulse-panel-body-scroll{% endif %}">
+    <p class="text-[10px] text-slate-600 mb-2">
+      Company bid-fit layer — match leads against capabilities and UEI past-performance awareness before you Track.
+      Not market analytics (that stays on Data Insights).
+    </p>
+
+    {% if not digest.vault_ready %}
+    <p class="text-xs text-slate-400">Knowledge vault not found — run app bootstrap or check <span class="font-mono">knowledge/thread</span>.</p>
+    {% elif digest.items|length == 0 %}
+    <p class="text-xs text-slate-400">
+      No <span class="font-mono">domain_intel</span> entries yet. Seed capabilities under
+      <span class="font-mono">global/domain_intel/capabilities/</span> in the vault.
+    </p>
+    {% else %}
+    <div class="pulse-inbox-stack">
+      {% for item in digest.items %}
+      <article class="pulse-inbox-card pulse-digest-card">
+        <div class="flex flex-wrap items-start gap-2">
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-1.5 mb-1">
+              <span class="pill pill-compact border border-neon-magenta/35 text-neon-magenta">{{ item.kind_label }}</span>
+              <span class="pill pill-compact border border-edge text-slate-600 text-[10px] font-mono truncate max-w-[10rem]" title="{{ item.rel_path }}">{{ item.rel_path }}</span>
+            </div>
+            <p class="text-sm font-semibold text-slate-100">{{ item.title }}</p>
+            <p class="text-[11px] text-slate-400 mt-1 line-clamp-3">{{ item.excerpt }}</p>
+          </div>
+          <a
+            href="/knowledge"
+            class="btn btn-ghost btn-compact text-[10px] no-underline shrink-0"
+            title="Open Knowledge vault — {{ item.rel_path }}"
+          >
+            Open
+          </a>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% if digest.uei_count > 0 %}
+    <p class="text-[10px] text-slate-600 pt-2">{{ digest.uei_count }} UEI / past-performance note{{ 's' if digest.uei_count != 1 else '' }} in vault.</p>
+    {% endif %}
+    {% endif %}
+  </div>
+</details>

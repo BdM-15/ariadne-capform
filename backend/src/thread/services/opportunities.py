@@ -42,7 +42,15 @@ async def seed_packet_definitions(session: AsyncSession) -> None:
 async def create_opportunity(session: AsyncSession, payload: OpportunityCreate) -> Opportunity:
     await seed_packet_definitions(session)
     provenance = None
-    if payload.award_key:
+    if payload.sam_notice_id:
+        provenance = {
+            "source": "sam_gov",
+            "notice_id": payload.sam_notice_id,
+            "solicitation_number": payload.solicitation_number,
+            "notice_type": payload.notice_type,
+            "naics_code": payload.naics_code,
+        }
+    elif payload.award_key:
         provenance = {
             "award_key": payload.award_key,
             "naics_code": payload.naics_code,

@@ -1,4 +1,4 @@
-{# 12f — hot recompete ≤6mo; action link to Pulse radar #}
+{# 12f — hot watchlist ≤6mo; action link to Pulse watchlist #}
 <section
   id="cc-widget-hot-signals"
   class="cc-widget cc-widget-compact {% if hot_signals.needs_attention %}cc-widget-attention accent-magenta{% else %}accent-cyan{% endif %}"
@@ -7,35 +7,35 @@
     <div class="flex items-center gap-2 min-w-0">
       <i data-lucide="flame" class="w-4 h-4 {% if hot_signals.needs_attention %}text-neon-magenta{% else %}text-slate-500{% endif %} shrink-0"></i>
       <h2 class="cc-widget-title {% if hot_signals.needs_attention %}text-neon-magenta{% else %}text-slate-300{% endif %} truncate">
-        Hot recompete
+        Hot potential
       </h2>
     </div>
     <div class="flex items-center gap-2 shrink-0">
       <span class="pill border {% if hot_signals.needs_attention %}border-neon-magenta/45 text-neon-magenta{% else %}border-edge text-slate-500{% endif %} text-[10px] font-mono tabular-nums">
         {{ hot_signals.hot_count }} ≤6mo
       </span>
-      <a href="/pulse#recompete-radar" class="btn btn-ghost btn-compact text-xs no-underline">
-        Radar
+      <a href="/pulse#potential-watchlist" class="btn btn-ghost btn-compact text-xs no-underline">
+        Watchlist
         <i data-lucide="arrow-right" class="w-3 h-3"></i>
       </a>
     </div>
   </div>
 
   <p class="text-[10px] font-mono text-slate-600 mt-1 truncate" title="{{ hot_signals.lens_summary }}">
-    Search: {{ hot_signals.lens_summary }}
+    {{ hot_signals.lens_summary }}
   </p>
 
   {% if not hot_signals.intel_live %}
-  <p class="cc-widget-sub text-slate-500 text-xs mt-1">Intel loading — radar empty until migration completes.</p>
-  {% elif hot_signals.lens_summary == "No active search" %}
+  <p class="cc-widget-sub text-slate-500 text-xs mt-1">Intel loading — watchlist enrichment waits on migration.</p>
+  {% elif hot_signals.lens_summary == "Watchlist empty" %}
   <p class="cc-widget-sub text-slate-500 text-xs mt-1">
-    <a href="/insights" class="text-neon-cyan no-underline hover:underline">Define a search</a>
-    — agency, recipient, NAICS, PSC, combo. No default filter.
+    <a href="/insights" class="text-neon-cyan no-underline hover:underline">Explore in Insights</a>
+    and Watch rows with potential.
   </p>
   {% elif hot_signals.hot_count == 0 %}
   <p class="cc-widget-sub text-slate-500 text-xs mt-1">
-    No ≤6mo signals for active search.
-    <a href="/insights" class="text-neon-cyan no-underline hover:underline">Insights</a> to adjust facets.
+    No ≤6mo items on watchlist.
+    <a href="/insights" class="text-neon-cyan no-underline hover:underline">Insights</a> to find more.
   </p>
   {% else %}
   <ul class="cc-widget-preview mt-1">
