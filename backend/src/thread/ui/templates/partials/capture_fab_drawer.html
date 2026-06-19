@@ -1,0 +1,97 @@
+<div class="capture-fab-drawer-inner">
+  <div class="capture-fab-drawer-head">
+    <div class="min-w-0">
+      <h2 class="capture-fab-title">Dump &amp; go</h2>
+      <p class="capture-fab-sub">Rough notes and/or any document — platform infers title, type, MinerU parse, polish, merge plan. You approve in Vault Inbox.</p>
+      {% if context.context_label %}
+      <p
+        class="capture-fab-context"
+        title="{% if context.context_label == 'Any lane' %}No pursuit, signal, or vault page detected — general capture. Platform still infers title and type.{% else %}Context auto-filled from this page — you never edit this.{% endif %}"
+      >{{ context.context_label }}{% if context.context_label == 'Any lane' %} <span class="text-slate-600">· general capture</span>{% endif %}</p>
+      {% endif %}
+    </div>
+    <button type="button" class="capture-fab-close" title="Close" data-capture-fab-close>
+      <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+  </div>
+
+  {% if flash_ok and inferred_title %}
+  <div class="capture-fab-success">
+    <p class="capture-fab-flash is-ok">
+      <span class="capture-fab-flash-kicker">
+        {% if inbox_lane == 'test' %}Added to Test Inbox{% else %}Added to Vault Inbox{% endif %}
+      </span>
+      {% if queue_position and queue_total %}
+      <span class="capture-fab-flash-queue">#{{ queue_position }} of {{ queue_total }}</span>
+      {% endif %}
+    </p>
+    <p class="capture-fab-flash-title">{{ inferred_title }}</p>
+    {% if dump_snippet %}
+    <p class="capture-fab-flash-snippet">“{{ dump_snippet }}”</p>
+    {% endif %}
+    {% if doc_note %}
+    <p class="capture-fab-flash-meta">{{ doc_note }}</p>
+    {% endif %}
+    <p class="capture-fab-flash-meta" title="Title: keyword or Ollama (≤12s). Body: ingest spellfix at dump (≤20s) or rules fallback. Full structure polish optional in Vault Inbox.">
+      Title ({{ title_provider }}) · body ({{ polish_provider }}) — Approve publishes to inferred vault path.
+    </p>
+    {% if studio_href %}
+    <a href="{{ studio_href }}" class="btn btn-primary btn-compact text-xs no-underline capture-fab-studio-link">Open in Vault Inbox</a>
+    <button
+      type="button"
+      class="btn btn-ghost btn-compact text-xs capture-fab-again"
+      data-capture-fab-reload
+    >Dump another</button>
+    {% endif %}
+  </div>
+  {% elif flash %}
+  <div class="capture-fab-success">
+    <p class="capture-fab-flash {% if flash_ok %}is-ok{% else %}is-warn{% endif %}">{{ flash }}</p>
+    {% if flash_ok and studio_href %}
+    <a href="{{ studio_href }}" class="btn btn-primary btn-compact text-xs no-underline capture-fab-studio-link">Open in Vault Inbox</a>
+    {% endif %}
+  </div>
+  {% else %}
+  <form
+    id="capture-fab-form"
+    class="capture-fab-form space-y-2"
+    hx-post="/partials/capture/quick"
+    hx-target="#capture-fab-drawer"
+    hx-swap="innerHTML"
+    hx-indicator="#capture-fab-working"
+  >
+    <input type="hidden" name="opp_id" value="{{ context.opp_id }}" />
+    <input type="hidden" name="opp_name" value="{{ context.opp_name }}" />
+    <input type="hidden" name="award_key" value="{{ context.award_key }}" />
+    <input type="hidden" name="signal_title" value="{{ context.signal_title }}" />
+    <input type="hidden" name="agency" value="{{ context.agency }}" />
+    <input type="hidden" name="entity" value="{{ context.entity }}" />
+    <input type="hidden" name="entity_title" value="{{ context.entity_title }}" />
+    <textarea
+      class="thread-input text-sm w-full capture-fab-dump"
+      name="dump"
+      placeholder="Brain dump (optional if you upload a doc) — fragments, bullets, pasted email…"
+      title="Optional when uploading a document"
+    ></textarea>
+    <label class="capture-fab-file-label">
+      <span class="text-[10px] font-mono text-slate-500 uppercase tracking-wider">Document (MinerU 3.3)</span>
+      <span class="text-[10px] text-slate-600 leading-snug">PDF, Office, images, epub — or .txt/.md. Platform stages &amp; parses; you never pick title/type.</span>
+      <input
+        type="file"
+        name="attachment"
+        id="capture-fab-file"
+        class="capture-fab-file"
+        accept=".pdf,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.html,.htm,.epub,.mobi,.txt,.md,.markdown"
+        title="Any MinerU-supported document type"
+      />
+    </label>
+    <p id="capture-fab-working" class="capture-fab-working htmx-indicator text-[10px] font-mono text-neon-cyan">
+      Platform working — inferring title, polish, queue…
+    </p>
+    <button type="submit" class="btn btn-primary text-xs w-full capture-fab-submit" title="Platform writes, stages docs, polishes, queues review">
+      <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+      Platform take it from here
+    </button>
+  </form>
+  {% endif %}
+</div>

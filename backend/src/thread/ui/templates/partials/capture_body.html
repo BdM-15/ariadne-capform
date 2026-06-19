@@ -1,0 +1,52 @@
+<div class="capture-page-layout page-content">
+  {% if flash %}
+  <div class="card card-accent accent-amber p-3 text-sm text-neon-amber">{{ flash }}</div>
+  {% endif %}
+
+  {% set pursuits = capture.pursuits %}
+  {% set band_widget = capture.phase_band_widget %}
+
+  <div class="card card-accent accent-magenta p-3 mb-4">
+    <p class="text-xs text-slate-300 leading-relaxed">
+      <span class="text-neon-magenta font-semibold">Filament</span> — connected milestone packets after identify.
+      Intel routes in; slide canvas + fill workflows out. Not static PowerPoint — living, review-gated.
+      Hunt and triage on <a href="/pulse" class="text-neon-cyan no-underline hover:underline">Portfolio Pulse</a>.
+    </p>
+  </div>
+
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div class="flex items-center gap-2">
+      <span class="cc-section-label">Active pursuits</span>
+      <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">{{ pursuits|length }}</span>
+    </div>
+    {% if band_widget.total > 0 %}
+    <div class="cc-band-grid">
+      {% for slice in band_widget.bands %}
+      <div class="cc-band-chip {% if slice.count == 0 %}cc-band-chip-empty{% endif %}">
+        <div class="cc-band-chip-head">
+          <span class="cc-band-label">{{ slice.label }}</span>
+          <span class="cc-band-count tabular-nums">{{ slice.count }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if pursuits|length == 0 %}
+  <div class="card card-accent accent-cyan p-6 text-center">
+    <p class="text-sm text-slate-400 mb-3">No pursuits on Filament yet.</p>
+    <p class="text-xs text-slate-500 mb-4">
+      Track a watchlist item or radar signal on Pulse to commit — you&apos;ll land here with the Living Briefing Packet.
+    </p>
+    <a href="/pulse#potential-watchlist" class="btn-hero-cyan no-underline inline-flex">Go to Pulse watchlist</a>
+  </div>
+  {% else %}
+  <div class="pursuit-grid">
+    {% for o in pursuits %}
+    {% set pursuit = o %}
+    {% include "partials/pursuit_card_compact.html" %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
