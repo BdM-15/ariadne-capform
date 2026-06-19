@@ -72,7 +72,10 @@ async def build_settings_health_context(
             pass
 
     mig = get_migration_status(settings)
-    prime_pct = round(100 * mig.prime_migrated / max(mig.prime_source_total, 1), 2)
+    if mig.prime_files_total > 0:
+        prime_pct = round(100 * mig.prime_files_done / mig.prime_files_total, 2)
+    else:
+        prime_pct = round(100 * mig.prime_migrated / max(mig.prime_source_total, 1), 2)
 
     vault_root = settings.resolve(settings.knowledge_vault_path)
     vault_healthy = vault_root.is_dir() and any(vault_root.iterdir())
@@ -119,7 +122,11 @@ async def build_settings_health_context(
             "prime_migrated": mig.prime_migrated,
             "prime_source_total": mig.prime_source_total,
             "prime_pct": prime_pct,
+            "prime_files_done": mig.prime_files_done,
+            "prime_files_total": mig.prime_files_total,
             "sub_migrated": mig.sub_migrated,
+            "sub_files_done": mig.sub_files_done,
+            "sub_files_total": mig.sub_files_total,
             "sub_source_total": mig.sub_source_total,
             "phase": mig.phase,
             "complete": mig.complete,

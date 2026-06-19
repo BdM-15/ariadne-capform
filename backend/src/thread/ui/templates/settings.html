@@ -76,13 +76,16 @@
         <div>
           <dt class="text-slate-500 text-[10px] font-mono uppercase">Prime rows</dt>
           <dd class="font-mono text-neon-cyan">{{ "{:,}".format(health.migration.prime_migrated) }} / {{ "{:,}".format(health.migration.prime_source_total) }}</dd>
+          {% if health.migration.prime_files_total %}
+          <dd class="text-[10px] font-mono text-slate-600">{{ health.migration.prime_files_done }} / {{ health.migration.prime_files_total }} zip chunks</dd>
+          {% endif %}
         </div>
         <div>
           <dt class="text-slate-500 text-[10px] font-mono uppercase">Subaward rows</dt>
           <dd class="font-mono text-neon-magenta">{{ "{:,}".format(health.migration.sub_migrated) }} / {{ "{:,}".format(health.migration.sub_source_total) }}</dd>
         </div>
         <div class="sm:col-span-2">
-          <dt class="text-slate-500 text-[10px] font-mono uppercase">DuckDB source</dt>
+          <dt class="text-slate-500 text-[10px] font-mono uppercase">Bulk source</dt>
           <dd class="font-mono text-slate-400 text-xs truncate" title="{{ health.migration.source_path }}">
             {{ health.migration.source_path }}
             {% if not health.migration.source_exists %}<span class="text-neon-amber"> (missing)</span>{% endif %}
