@@ -20,3 +20,12 @@ data/graph/
 Thumbs.db
 /mcps/
 .tmp/
+
+# Operator milestone deck references — local only, never commit
+docs/reference/briefing_packet/private/
+docs/reference/briefing_packet/**/_extracted*.txt
+docs/reference/briefing_packet/PRIVATE_REFERENCE.md
+
+# Local agent harness — not repo source
+.grok/
+terminals/
