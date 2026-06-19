@@ -15,7 +15,7 @@
       <span class="text-slate-500">Insights</span> explores live;
       <span class="text-slate-500">Watch</span> promotes to watchlist;
       <span class="text-slate-500">Research</span> feeds platform vault (among workspace, skills, ingest);
-      <span class="text-slate-500">Track</span> commits to opportunity workspace.
+      <span class="text-slate-500">Track</span> commits to <a href="/capture" class="text-neon-magenta no-underline hover:underline">Filament</a>.
       Deep analytics → <a href="/insights" class="text-neon-cyan no-underline hover:underline">Data Insights</a>.
     </p>
   </div>
@@ -43,12 +43,12 @@
         </summary>
         <div class="pulse-panel-body {% if opps|length > 2 %}pulse-panel-body-scroll{% endif %}">
           <p class="text-[10px] text-slate-600 mb-2">
-            Committed opportunities — open workspace for Living Briefing Packet, Actions, Research.
-            Not full pipeline CRM; capture progression happens per opp.
+            Committed pursuits — open on <a href="/capture" class="text-neon-magenta no-underline hover:underline">Filament</a> for connected milestone packets.
+            Pulse is identify-only; not full pipeline CRM.
           </p>
           {% if opps|length == 0 %}
           <p class="text-xs text-slate-400">
-            No tracked pursuits — <span class="text-slate-500">Track</span> from watchlist or create one in the rail →
+            No capture pursuits yet — <span class="text-slate-500">Track</span> from watchlist or commit in the rail →
           </p>
           {% else %}
           <div class="pursuit-grid">
@@ -68,8 +68,8 @@
         <ol class="pulse-funnel-steps text-[10px] text-slate-500 space-y-1.5 list-none m-0 p-0">
           <li><a href="/insights" class="text-neon-cyan no-underline hover:underline">1 · Data Insights</a> — live explore trends</li>
           <li><a href="#potential-watchlist" class="text-neon-cyan no-underline hover:underline">2 · Watchlist</a> — explicit potential + research</li>
-          <li><span class="text-slate-400">3 · Track</span> — commit to opportunity</li>
-          <li><span class="text-slate-400">4 · Workspace</span> — Living Briefing Packet</li>
+          <li><span class="text-slate-400">3 · Track</span> — commit to pursuit</li>
+          <li><a href="/capture" class="text-neon-magenta no-underline hover:underline">4 · Filament</a> — connected milestone packet</li>
         </ol>
       </div>
 
@@ -120,7 +120,7 @@
       <div class="pulse-rail-card">
         <div class="cc-section-label mb-2">Phase snapshot</div>
         <p class="text-[10px] text-slate-600 mb-2">
-          <a href="#tracked-pursuits" class="text-neon-lime no-underline hover:underline">Tracked pursuits</a> by band — drill into workspace for MS gates.
+          <a href="/capture" class="text-neon-magenta no-underline hover:underline">Filament</a> pursuits by band — drill into workspace for MS gates.
         </p>
         <div class="cc-band-grid">
           {% for slice in band_widget.bands %}

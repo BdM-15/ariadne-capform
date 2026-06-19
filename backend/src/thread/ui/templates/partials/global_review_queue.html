@@ -9,7 +9,7 @@
       <i data-lucide="shield-check" class="w-5 h-5 text-neon-lime shrink-0 mt-0.5"></i>
       <div>
         <p class="font-semibold text-slate-200">Review gate clear</p>
-        <p class="mt-1">Nothing waiting for promotion. Packet edits, research, and skill outputs land here as candidates.</p>
+        <p class="mt-1">Nothing waiting for promotion. Vault test ingests review on <a href="/knowledge#knowledge-vault-review" class="text-neon-cyan no-underline hover:underline">Knowledge</a>.</p>
       </div>
     </div>
   </div>
@@ -23,7 +23,7 @@
           <span class="pill border border-neon-magenta/40 text-neon-magenta text-[10px]">{{ item.entity_type|replace('_', ' ') }}</span>
           <span class="pill border border-neon-cyan/30 text-neon-cyan text-[10px]">{{ item.trust_level }}</span>
           {% if item.opportunity_id %}
-          <a href="/opportunities/{{ item.opportunity_id }}?tab=review" class="pill border border-neon-lime/35 text-neon-lime text-[10px] no-underline hover:underline">
+          <a href="{{ capture_href(item.opportunity_id) }}" class="pill border border-neon-lime/35 text-neon-lime text-[10px] no-underline hover:underline">
             {{ item.opportunity_name or 'Pursuit' }}
           </a>
           {% else %}

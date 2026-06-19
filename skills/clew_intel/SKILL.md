@@ -11,7 +11,7 @@ metadata:
 
 Research utility — not a screen. Traces how federal money moves across award data.
 
-**Data layers:** PostgreSQL bulk (prime + FFATA subawards) for portfolio analytics; **USAspending MCP** and **SAM.gov MCP** for live complement (pinpoint awards, notices, entities, fresh subaward discovery). Findings are **candidate** until review; vault ingest design TBD.
+**Data layers:** PostgreSQL bulk (prime + FFATA subawards) for portfolio analytics; **USAspending MCP** and **SAM.gov MCP** for live complement (pinpoint awards, notices, entities, fresh subaward discovery). Findings are **candidate** until review; trusted promotion → vault via `vault_maintainer` + `obsidian-markdown` (17b-vault).
 
 ## Modes (facet-aware when `facet` in payload)
 

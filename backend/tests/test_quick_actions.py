@@ -19,7 +19,7 @@ def test_research_links_to_latest_opp():
     )
     research = next(a for a in actions if a.id == "research")
     assert research.enabled is True
-    assert research.href == "/opportunities/abc-123?tab=research"
+    assert research.href == "/capture/abc-123"
 
 
 def test_hot_signal_inserts_track_hot_action():

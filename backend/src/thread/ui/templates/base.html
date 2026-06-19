@@ -48,10 +48,10 @@
     <link rel="stylesheet" href="/static/styles/thread.css" />
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   </head>
-  <body class="font-sans antialiased scanline min-h-screen flex flex-col">
+  <body class="font-sans antialiased scanline min-h-screen flex flex-col"{% block body_capture_attrs %}{% endblock %}>
     {% include "partials/app_topbar.html" %}
 
-    <div class="app-shell flex flex-1 min-h-0 h-[calc(100vh-3.5rem)] overflow-hidden">
+    <div class="app-shell flex min-h-0 overflow-hidden">
       {% include "partials/app_sidebar.html" %}
 
       <div class="app-main flex flex-col flex-1 min-w-0 min-h-0">
@@ -63,7 +63,13 @@
         </main>
       </div>
     </div>
+    {% include "partials/restart_overlay.html" %}
+    {% include "partials/capture_fab_shell.html" %}
     <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+    <script src="/static/thread_restart.js"></script>
+    <script src="/static/thread_sidebar.js"></script>
+    <script src="/static/thread_capture_fab.js"></script>
+    <script src="/static/thread_vault_inbox.js"></script>
     <script>
       function initLucide() {
         if (window.lucide) window.lucide.createIcons();

@@ -39,6 +39,8 @@ class SettingsHealthContext:
     langgraph_studio_port: int
     langsmith_configured: bool
     langsmith_tracing: bool
+    vault_sandbox_mode: bool
+    vault_allow_test_promote: bool
     env_flags: dict[str, Any]
 
 
@@ -117,6 +119,8 @@ async def build_settings_health_context(
         langgraph_studio_port=settings.langgraph_studio_port,
         langsmith_configured=bool(settings.resolved_langchain_api_key),
         langsmith_tracing=settings.langsmith_tracing or settings.langchain_tracing_v2,
+        vault_sandbox_mode=settings.vault_sandbox_mode,
+        vault_allow_test_promote=settings.vault_allow_test_promote,
         env_flags={
             "app_env": settings.app_env,
             "intel_auto_migrate_on_start": settings.intel_auto_migrate_on_start,
@@ -129,6 +133,8 @@ async def build_settings_health_context(
             "research_require_approval_for_paid": settings.research_require_approval_for_paid,
             "default_naics": settings.default_naics,
             "sam_gov_configured": bool(settings.sam_gov_api_key),
+            "vault_sandbox_mode": settings.vault_sandbox_mode,
+            "vault_allow_test_promote": settings.vault_allow_test_promote,
         },
     )
 

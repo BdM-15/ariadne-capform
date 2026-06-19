@@ -7,7 +7,7 @@ import uuid
 from datetime import date
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, Query, Request
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
@@ -16,14 +16,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from thread.config import MCP_ENV_CANONICAL, Settings, apply_env_to_process, get_settings, reload_settings
 from thread.mcp.service import MCPService
 from thread.services.env_file import upsert_env_var
-from thread.db.models import PacketFieldAnswer
+from thread.db.models import PacketFieldAnswer, ReviewRecord
 from thread.db.session import get_db
 from thread.domain.enums import ResearchLens
+from thread.domain.enums import LifecycleState
 from thread.domain.schemas import OpportunityCreate
 from thread.research.capture_research import run_capture_research
 from thread.research.providers import build_provider_registry
 from thread.services import opportunities as opp_svc
 from thread.services.packet_workspace import build_packet_workspace, enrich_packet_field_card
+from thread.services.capture_display import build_capture_home
+from thread.services.capture_fab import (
+    CaptureFabError,
+    build_capture_context,
+    ingest_quick_capture,
+    parse_opp_id,
+)
+from thread.services.idea_capturer import IdeaCaptureError, capture_idea_to_vault
 from thread.services.portfolio import build_portfolio_pulse, signal_opportunity_name
 from thread.services.platform_health import build_platform_health_widget
 from thread.services.insights_display import build_insights_page_context
@@ -56,20 +65,43 @@ from thread.services.watchlist import (
     new_sam_watch_item,
     remove_watchlist_item,
 )
-from thread.services.review_gate import ReviewGateError, approve_review
+from thread.services.review_gate import ReviewGateError, approve_review, reject_review
+from thread.services.vault_candidate_enrich import CandidateEnrichError, enrich_candidate_note
+from thread.services.vault_candidate_polish import (
+    CandidatePolishError,
+    apply_polished_candidate,
+    build_polish_diff,
+    polish_candidate_note,
+    rules_polish_candidate,
+)
+from thread.services.vault_dedup import patch_provenance_target, validate_promote_target
+from thread.services.vault_review_queue import (
+    build_stale_vault_review_widget,
+    build_vault_review_widget,
+    load_candidate_edit_form,
+    reject_vault_candidate,
+)
+from thread.services.vault_ops import run_vault_op
+from thread.services.system_restart import schedule_restart
+from thread.services.vault_write import (
+    VaultWriteError,
+    ingest_approved_review,
+    queue_vault_candidate_review,
+    save_candidate_note,
+    write_candidate_note,
+)
 from thread.ui.formatters import format_date, format_money, urgency_label
 from thread.services.pursuits_display import lifecycle_label, milestone_gate_label, phase_band_label
+from thread.ui.knowledge_guides import guide_for_knowledge, guide_for_vault_ops
 from thread.ui.settings_health import build_settings_health_context
 from thread.ui.skill_forms import CLEW_MODES, payload_from_form, skill_is_wired
 from thread.ui.tools_context import build_mcp_tools_context, build_skills_tools_context
 from thread.ui.review_display import build_pending_reviews_widget
 from thread.ui.workspace import (
-    list_research_runs,
+    legacy_tab_redirect,
     load_actions,
     load_global_review_queue,
-    load_review_queue,
     normalize_tab,
-    research_lenses,
 )
 
 UI_DIR = Path(__file__).resolve().parent
@@ -84,14 +116,25 @@ templates.env.globals["child_dir_href"] = child_dir_href
 templates.env.globals["child_file_href"] = child_file_href
 templates.env.filters["lifecycle_label"] = lifecycle_label
 
-router = APIRouter(tags=["ui"])
 
-WORKSPACE_TABS = [
-    ("packet", "Packet"),
-    ("actions", "Actions"),
-    ("review", "Review"),
-    ("research", "Research"),
-]
+def capture_workspace_href(
+    opp_id: uuid.UUID | str,
+    *,
+    tab: str | None = None,
+    slide: str | None = None,
+) -> str:
+    base = f"/capture/{opp_id}"
+    params: list[str] = []
+    if tab and tab != "packet":
+        params.append(f"tab={tab}")
+    if slide:
+        params.append(f"slide={slide}")
+    return f"{base}?{'&'.join(params)}" if params else base
+
+
+templates.env.globals["capture_href"] = capture_workspace_href
+
+router = APIRouter(tags=["ui"])
 
 SHELL_STUB_PAGES: dict[str, dict[str, str]] = {
     "settings": {
@@ -133,36 +176,25 @@ async def _panel_context(
     flash: str | None = None,
     slide: str | None = None,
 ) -> dict:
-    active_tab = normalize_tab(tab)
-    ctx: dict = {
+    opp = await opp_svc.get_opportunity(db, opp_id)
+    resolved_slide = slide
+    if tab == "actions" and not resolved_slide:
+        resolved_slide = "slide_14_actions"
+    packet = await build_packet_workspace(
+        db,
+        opp_id,
+        active_slide=resolved_slide,
+        milestone_gate=opp.current_milestone_gate if opp else None,
+    )
+    return {
         "opp_id": opp_id,
-        "active_tab": active_tab,
+        "active_tab": "packet",
         "flash": flash,
+        "packet": packet,
+        "fields": packet["fields"],
+        "actions": await load_actions(db, opp_id),
+        "expand_action_drawer": tab == "actions" or resolved_slide == "slide_14_actions",
     }
-    if active_tab == "packet":
-        opp = await opp_svc.get_opportunity(db, opp_id)
-        packet = await build_packet_workspace(
-            db,
-            opp_id,
-            active_slide=slide,
-            milestone_gate=opp.current_milestone_gate if opp else None,
-        )
-        ctx["packet"] = packet
-        ctx["fields"] = packet["fields"]
-    else:
-        answers = (
-            await db.execute(select(PacketFieldAnswer).where(PacketFieldAnswer.opportunity_id == opp_id))
-        ).scalars().all()
-        ctx["fields"] = answers
-    if active_tab == "actions":
-        ctx["actions"] = await load_actions(db, opp_id)
-    elif active_tab == "review":
-        ctx["review_items"] = await load_review_queue(db, settings, opp_id)
-    elif active_tab == "research":
-        ctx["lenses"] = research_lenses()
-        ctx["runs"] = list_research_runs(settings, opp_id)
-        ctx["providers"] = await build_provider_registry(settings)
-    return ctx
 
 
 def _render_panel(request: Request, ctx: dict) -> HTMLResponse:
@@ -597,12 +629,21 @@ async def review_page(
     )
 
 
-def _knowledge_template_context(settings: Settings, *, path: str = "", page: str = "") -> dict:
+def _knowledge_template_context(
+    settings: Settings,
+    *,
+    path: str = "",
+    page: str = "",
+    inbox: str = "",
+) -> dict:
     vault = build_vault_browser_context(settings, path=path, page=page)
     return {
         "app_name": settings.public_app_name,
         "active_nav": "knowledge",
         "vault": vault,
+        "knowledge_guide": guide_for_knowledge(),
+        "vault_ops_guide": guide_for_vault_ops(),
+        "inbox_highlight": inbox.strip(),
     }
 
 
@@ -611,12 +652,13 @@ async def knowledge_page(
     request: Request,
     path: str = Query(""),
     page: str = Query(""),
+    inbox: str = Query(""),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "knowledge.html",
-        _knowledge_template_context(settings, path=path, page=page),
+        _knowledge_template_context(settings, path=path, page=page, inbox=inbox),
     )
 
 
@@ -645,9 +687,623 @@ async def knowledge_page_partial(
     ctx = _knowledge_template_context(settings, path=path, page=page)
     return templates.TemplateResponse(
         request,
-        "partials/knowledge_page_panel.html",
+        "partials/knowledge_page_htmx.html",
         ctx,
     )
+
+
+def _parse_inbox_review_id(raw: str | None) -> uuid.UUID | None:
+    clean = (raw or "").strip()
+    if not clean:
+        return None
+    try:
+        return uuid.UUID(clean)
+    except ValueError:
+        return None
+
+
+async def _capture_studio_template_context(
+    db: AsyncSession,
+    settings: Settings,
+    *,
+    edit_review_id: uuid.UUID | None = None,
+    highlight_review_id: uuid.UUID | None = None,
+    polish_result=None,
+    flash: str | None = None,
+    flash_ok: bool = True,
+) -> dict:
+    widget = await build_vault_review_widget(
+        db,
+        settings,
+        highlight_review_id=highlight_review_id,
+    )
+    edit_form = None
+    polish_diff = None
+    if edit_review_id is not None:
+        record = await db.get(ReviewRecord, edit_review_id)
+        if record is not None:
+            edit_form = load_candidate_edit_form(settings, record)
+    if polish_result is not None and edit_form is not None:
+        polish_diff = build_polish_diff(polish_result.before, polish_result.after)
+    return {
+        "widget": widget,
+        "edit_form": edit_form,
+        "polish_result": polish_result,
+        "polish_diff": polish_diff,
+        "flash": flash,
+        "flash_ok": flash_ok,
+        "studio_open": widget.needs_attention or edit_form is not None or polish_result is not None,
+        "highlight_review_id": str(highlight_review_id) if highlight_review_id else "",
+    }
+
+
+def _parse_related_field(raw: str) -> list[str]:
+    links: list[str] = []
+    for line in raw.replace(",", "\n").splitlines():
+        token = line.strip().strip("-").strip()
+        if token.startswith("[[") and token.endswith("]]"):
+            token = token[2:-2].strip()
+        if token and token not in links:
+            links.append(token)
+    return links
+
+
+def _merge_related_form(
+    *,
+    related_stems: list[str] | None = None,
+    related_custom: str = "",
+    related: str = "",
+) -> list[str]:
+    links: list[str] = []
+    for stem in related_stems or []:
+        token = stem.strip()
+        if token and token not in links:
+            links.append(token)
+    for token in _parse_related_field(related_custom):
+        if token not in links:
+            links.append(token)
+    for token in _parse_related_field(related):
+        if token not in links:
+            links.append(token)
+    return links
+
+
+def _vault_ops_template_context(
+    settings: Settings,
+    *,
+    result: dict | None = None,
+    flash: str | None = None,
+    flash_ok: bool = True,
+    lint_summary: str | None = None,
+) -> dict:
+    return {
+        "sandbox_mode": settings.vault_sandbox_mode,
+        "allow_test_promote": settings.vault_allow_test_promote,
+        "vault_ops_guide": guide_for_vault_ops(),
+        "result": result,
+        "flash": flash,
+        "flash_ok": flash_ok,
+        "lint_summary": lint_summary,
+    }
+
+
+@router.get("/partials/knowledge/vault-review", response_class=HTMLResponse)
+async def knowledge_vault_review_partial(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    ctx = await _capture_studio_template_context(db, settings)
+    return templates.TemplateResponse(
+        request,
+        "partials/knowledge_capture_studio.html",
+        ctx,
+    )
+
+
+@router.get("/partials/knowledge/capture-studio", response_class=HTMLResponse)
+async def knowledge_capture_studio_partial(
+    request: Request,
+    inbox: str = Query(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    ctx = await _capture_studio_template_context(
+        db,
+        settings,
+        highlight_review_id=_parse_inbox_review_id(inbox),
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/knowledge_capture_studio.html",
+        ctx,
+    )
+
+
+@router.post("/partials/knowledge/idea-capture", response_class=HTMLResponse)
+async def knowledge_idea_capture_partial(
+    request: Request,
+    dump: str = Form(""),
+    tags: str = Form(""),
+    context: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    try:
+        result = await capture_idea_to_vault(
+            settings,
+            db,
+            dump=dump,
+            tags=tags,
+            context_note=context,
+        )
+        await db.commit()
+        flash = f"Idea captured — {result.title}"
+        if not result.gate.ok:
+            flash = f"Captured with gate warnings — {', '.join(result.gate.issues)}"
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            highlight_review_id=result.review_id,
+            flash=flash,
+            flash_ok=result.gate.ok,
+        )
+        return templates.TemplateResponse(request, "partials/knowledge_capture_studio.html", ctx)
+    except IdeaCaptureError as exc:
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            flash=str(exc),
+            flash_ok=False,
+        )
+        return templates.TemplateResponse(request, "partials/knowledge_capture_studio.html", ctx)
+
+
+@router.get("/partials/knowledge/candidate-edit", response_class=HTMLResponse)
+async def knowledge_candidate_edit_partial(
+    request: Request,
+    review_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    ctx = await _capture_studio_template_context(db, settings, edit_review_id=review_id)
+    return templates.TemplateResponse(
+        request,
+        "partials/knowledge_capture_studio.html",
+        ctx,
+    )
+
+
+@router.get("/partials/knowledge/vault-ops", response_class=HTMLResponse)
+async def knowledge_vault_ops_partial(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    lint = run_vault_op(settings, "lint", apply=False)
+    return templates.TemplateResponse(
+        request,
+        "partials/knowledge_vault_ops.html",
+        _vault_ops_template_context(settings, lint_summary=lint.summary),
+    )
+
+
+@router.post("/partials/knowledge/vault-op", response_class=HTMLResponse)
+async def knowledge_vault_op(
+    request: Request,
+    action: str = Form(...),
+    apply: str = Form("false"),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    apply_flag = apply.lower() in ("true", "1", "yes", "on")
+    op = run_vault_op(settings, action, apply=apply_flag)
+    return templates.TemplateResponse(
+        request,
+        "partials/knowledge_vault_ops.html",
+        _vault_ops_template_context(
+            settings,
+            result=op.to_context(),
+            flash_ok=op.ok,
+        ),
+    )
+
+
+@router.get("/partials/capture/fab", response_class=HTMLResponse)
+async def capture_fab_drawer(
+    request: Request,
+    opp_id: str = Query(""),
+    opp_name: str = Query(""),
+    award_key: str = Query(""),
+    signal_title: str = Query(""),
+    agency: str = Query(""),
+    entity: str = Query(""),
+    entity_title: str = Query(""),
+    db: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    parsed_opp = parse_opp_id(opp_id)
+    if parsed_opp and not opp_name.strip():
+        opp = await opp_svc.get_opportunity(db, parsed_opp)
+        if opp:
+            opp_name = opp.name
+    context = build_capture_context(
+        opp_id=opp_id,
+        opp_name=opp_name,
+        award_key=award_key,
+        signal_title=signal_title,
+        agency=agency,
+        entity=entity,
+        entity_title=entity_title,
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/capture_fab_drawer.html",
+        {"context": context, "flash": None, "flash_ok": True, "studio_href": None},
+    )
+
+
+def _capture_error_message(exc: BaseException) -> str:
+    detail = str(exc).strip()
+    if detail:
+        return detail
+    name = type(exc).__name__
+    if name in {"ReadTimeout", "ConnectTimeout", "TimeoutException", "ConnectError"}:
+        return f"{name} — Ollama may be down or slow. Check Settings → LLM or retry."
+    return f"{name} — unexpected error; check server logs."
+
+
+@router.post("/partials/capture/quick", response_class=HTMLResponse)
+async def capture_fab_quick(
+    request: Request,
+    dump: str = Form(""),
+    opp_id: str = Form(""),
+    opp_name: str = Form(""),
+    award_key: str = Form(""),
+    signal_title: str = Form(""),
+    agency: str = Form(""),
+    entity: str = Form(""),
+    entity_title: str = Form(""),
+    attachment: UploadFile | None = File(None),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    context = build_capture_context(
+        opp_id=opp_id,
+        opp_name=opp_name,
+        award_key=award_key,
+        signal_title=signal_title,
+        agency=agency,
+        entity=entity,
+        entity_title=entity_title,
+    )
+    attachment_name = ""
+    attachment_bytes = b""
+    if attachment and attachment.filename:
+        attachment_name = attachment.filename
+        attachment_bytes = await attachment.read()
+    try:
+        result = await ingest_quick_capture(
+            settings,
+            db,
+            raw_dump=dump,
+            context=context,
+            attachment_name=attachment_name,
+            attachment_bytes=attachment_bytes,
+        )
+        doc_note = ""
+        if result.document_name:
+            if result.mineru_status in ("mineru_stub", "mineru", "mineru_queued"):
+                doc_note = f"Document {result.document_name} staged for MinerU."
+            else:
+                doc_note = f"Document {result.document_name} attached."
+        studio_href = "/knowledge#knowledge-vault-inbox"
+        if result.review_id:
+            studio_href = f"/knowledge?inbox={result.review_id}#knowledge-vault-inbox"
+        return templates.TemplateResponse(
+            request,
+            "partials/capture_fab_drawer.html",
+            {
+                "context": context,
+                "flash_ok": True,
+                "studio_href": studio_href,
+                "queue_position": result.queue_position,
+                "queue_total": result.queue_total,
+                "inbox_lane": result.inbox_lane,
+                "inferred_title": result.inferred_title,
+                "dump_snippet": result.dump_snippet,
+                "polish_provider": result.polish_provider,
+                "title_provider": result.title_provider,
+                "doc_note": doc_note,
+            },
+        )
+    except (CaptureFabError, VaultWriteError) as exc:
+        return templates.TemplateResponse(
+            request,
+            "partials/capture_fab_drawer.html",
+            {
+                "context": context,
+                "flash": str(exc),
+                "flash_ok": False,
+                "studio_href": None,
+            },
+        )
+    except Exception as exc:
+        return templates.TemplateResponse(
+            request,
+            "partials/capture_fab_drawer.html",
+            {
+                "context": context,
+                "flash": f"Capture failed: {_capture_error_message(exc)}",
+                "flash_ok": False,
+                "studio_href": None,
+            },
+        )
+
+
+@router.post("/partials/knowledge/candidate", response_class=HTMLResponse)
+async def knowledge_write_candidate(
+    request: Request,
+    name: str = Form(...),
+    body: str = Form(...),
+    page_type: str = Form("synthesis"),
+    queue_review: bool = Form(True),
+    test_mode: bool = Form(True),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    source = "test" if test_mode or settings.vault_sandbox_mode else "api"
+    citations = "source:test" if test_mode else "source:manual"
+    try:
+        write_result = write_candidate_note(
+            settings,
+            name=name.strip(),
+            body=body.strip(),
+            page_type=page_type,
+            citations=citations,
+            source=source,
+        )
+        review_id = None
+        if queue_review:
+            record = await queue_vault_candidate_review(
+                db,
+                candidate_path=write_result.path,
+                target_path=None,
+            )
+            review_id = str(record.id)
+            await db.commit()
+        flash = f"Queued {write_result.path} in Vault Inbox below."
+        if review_id:
+            flash += f" (review {review_id[:8]}…)"
+        studio_ctx = await _capture_studio_template_context(db, settings, flash=flash, flash_ok=True)
+        return templates.TemplateResponse(
+            request,
+            "partials/knowledge_vault_ops_refresh.html",
+            {
+                **_vault_ops_template_context(
+                    settings,
+                    flash=flash,
+                    flash_ok=True,
+                    lint_summary=run_vault_op(settings, "lint", apply=False).summary,
+                ),
+                **studio_ctx,
+            },
+        )
+    except VaultWriteError as exc:
+        await db.rollback()
+        return templates.TemplateResponse(
+            request,
+            "partials/knowledge_vault_ops.html",
+            _vault_ops_template_context(
+                settings,
+                flash=str(exc),
+                flash_ok=False,
+                lint_summary=run_vault_op(settings, "lint", apply=False).summary,
+            ),
+        )
+
+
+@router.post("/partials/knowledge/candidate-save", response_class=HTMLResponse)
+async def knowledge_save_candidate(
+    request: Request,
+    review_id: uuid.UUID = Form(...),
+    candidate_path: str = Form(...),
+    name: str = Form(...),
+    body: str = Form(...),
+    page_type: str = Form("synthesis"),
+    related_stems: list[str] = Form(default=[]),
+    related_custom: str = Form(""),
+    related: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    try:
+        save_candidate_note(
+            settings,
+            candidate_path.strip(),
+            name=name.strip(),
+            body=body.strip(),
+            page_type=page_type,
+            related=_merge_related_form(
+                related_stems=related_stems,
+                related_custom=related_custom,
+                related=related,
+            ),
+        )
+        flash = f"Saved {candidate_path.strip()}"
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            edit_review_id=review_id,
+            flash=flash,
+            flash_ok=True,
+        )
+        return templates.TemplateResponse(
+            request,
+            "partials/knowledge_capture_studio.html",
+            ctx,
+        )
+    except VaultWriteError as exc:
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            edit_review_id=review_id,
+            flash=str(exc),
+            flash_ok=False,
+        )
+        return templates.TemplateResponse(
+            request,
+            "partials/knowledge_capture_studio.html",
+            ctx,
+        )
+
+
+@router.post("/partials/knowledge/candidate-polish", response_class=HTMLResponse)
+async def knowledge_polish_candidate(
+    request: Request,
+    review_id: uuid.UUID = Form(...),
+    candidate_path: str | None = Form(None),
+    name: str | None = Form(None),
+    body: str | None = Form(None),
+    page_type: str | None = Form(None),
+    related_stems: list[str] | None = Form(None),
+    related_custom: str | None = Form(None),
+    related: str | None = Form(None),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    record = await db.get(ReviewRecord, review_id)
+    rel = (candidate_path or (record.entity_id if record else "") or "").strip()
+    if not rel:
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            edit_review_id=review_id,
+            flash="Candidate path missing for polish",
+            flash_ok=False,
+        )
+        return templates.TemplateResponse(request, "partials/knowledge_capture_studio.html", ctx)
+
+    try:
+        if name is not None and body is not None and name.strip() and body.strip():
+            save_candidate_note(
+                settings,
+                rel,
+                name=name.strip(),
+                body=body.strip(),
+                page_type=page_type or "synthesis",
+                related=_merge_related_form(
+                    related_stems=related_stems,
+                    related_custom=related_custom or "",
+                    related=related or "",
+                ),
+            )
+        polish_result = await polish_candidate_note(settings, rel)
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            edit_review_id=review_id,
+            polish_result=polish_result,
+            flash=f"Polish ready ({polish_result.provider}) — review diff before accept",
+            flash_ok=True,
+        )
+        return templates.TemplateResponse(request, "partials/knowledge_capture_studio.html", ctx)
+    except (VaultWriteError, CandidatePolishError) as exc:
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            edit_review_id=review_id,
+            flash=str(exc),
+            flash_ok=False,
+        )
+        return templates.TemplateResponse(request, "partials/knowledge_capture_studio.html", ctx)
+
+
+@router.post("/partials/knowledge/candidate-enrich", response_class=HTMLResponse)
+async def knowledge_enrich_candidate(
+    request: Request,
+    review_id: uuid.UUID = Form(...),
+    candidate_path: str = Form(...),
+    enrich_source: str = Form("clew"),
+    clew_mode: str = Form("spend_trend"),
+    agency: str = Form(""),
+    recipient: str = Form(""),
+    research_run_id: str = Form(""),
+    research_query: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    try:
+        result = await enrich_candidate_note(
+            settings,
+            candidate_path.strip(),
+            source=enrich_source,
+            research_run_id=research_run_id.strip() or None,
+            research_query=research_query.strip() or None,
+            clew_mode=clew_mode,
+            agency=agency,
+            recipient=recipient,
+        )
+        flash = f"Enrichment appended — {result.section_title}"
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            edit_review_id=review_id,
+            flash=flash,
+            flash_ok=True,
+        )
+        return templates.TemplateResponse(request, "partials/knowledge_capture_studio.html", ctx)
+    except (VaultWriteError, CandidateEnrichError) as exc:
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            edit_review_id=review_id,
+            flash=str(exc),
+            flash_ok=False,
+        )
+        return templates.TemplateResponse(request, "partials/knowledge_capture_studio.html", ctx)
+
+
+@router.post("/partials/knowledge/candidate-polish-accept", response_class=HTMLResponse)
+async def knowledge_polish_accept(
+    request: Request,
+    review_id: uuid.UUID = Form(...),
+    candidate_path: str = Form(...),
+    name: str = Form(...),
+    body: str = Form(...),
+    page_type: str = Form("synthesis"),
+    related: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    try:
+        from thread.services.vault_candidate_polish import PolishedCandidate
+
+        apply_polished_candidate(
+            settings,
+            candidate_path.strip(),
+            PolishedCandidate(
+                name=name.strip(),
+                page_type=page_type,
+                body=body.strip(),
+                related=tuple(_parse_related_field(related)),
+            ),
+        )
+        flash = f"Polish accepted — saved {candidate_path.strip()}"
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            edit_review_id=review_id,
+            flash=flash,
+            flash_ok=True,
+        )
+        return templates.TemplateResponse(request, "partials/knowledge_capture_studio.html", ctx)
+    except VaultWriteError as exc:
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            edit_review_id=review_id,
+            flash=str(exc),
+            flash_ok=False,
+        )
+        return templates.TemplateResponse(request, "partials/knowledge_capture_studio.html", ctx)
 
 
 @router.get("/settings", response_class=HTMLResponse)
@@ -666,6 +1322,86 @@ async def settings_page(
             "health": health,
         },
     )
+
+
+def _vault_controls_context(
+    settings: Settings,
+    *,
+    flash: str = "",
+    flash_ok: bool = True,
+) -> dict:
+    return {
+        "vault_sandbox_mode": settings.vault_sandbox_mode,
+        "vault_allow_test_promote": settings.vault_allow_test_promote,
+        "flash": flash,
+        "flash_ok": flash_ok,
+    }
+
+
+def _persist_env_bool(settings: Settings, key: str, enabled: bool) -> Settings:
+    value = "true" if enabled else "false"
+    upsert_env_var(settings.repo_root / ".env", key, value)
+    apply_env_to_process(key, value)
+    return reload_settings()
+
+
+@router.post("/settings/vault-sandbox", response_class=HTMLResponse)
+async def settings_toggle_vault_sandbox(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    form = await request.form()
+    enabled = form.get("enabled") == "true"
+    settings = _persist_env_bool(settings, "THREAD_VAULT_SANDBOX", enabled)
+    if not enabled and settings.vault_allow_test_promote:
+        settings = _persist_env_bool(settings, "THREAD_ALLOW_TEST_PROMOTE", False)
+    label = "enabled" if settings.vault_sandbox_mode else "disabled"
+    return templates.TemplateResponse(
+        request,
+        "partials/settings_vault_controls.html",
+        _vault_controls_context(
+            settings,
+            flash=f"Vault sandbox {label}. Saved to .env — takes effect immediately.",
+        ),
+    )
+
+
+@router.post("/settings/vault-allow-test-promote", response_class=HTMLResponse)
+async def settings_toggle_vault_allow_test_promote(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    if not settings.vault_sandbox_mode:
+        return templates.TemplateResponse(
+            request,
+            "partials/settings_vault_controls.html",
+            _vault_controls_context(
+                settings,
+                flash="Enable vault sandbox first.",
+                flash_ok=False,
+            ),
+        )
+    form = await request.form()
+    enabled = form.get("enabled") == "true"
+    settings = _persist_env_bool(settings, "THREAD_ALLOW_TEST_PROMOTE", enabled)
+    label = "enabled" if settings.vault_allow_test_promote else "disabled"
+    return templates.TemplateResponse(
+        request,
+        "partials/settings_vault_controls.html",
+        _vault_controls_context(
+            settings,
+            flash=f"Test promote {label}. Saved to .env.",
+        ),
+    )
+
+
+@router.post("/system/restart")
+async def system_restart() -> dict[str, str]:
+    schedule_restart(0.75)
+    return {
+        "status": "restarting",
+        "message": "Server is restarting. The UI will reconnect automatically.",
+    }
 
 
 def _clew_form_from_params(
@@ -1018,6 +1754,7 @@ async def dashboard_page(
 ) -> HTMLResponse:
     pulse = await build_portfolio_pulse(db, settings)
     pending_reviews = await build_pending_reviews_widget(db, settings)
+    vault_stale = await build_stale_vault_review_widget(db, settings)
     quick_actions = build_quick_actions(
         opportunities=pulse["opportunities"],
         intel_signals=pulse["intel_signals"],
@@ -1030,6 +1767,7 @@ async def dashboard_page(
             "pulse": pulse,
             "phase_band_widget": pulse["phase_band_widget"],
             "pending_reviews": pending_reviews,
+            "vault_stale": vault_stale,
             "quick_actions": quick_actions,
             "platform_health": platform_health,
             "app_name": settings.public_app_name,
@@ -1199,11 +1937,15 @@ async def create_opportunity_form(
     name = name.strip()
     if not name:
         return _htmx_redirect("/pulse")
-    opp = await opp_svc.create_opportunity(db, OpportunityCreate(name=name))
+    opp = await opp_svc.create_opportunity(
+        db,
+        OpportunityCreate(name=name, lifecycle_state=LifecycleState.PURSUING, entry_reason="manual_commit"),
+    )
     await db.commit()
+    target = capture_workspace_href(opp.id)
     if request.headers.get("HX-Request"):
-        return _htmx_redirect(f"/opportunities/{opp.id}")
-    return RedirectResponse(url=f"/opportunities/{opp.id}", status_code=303)
+        return _htmx_redirect(target)
+    return RedirectResponse(url=target, status_code=303)
 
 
 @router.post("/sam/track", response_class=HTMLResponse)
@@ -1227,12 +1969,14 @@ async def track_sam_notice_form(
             notice_type=notice_type.strip() or None,
             naics_code=naics_code.strip() or None,
             entry_reason="sam_notice",
+            lifecycle_state=LifecycleState.PURSUING,
         ),
     )
     await db.commit()
+    target = capture_workspace_href(opp.id)
     if request.headers.get("HX-Request"):
-        return _htmx_redirect(f"/opportunities/{opp.id}")
-    return RedirectResponse(url=f"/opportunities/{opp.id}", status_code=303)
+        return _htmx_redirect(target)
+    return RedirectResponse(url=target, status_code=303)
 
 
 @router.post("/signals/track", response_class=HTMLResponse)
@@ -1251,16 +1995,69 @@ async def track_signal_form(
             award_key=award_key,
             naics_code=naics_code or None,
             entry_reason="intel_signal",
+            lifecycle_state=LifecycleState.PURSUING,
         ),
     )
     await db.commit()
+    target = capture_workspace_href(opp.id)
     if request.headers.get("HX-Request"):
-        return _htmx_redirect(f"/opportunities/{opp.id}")
-    return RedirectResponse(url=f"/opportunities/{opp.id}", status_code=303)
+        return _htmx_redirect(target)
+    return RedirectResponse(url=target, status_code=303)
 
 
-@router.get("/opportunities/{opp_id}", response_class=HTMLResponse)
-async def opportunity_workspace(
+async def _render_capture_workspace(
+    request: Request,
+    db: AsyncSession,
+    settings: Settings,
+    opp_id: uuid.UUID,
+    *,
+    tab: str = "packet",
+    slide: str = "",
+    flash: str | None = None,
+) -> HTMLResponse:
+    opp = await opp_svc.get_opportunity(db, opp_id)
+    if not opp:
+        return HTMLResponse("Opportunity not found", status_code=404)
+
+    redirect_url = legacy_tab_redirect(tab)
+    if redirect_url:
+        return RedirectResponse(url=redirect_url, status_code=302)
+
+    panel = await _panel_context(db, settings, opp_id, tab=tab, slide=slide or None, flash=flash)
+    return templates.TemplateResponse(
+        request,
+        "opportunity.html",
+        {
+            "opp": opp,
+            "app_name": settings.public_app_name,
+            "active_nav": "filament",
+            "flash": flash,
+            **panel,
+        },
+    )
+
+
+@router.get("/capture", response_class=HTMLResponse)
+async def capture_home_page(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    capture = await build_capture_home(db, settings)
+    return templates.TemplateResponse(
+        request,
+        "capture.html",
+        {
+            "capture": capture,
+            "app_name": settings.public_app_name,
+            "active_nav": "filament",
+            "flash": None,
+        },
+    )
+
+
+@router.get("/capture/{opp_id}", response_class=HTMLResponse)
+async def capture_workspace(
     request: Request,
     opp_id: uuid.UUID,
     tab: str = Query("packet"),
@@ -1268,23 +2065,56 @@ async def opportunity_workspace(
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    opp = await opp_svc.get_opportunity(db, opp_id)
+    return await _render_capture_workspace(
+        request, db, settings, opp_id, tab=tab, slide=slide or ""
+    )
+
+
+@router.get("/opportunities/{opp_id}", response_class=HTMLResponse)
+async def opportunity_workspace_redirect(
+    opp_id: uuid.UUID,
+    tab: str = Query("packet"),
+    slide: str = Query(""),
+) -> RedirectResponse:
+    return RedirectResponse(
+        url=capture_workspace_href(opp_id, tab=tab or None, slide=slide or None),
+        status_code=307,
+    )
+
+
+@router.post("/opportunities/{opp_id}/milestone-gate", response_class=HTMLResponse)
+async def set_milestone_gate(
+    request: Request,
+    opp_id: uuid.UUID,
+    milestone_gate: str = Form(...),
+    tab: str = Form("packet"),
+    slide: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    opp = await opp_svc.update_milestone_gate(db, opp_id, milestone_gate)
     if not opp:
         return HTMLResponse("Opportunity not found", status_code=404)
-
-    panel = await _panel_context(db, settings, opp_id, tab=tab, slide=slide or None)
-    return templates.TemplateResponse(
-        request,
-        "opportunity.html",
+    await db.commit()
+    await db.refresh(opp)
+    ctx = await _panel_context(db, settings, opp_id, tab=tab, slide=slide or None)
+    panel_html = _render_panel(request, ctx).body.decode("utf-8")
+    packet = ctx.get("packet")
+    gate_html = templates.get_template("partials/milestone_gate_selector.html").render(
         {
+            "request": request,
             "opp": opp,
-            "tabs": WORKSPACE_TABS,
-            "app_name": settings.public_app_name,
-            "active_nav": "",
-            "flash": None,
-            **panel,
-        },
+            "opp_id": opp_id,
+            "active_tab": ctx.get("active_tab", tab),
+            "packet": packet,
+        }
     )
+    gate_oob = gate_html.replace(
+        'id="ms-gate-shell"',
+        'id="ms-gate-shell" hx-swap-oob="true"',
+        1,
+    )
+    return HTMLResponse(panel_html + gate_oob)
 
 
 @router.get("/opportunities/{opp_id}/panel", response_class=HTMLResponse)
@@ -1315,7 +2145,7 @@ async def save_packet_field(
     field = await enrich_packet_field_card(db, answer)
     return templates.TemplateResponse(
         request,
-        "partials/packet_field.html",
+        "partials/packet_field_compact.html",
         {"field": field, "opp_id": opp_id},
     )
 
@@ -1328,7 +2158,8 @@ async def create_action_form(
     owner: str = Form(""),
     due_date: str = Form(""),
     linked_field_keys: str = Form(""),
-    tab: str = Form("actions"),
+    tab: str = Form("packet"),
+    slide: str = Form("slide_14_actions"),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
@@ -1338,7 +2169,7 @@ async def create_action_form(
     keys = [k.strip() for k in linked_field_keys.split(",") if k.strip()]
     await opp_svc.add_action_item(db, opp_id, action.strip(), owner.strip() or None, parsed_due, keys)
     await db.commit()
-    ctx = await _panel_context(db, settings, opp_id, tab=tab)
+    ctx = await _panel_context(db, settings, opp_id, tab=tab, slide=slide or "slide_14_actions")
     return _render_panel(request, ctx)
 
 
@@ -1391,14 +2222,31 @@ async def approve_review_form(
     opp_id: str | None = Form(None),
     tab: str = Form("review"),
     return_scope: str = Form("workspace"),
+    promote_target: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
     flash: str | None = None
     try:
-        await approve_review(db, review_id)
+        pending = await db.get(ReviewRecord, review_id)
+        if pending is None:
+            raise ReviewGateError("Review record not found")
+        if promote_target and promote_target.strip() and pending.entity_type == "vault_candidate":
+            validated = validate_promote_target(promote_target)
+            pending.provenance = patch_provenance_target(pending.provenance, validated)
+            await db.flush()
+        record = await approve_review(db, review_id)
+        vault_result = await ingest_approved_review(db, settings, record)
         await db.commit()
-    except ReviewGateError as exc:
+        if vault_result and vault_result.paths:
+            flash = f"Approved — vault: {', '.join(vault_result.paths)}"
+            if vault_result.semantic:
+                flash += (
+                    f" · semantic +{vault_result.semantic.get('links_added', 0)} links"
+                )
+        elif record.entity_type in ("vault_candidate", "skill_run", "research_finding", "research_interpretation"):
+            flash = "Approved — no vault write (check sandbox / test markers)"
+    except (ReviewGateError, VaultWriteError) as exc:
         await db.rollback()
         flash = str(exc)
 
@@ -1424,9 +2272,58 @@ async def approve_review_form(
             },
         )
 
+    if return_scope in ("knowledge_vault_review", "knowledge_capture_studio"):
+        flash_ok = bool(flash and flash.startswith("Approved — vault:"))
+        ctx = await _capture_studio_template_context(db, settings, flash=flash, flash_ok=flash_ok)
+        return templates.TemplateResponse(
+            request,
+            "partials/knowledge_capture_studio.html",
+            ctx,
+        )
+
     if not opp_id:
         return HTMLResponse("opp_id required for workspace approve", status_code=400)
 
     parsed_opp_id = uuid.UUID(opp_id)
     ctx = await _panel_context(db, settings, parsed_opp_id, tab=tab, flash=flash)
     return _render_panel(request, ctx)
+
+
+@router.post("/review/{review_id}/reject", response_class=HTMLResponse)
+async def reject_review_route(
+    request: Request,
+    review_id: uuid.UUID,
+    return_scope: str = Form("global"),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    flash: str | None = None
+    flash_ok = True
+    try:
+        record = await reject_review(db, review_id)
+        if record.entity_type == "vault_candidate":
+            reject_vault_candidate(settings, record.entity_id)
+        await db.commit()
+        flash = f"Rejected — archived {Path(record.entity_id).name}"
+    except ReviewGateError as exc:
+        await db.rollback()
+        flash = str(exc)
+        flash_ok = False
+
+    if return_scope in ("knowledge_vault_review", "knowledge_capture_studio"):
+        ctx = await _capture_studio_template_context(db, settings, flash=flash, flash_ok=flash_ok)
+        return templates.TemplateResponse(
+            request,
+            "partials/knowledge_capture_studio.html",
+            ctx,
+        )
+
+    if return_scope == "global":
+        review_items = await load_global_review_queue(db, settings)
+        return templates.TemplateResponse(
+            request,
+            "partials/global_review_queue.html",
+            {"review_items": review_items, "flash": flash},
+        )
+
+    return HTMLResponse(flash or "Rejected", status_code=400 if not flash_ok else 200)

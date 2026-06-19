@@ -4,7 +4,7 @@
 <header class="page-nav-bar glass-section-bar h-12 shrink-0 flex items-center px-6 justify-between gap-4">
   <div class="flex items-center gap-3 min-w-0">
     <h1 class="text-base font-semibold tracking-tight h1-gradient shrink-0">Settings</h1>
-    <span class="text-[11px] font-mono text-slate-500 truncate">Platform health · read-only</span>
+    <span class="text-[11px] font-mono text-slate-500 truncate">Platform health · vault controls</span>
   </div>
   <span class="pill border {% if health.status == 'ok' %}border-neon-lime/40 text-neon-lime{% else %}border-neon-amber/40 text-neon-amber{% endif %} text-[10px] font-mono uppercase">
     {{ health.status }}
@@ -14,7 +14,7 @@
 {% block content %}
 <div class="page-content space-y-5">
   <p class="text-sm text-slate-400">
-    Platform health and startup flags — wired from <span class="font-mono text-slate-500">/api/health</span> and intel migration.
+    Platform health, vault sandbox toggles, and startup flags — wired from <span class="font-mono text-slate-500">/api/health</span> and intel migration.
     MCP catalog and skill discovery live under
     <a href="/tools/mcp" class="text-neon-cyan no-underline hover:underline">Tools → MCP Servers</a>
     and
@@ -211,6 +211,44 @@
           </dd>
         </div>
       </dl>
+    </div>
+  </details>
+
+  <details class="acc accent-magenta" open>
+    <summary>
+      <span class="font-semibold text-sm">Knowledge vault</span>
+      <span class="summary-actions">
+        <span class="pill border {% if health.vault_sandbox_mode %}border-neon-amber/40 text-neon-amber{% else %}border-neon-lime/40 text-neon-lime{% endif %} text-[10px] font-mono uppercase">
+          sandbox {% if health.vault_sandbox_mode %}on{% else %}off{% endif %}
+        </span>
+        <span class="acc-chevron">›</span>
+      </span>
+    </summary>
+    {% with vault_sandbox_mode=health.vault_sandbox_mode, vault_allow_test_promote=health.vault_allow_test_promote %}
+    {% include "partials/settings_vault_controls.html" %}
+    {% endwith %}
+  </details>
+
+  <details class="acc accent-amber">
+    <summary>
+      <span class="font-semibold text-sm">Server</span>
+      <span class="summary-actions">
+        <span class="acc-chevron">›</span>
+      </span>
+    </summary>
+    <div class="acc-body space-y-3 text-sm">
+      <p class="text-xs text-slate-500 max-w-2xl">
+        Restart picks up <span class="font-mono text-slate-400">.env</span> changes, new dependencies,
+        and vault paths. The browser reconnects automatically with the reactor overlay.
+      </p>
+      <button
+        type="button"
+        class="btn btn-warn text-xs thread-restart-btn"
+        data-restart-confirm="1"
+      >
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+        <span class="thread-restart-label">Restart server</span>
+      </button>
     </div>
   </details>
 

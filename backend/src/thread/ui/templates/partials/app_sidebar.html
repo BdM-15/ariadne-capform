@@ -1,101 +1,120 @@
-<aside class="app-sidebar sidebar-vibrant flex flex-col shrink-0 w-60 min-h-0 z-30">
-  <nav class="relative z-10 flex-1 px-3 py-4 overflow-y-auto" aria-label="Application">
-    <div class="mb-5">
+<aside
+  id="app-sidebar"
+  class="app-sidebar sidebar-vibrant flex flex-col shrink-0 min-h-0 z-30"
+  aria-expanded="true"
+>
+  <button
+    type="button"
+    id="sidebar-collapse-toggle"
+    class="sidebar-edge-toggle"
+    aria-label="Collapse application sidebar"
+    title="Collapse sidebar"
+  >
+    <i data-lucide="panel-left-close" class="w-3.5 h-3.5"></i>
+  </button>
+  <nav class="app-sidebar-nav relative z-10 flex-1 px-2.5 py-3 min-h-0 overflow-y-auto overscroll-contain" aria-label="Application">
+    <div class="mb-3.5">
       <div class="nav-group-label nav-group-purple">
         <span class="nav-group-dot tile-purple"></span>
-        <span>Command</span>
+        <span class="sidebar-nav-text">Command</span>
       </div>
       <div class="space-y-1">
         <a href="/" class="nav-item w-full no-underline {% if active_nav == 'dashboard' %}nav-item-active{% endif %}">
           {% with icon="layout-dashboard", tile_class="tile-purple" %}
           {% include "partials/nav_icon.html" %}
           {% endwith %}
-          <span>Dashboard</span>
+          <span class="sidebar-nav-text">Command Center</span>
         </a>
       </div>
     </div>
 
-    <div class="mb-5">
+    <div class="mb-3.5">
       <div class="nav-group-label nav-group-cyan">
         <span class="nav-group-dot tile-cyan"></span>
-        <span>Identify</span>
+        <span class="sidebar-nav-text">Identify</span>
       </div>
       <div class="space-y-1">
         <a href="/pulse" class="nav-item w-full no-underline {% if active_nav == 'pulse' %}nav-item-active{% endif %}">
           {% with icon="radar", tile_class="tile-cyan" %}
           {% include "partials/nav_icon.html" %}
           {% endwith %}
-          <span>Portfolio Pulse</span>
+          <span class="sidebar-nav-text">Portfolio Pulse</span>
         </a>
         <a href="/insights" class="nav-item w-full no-underline {% if active_nav == 'insights' %}nav-item-active{% endif %}">
           {% with icon="chart-no-axes-combined", tile_class="tile-cyan" %}
           {% include "partials/nav_icon.html" %}
           {% endwith %}
-          <span>Data Insights</span>
+          <span class="sidebar-nav-text">Data Insights</span>
         </a>
       </div>
     </div>
 
-    <div class="mb-5">
+    <div class="mb-3.5">
       <div class="nav-group-label nav-group-magenta">
         <span class="nav-group-dot tile-magenta"></span>
-        <span>Capture</span>
+        <span class="sidebar-nav-text">Capture</span>
       </div>
       <div class="space-y-1">
+        <a href="/capture" class="nav-item w-full no-underline {% if active_nav == 'filament' %}nav-item-active{% endif %}">
+          {% with icon="waypoints", tile_class="tile-magenta" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
+          <span class="sidebar-nav-text">Filament</span>
+        </a>
         <a href="/knowledge" class="nav-item w-full no-underline {% if active_nav == 'knowledge' %}nav-item-active{% endif %}">
           {% with icon="book-open", tile_class="tile-magenta" %}
           {% include "partials/nav_icon.html" %}
           {% endwith %}
-          <span>Knowledge</span>
+          <span class="sidebar-nav-text">Knowledge</span>
         </a>
         <a href="/review" class="nav-item w-full no-underline {% if active_nav == 'review' %}nav-item-active{% endif %}">
           {% with icon="list-checks", tile_class="tile-magenta" %}
           {% include "partials/nav_icon.html" %}
           {% endwith %}
-          <span>Review Queue</span>
+          <span class="sidebar-nav-text">Review Queue</span>
         </a>
       </div>
     </div>
 
-    <div class="mb-5">
+    <div class="mb-3.5">
       <div class="nav-group-label nav-group-magenta">
         <span class="nav-group-dot tile-magenta"></span>
-        <span>Tools</span>
+        <span class="sidebar-nav-text">Tools</span>
       </div>
       <div class="space-y-1">
         <a href="/clew" class="nav-item w-full no-underline {% if active_nav == 'clew' %}nav-item-active{% endif %}">
           {% with icon="git-branch", tile_class="tile-magenta" %}
           {% include "partials/nav_icon.html" %}
           {% endwith %}
-          <span>Clew</span>
+          <span class="sidebar-nav-text">Clew</span>
         </a>
         <a href="/tools/mcp" class="nav-item w-full no-underline {% if active_nav == 'tools_mcp' %}nav-item-active{% endif %}">
           {% with icon="plug", tile_class="tile-cyan" %}
           {% include "partials/nav_icon.html" %}
           {% endwith %}
-          <span>MCP Servers</span>
+          <span class="sidebar-nav-text">MCP Servers</span>
         </a>
         <a href="/tools/skills" class="nav-item w-full no-underline {% if active_nav == 'tools_skills' %}nav-item-active{% endif %}">
           {% with icon="wand-2", tile_class="tile-magenta" %}
           {% include "partials/nav_icon.html" %}
           {% endwith %}
-          <span>Agent Skills</span>
+          <span class="sidebar-nav-text">Agent Skills</span>
         </a>
       </div>
     </div>
 
-    <div class="mb-5">
+    <div class="mb-3.5">
       <div class="nav-group-label nav-group-lime">
         <span class="nav-group-dot tile-lime"></span>
-        <span>Win</span>
+        <span class="sidebar-nav-text">Win</span>
       </div>
       <div class="space-y-1">
         <span class="nav-item w-full opacity-45 cursor-not-allowed" title="Phase 21 — artifact studio (pWin outputs, proposal produce)">
           {% with icon="folder-open", tile_class="tile-lime" %}
           {% include "partials/nav_icon.html" %}
           {% endwith %}
-          <span>Studio</span>
-          <span class="ml-auto text-[9px] font-mono text-slate-500">soon</span>
+          <span class="sidebar-nav-text">Studio</span>
+          <span class="sidebar-nav-text ml-auto text-[9px] font-mono text-slate-500">soon</span>
         </span>
       </div>
     </div>
@@ -103,16 +122,19 @@
     <div>
       <div class="nav-group-label nav-group-amber">
         <span class="nav-group-dot tile-amber"></span>
-        <span>System</span>
+        <span class="sidebar-nav-text">System</span>
       </div>
       <div class="space-y-1">
         <a href="/settings" class="nav-item w-full no-underline {% if active_nav == 'settings' %}nav-item-active{% endif %}">
           {% with icon="settings", tile_class="tile-amber" %}
           {% include "partials/nav_icon.html" %}
           {% endwith %}
-          <span>Settings</span>
+          <span class="sidebar-nav-text">Settings</span>
         </a>
       </div>
     </div>
   </nav>
+  <div class="relative z-10 shrink-0 px-2.5 py-2.5 mt-auto border-t border-white/5">
+    {% include "partials/restart_nav_button.html" %}
+  </div>
 </aside>

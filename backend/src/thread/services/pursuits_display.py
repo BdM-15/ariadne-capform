@@ -21,6 +21,16 @@ ACTIVE_PURSUIT_LIFECYCLES: frozenset[str] = frozenset(
     }
 )
 
+# Post-identify lane — Capture home and workspace (excludes identify-only).
+CAPTURE_LANE_LIFECYCLES: frozenset[str] = frozenset(
+    {
+        LifecycleState.QUALIFIED.value,
+        LifecycleState.PURSUING.value,
+        LifecycleState.BID_DECIDED.value,
+        LifecycleState.SUBMITTED.value,
+    }
+)
+
 BIDDING_LIFECYCLE_STATES: frozenset[str] = frozenset(
     {
         LifecycleState.PURSUING.value,
@@ -90,6 +100,10 @@ def is_active_pursuit(opp: Opportunity) -> bool:
     return opp.lifecycle_state in ACTIVE_PURSUIT_LIFECYCLES
 
 
+def is_capture_lane_pursuit(opp: Opportunity) -> bool:
+    return opp.lifecycle_state in CAPTURE_LANE_LIFECYCLES
+
+
 async def build_pursuit_card(session: AsyncSession, opp: Opportunity) -> dict[str, Any]:
     pending = await opp_svc.pending_review_count(session, opp.id)
     return {
@@ -112,6 +126,15 @@ async def build_active_pursuits(session: AsyncSession, opps: list[Opportunity]) 
     cards: list[dict[str, Any]] = []
     for opp in opps:
         if not is_active_pursuit(opp):
+            continue
+        cards.append(await build_pursuit_card(session, opp))
+    return cards
+
+
+async def build_capture_pursuits(session: AsyncSession, opps: list[Opportunity]) -> list[dict[str, Any]]:
+    cards: list[dict[str, Any]] = []
+    for opp in opps:
+        if not is_capture_lane_pursuit(opp):
             continue
         cards.append(await build_pursuit_card(session, opp))
     return cards

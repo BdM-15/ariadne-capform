@@ -17,8 +17,9 @@
 <div class="cc-page-layout page-content">
   <div>
     <div class="cc-section-label">Attention</div>
-    <div class="cc-widget-grid cc-widget-grid-3">
+    <div class="cc-widget-grid cc-widget-grid-4">
       <div class="cc-widget-compact-wrap">{% include "partials/dashboard_pending_reviews_widget.html" %}</div>
+      <div class="cc-widget-compact-wrap">{% include "partials/dashboard_vault_stale_widget.html" %}</div>
       {% include "partials/dashboard_phase_band_widget.html" %}
       {% set hot_signals = pulse.hot_signals_widget %}
       {% include "partials/dashboard_hot_signals_widget.html" %}
@@ -53,6 +54,15 @@
           <div class="lane-tile-body min-w-0">
             <span class="lane-tile-kicker">Identify</span>
             <span class="lane-tile-title truncate">Data Insights</span>
+          </div>
+          <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-600 shrink-0"></i>
+        </a>
+        <a href="/capture" class="lane-tile lane-tile-magenta no-underline" style="color: inherit">
+          <div class="lane-tile-icon"><i data-lucide="waypoints" class="w-4 h-4"></i></div>
+          <div class="lane-tile-body min-w-0">
+            <span class="lane-tile-kicker">Capture</span>
+            <span class="lane-tile-title truncate">Filament</span>
+            <span class="lane-tile-sub truncate">Connected milestone packets</span>
           </div>
           <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-600 shrink-0"></i>
         </a>
@@ -105,7 +115,7 @@
         {% endfor %}
       </div>
       {% if opps|length > 6 %}
-      <a href="/pulse" class="text-[11px] text-neon-cyan no-underline hover:underline mt-2 inline-block">View all on Pulse →</a>
+      <a href="/capture" class="text-[11px] text-neon-magenta no-underline hover:underline mt-2 inline-block">View all on Filament →</a>
       {% endif %}
       {% endif %}
     </aside>

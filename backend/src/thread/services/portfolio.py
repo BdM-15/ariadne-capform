@@ -9,7 +9,7 @@ from thread.intel import pg_queries as intel_queries
 from thread.services import opportunities as opp_svc
 from thread.services.hot_signals import build_hot_signals_widget
 from thread.services.intel_inbox import build_intel_inbox_widget
-from thread.services.pursuits_display import build_active_pursuits, build_phase_band_widget
+from thread.services.pursuits_display import build_capture_pursuits, build_phase_band_widget
 from thread.services.knowledge_digest import build_knowledge_digest_widget
 from thread.services.watchlist_display import build_watchlist_widget, watchlist_signals
 
@@ -29,7 +29,7 @@ async def build_portfolio_pulse(
 ) -> dict:
     del sam_force_refresh  # SAM live fetch moves to Insights explore; Pulse uses watchlist only.
     opps = await opp_svc.list_opportunities(session)
-    cards = await build_active_pursuits(session, opps)
+    cards = await build_capture_pursuits(session, opps)
     phase_band_widget = build_phase_band_widget(cards)
 
     stats = await intel_queries.get_intel_stats(session)

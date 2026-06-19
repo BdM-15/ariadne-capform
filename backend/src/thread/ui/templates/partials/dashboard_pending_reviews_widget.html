@@ -33,7 +33,7 @@
       <span class="text-slate-500 font-mono text-[11px]">{{ item.entity_type|replace('_', ' ') }}</span>
       {% if item.opportunity_name %}
       <span class="text-slate-600">·</span>
-      <a href="/opportunities/{{ item.opportunity_id }}?tab=review" class="text-neon-cyan text-[11px] no-underline hover:underline">{{ item.opportunity_name }}</a>
+      <a href="{{ capture_href(item.opportunity_id) }}" class="text-neon-cyan text-[11px] no-underline hover:underline">{{ item.opportunity_name }}</a>
       {% endif %}
     </li>
     {% endfor %}

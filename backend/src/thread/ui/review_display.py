@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from thread.config import Settings
 from thread.db.models import CapabilityRun, Opportunity, PacketFieldAnswer, PacketFieldDefinition, ReviewRecord
 from thread.services.review_gate import list_pending_reviews
+from thread.services.vault_review_context import resolve_review_vault_context
 
 
 @dataclass(frozen=True)
@@ -106,6 +107,8 @@ def _parse_research_entity(entity_id: str) -> tuple[str | None, str | None, int 
 
 
 def _entity_type_label(entity_type: str) -> str:
+    if entity_type == "vault_candidate":
+        return "Vault candidate"
     return {
         "packet_field_answer": "Packet field",
         "research_finding": "Research finding",
@@ -149,22 +152,8 @@ async def _resolve_opportunity_id(
     settings: Settings,
     record: ReviewRecord,
 ) -> uuid.UUID | None:
-    if record.entity_type == "packet_field_answer":
-        try:
-            answer_id = uuid.UUID(record.entity_id)
-        except ValueError:
-            return None
-        answer = await session.get(PacketFieldAnswer, answer_id)
-        return answer.opportunity_id if answer else None
-
-    if record.entity_type in ("research_finding", "research_interpretation"):
-        run_id, _, _ = _parse_research_entity(record.entity_id)
-        if not run_id:
-            return None
-        run = _load_research_run(settings, run_id)
-        return _opportunity_id_from_run(run) if run else None
-
-    return None
+    ctx = await resolve_review_vault_context(session, settings, record)
+    return ctx.opportunity_id
 
 
 async def build_review_queue(
@@ -199,6 +188,8 @@ async def build_global_review_queue(
     items: list[ReviewQueueItem] = []
 
     for record in pending:
+        if record.entity_type == "vault_candidate":
+            continue
         item = await _enrich_review(session, settings, record, field_labels)
         if item:
             items.append(item)
@@ -315,6 +306,22 @@ async def _enrich_review(
             trust_level=record.trust_level,
         )
         return await _attach_opportunity(session, item, opp_id)
+
+    if record.entity_type == "vault_candidate":
+        target = None
+        for prov in record.provenance or []:
+            if isinstance(prov, dict) and prov.get("target"):
+                target = str(prov["target"])
+        item = ReviewQueueItem(
+            review_id=record.id,
+            entity_type=record.entity_type,
+            title=f"Vault: {Path(record.entity_id).name}",
+            subtitle=f"{type_label} → {target or 'auto-merge'}",
+            excerpt=_clip(record.entity_id) or "(candidate page)",
+            source_ref=target or prov_ref,
+            trust_level=record.trust_level,
+        )
+        return await _attach_opportunity(session, item, resolved_opp)
 
     if record.entity_type == "skill_run":
         run_key, _, skill_id = record.entity_id.partition(":")

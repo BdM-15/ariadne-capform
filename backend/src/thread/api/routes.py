@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread import __version__
-from thread.config import get_settings
+from thread.config import Settings, get_settings
 from thread.db.models import ActionMatrixItem, PacketFieldAnswer, PacketFieldDefinition
 from thread.db.session import get_db
 from thread.domain.enums import MilestoneGate, ReviewState, TrustLevel
@@ -28,7 +28,8 @@ from thread.mcp.service import MCPService
 from thread.skills.registry import discover_skills
 from thread.services import opportunities as opp_svc
 from thread.services.portfolio import build_portfolio_pulse
-from thread.services.review_gate import approve_review, list_pending_reviews
+from thread.services.review_gate import ReviewGateError, approve_review, list_pending_reviews
+from thread.services.vault_write import ingest_approved_review
 
 router = APIRouter()
 
@@ -109,8 +110,15 @@ async def list_opportunities(db: AsyncSession = Depends(get_db)) -> list[Opportu
 
 
 @router.post("/opportunities", response_model=OpportunityOut)
-async def create_opportunity(payload: OpportunityCreate, db: AsyncSession = Depends(get_db)) -> OpportunityOut:
+async def create_opportunity(
+    payload: OpportunityCreate,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> OpportunityOut:
     opp = await opp_svc.create_opportunity(db, payload)
+    from thread.services.vault_write import ensure_pursuit_scaffold
+
+    ensure_pursuit_scaffold(settings, opp.slug, opp.name)
     await db.commit()
     return OpportunityOut(
         id=opp.id,
@@ -239,11 +247,15 @@ async def review_approve(
     review_id: uuid.UUID,
     body: ReviewDecision,
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> ReviewRecordOut:
     try:
         record = await approve_review(
             db, review_id, note=body.note, edited_value=body.edited_value
         )
+        await ingest_approved_review(db, settings, record)
+    except ReviewGateError as exc:
+        raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
         raise HTTPException(400, str(exc)) from exc
     await db.commit()

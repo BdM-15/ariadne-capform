@@ -8,8 +8,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.db.models import ActionMatrixItem, Opportunity, PacketFieldAnswer, PacketFieldDefinition, ReviewRecord
-from thread.domain.enums import MilestoneGate, PacketFieldAnswerStatus, ReviewState, TrustLevel
-from thread.domain.packet_field_seed import PACKET_FIELD_SEEDS
+from thread.domain.enums import LifecycleState, MilestoneGate, PacketFieldAnswerStatus, ReviewState, TrustLevel
+from thread.domain.packet_slides import normalize_milestone_gate
+from thread.domain.packet_field_seed import PACKET_ANSWERABLE_SEEDS
 from thread.domain.schemas import OpportunityCreate
 from thread.services.review_gate import create_review_record
 
@@ -28,13 +29,22 @@ async def seed_packet_definitions(session: AsyncSession) -> None:
 
 
 async def ensure_packet_definitions(session: AsyncSession) -> None:
-    """Upsert packet field definitions from PACKET_FIELD_SEEDS."""
+    """Upsert packet field definitions from PACKET_FIELD_SEEDS (sync gates + slides)."""
     existing = {
-        row.key
+        row.key: row
         for row in (await session.execute(select(PacketFieldDefinition))).scalars().all()
     }
-    for seed in PACKET_FIELD_SEEDS:
-        if seed.key in existing:
+    for seed in PACKET_ANSWERABLE_SEEDS:
+        gates = [g.value for g in seed.required_gates]
+        row = existing.get(seed.key)
+        if row is not None:
+            row.label = seed.label
+            row.question = seed.question
+            row.section = seed.section.value
+            row.value_kind = seed.value_kind.value
+            row.required_gates = gates
+            row.route_kind = seed.route_kind.value
+            row.reference_slide = seed.reference_slide
             continue
         session.add(
             PacketFieldDefinition(
@@ -43,7 +53,7 @@ async def ensure_packet_definitions(session: AsyncSession) -> None:
                 question=seed.question,
                 section=seed.section.value,
                 value_kind=seed.value_kind.value,
-                required_gates=[g.value for g in seed.required_gates],
+                required_gates=gates,
                 route_kind=seed.route_kind.value,
                 reference_slide=seed.reference_slide,
             )
@@ -97,6 +107,11 @@ async def create_opportunity(session: AsyncSession, payload: OpportunityCreate) 
     opp = Opportunity(
         name=payload.name,
         slug=slugify(payload.name),
+        lifecycle_state=(
+            payload.lifecycle_state.value
+            if payload.lifecycle_state is not None
+            else LifecycleState.IDENTIFIED.value
+        ),
         capture_phase_band=payload.capture_phase_band.value,
         entry_reason=payload.entry_reason,
         intel_provenance=provenance,
@@ -116,6 +131,19 @@ async def list_opportunities(session: AsyncSession) -> list[Opportunity]:
 
 async def get_opportunity(session: AsyncSession, opp_id: uuid.UUID) -> Opportunity | None:
     return await session.get(Opportunity, opp_id)
+
+
+async def update_milestone_gate(
+    session: AsyncSession,
+    opp_id: uuid.UUID,
+    gate: str,
+) -> Opportunity | None:
+    opp = await get_opportunity(session, opp_id)
+    if opp is None:
+        return None
+    opp.current_milestone_gate = normalize_milestone_gate(gate)
+    await session.flush()
+    return opp
 
 
 async def update_packet_field(

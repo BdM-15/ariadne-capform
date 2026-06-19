@@ -3376,21 +3376,90 @@ details.acc .summary-actions {
   display: grid;
   grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
   gap: 12px;
-  align-items: start;
-  min-height: 420px;
+  align-items: stretch;
+  height: min(62vh, 34rem);
+  min-height: 22rem;
+  max-height: min(68vh, 36rem);
+  position: relative;
+  transition: grid-template-columns 0.22s ease, gap 0.22s ease;
+}
+.vault-browser-layout.is-tree-collapsed {
+  grid-template-columns: 0 minmax(0, 1fr);
+  gap: 0;
 }
 @media (max-width: 768px) {
   .vault-browser-layout {
     grid-template-columns: 1fr;
   }
+  .vault-browser-layout.is-tree-collapsed {
+    grid-template-columns: 1fr;
+  }
 }
 .vault-tree-panel {
-  max-height: calc(100vh - 220px);
+  position: relative;
+  align-self: stretch;
+  height: 100%;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  transition: opacity 0.18s ease, transform 0.22s ease;
+}
+.vault-browser-layout.is-tree-collapsed .vault-tree-panel {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-100%);
+  overflow: hidden;
+}
+.vault-tree-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+.vault-tree-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 14, 26, 0.75);
+  color: var(--text-400);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.vault-tree-collapse-btn:hover {
+  color: var(--neon-magenta);
+  border-color: rgba(255, 43, 214, 0.35);
+}
+.vault-tree-expand-btn {
+  position: absolute;
+  left: 0;
+  top: 0.75rem;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0 0.45rem 0.45rem 0;
+  border: 1px solid rgba(255, 43, 214, 0.25);
+  border-left: none;
+  background: rgba(10, 14, 26, 0.92);
+  color: var(--neon-magenta);
+  font-size: 10px;
+  font-family: ui-monospace, monospace;
+  cursor: pointer;
+}
+.vault-tree-expand-btn[hidden] {
+  display: none !important;
 }
 .vault-page-panel {
-  max-height: calc(100vh - 220px);
+  min-height: 0;
+  height: 100%;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .vault-entry-list {
   list-style: none;

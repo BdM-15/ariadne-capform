@@ -31,8 +31,8 @@ def build_quick_actions(
     research_href = "/pulse#potential-watchlist"
     research_hint = "Watch a lead from Insights explore first"
     if opportunities:
-        research_href = f"/opportunities/{opportunities[0]['id']}?tab=research"
-        research_hint = f"Research tab · {opportunities[0]['name'][:48]}"
+        research_href = f"/capture/{opportunities[0]['id']}"
+        research_hint = f"Filament brief · {opportunities[0]['name'][:48]}"
 
     actions: list[QuickAction] = [
         QuickAction(

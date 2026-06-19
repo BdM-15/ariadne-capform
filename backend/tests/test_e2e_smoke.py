@@ -160,4 +160,4 @@ def test_b_smoke_htmx_track_signal_redirect():
     )
     assert res.status_code == 200
     assert "HX-Redirect" in res.headers
-    assert "/opportunities/" in res.headers["HX-Redirect"]
+    assert "/capture/" in res.headers["HX-Redirect"]

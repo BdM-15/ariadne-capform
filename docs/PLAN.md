@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-18 (pause checkpoint — Phase 14e + 15 + 17b done; pickup at 17b-vault)
+**Last updated:** 2026-06-19 (Phase 16 EA schema + 15h idea_capturer)
 
 ---
 
@@ -19,7 +19,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | `.env` / `config.py` | ✅ Done | Full categorized config including research, MCP, orchestration |
 | Docker Compose | ✅ Done | Postgres **16** image on `:55432` (matches volume; PG18 needs pg_upgrade) + `research` profile |
 | Reference corpus | ✅ Done | Briefing packet, call plan, risk register, Shipley, USAspending |
-| Workflow DB models | 🟡 Partial | Opportunities, packet, actions, review; missing intel/research/capability tables |
+| Workflow DB models | 🟡 Partial | Opportunities, packet, actions, review; **`operator_tasks` planned (Phase 16)**; missing intel/research/capability tables |
 | Alembic migrations | ❌ Not started | Still using `create_all()` |
 | Intel migration (DuckDB→PG) | 🟡 In progress | Resumable via `scripts/run-intel-migration.ps1` (~64M rows, separate window) |
 | `pg_queries` intel layer | ✅ Done | Core queries + portfolio intel signals |
@@ -27,7 +27,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Web research module | ❌ Not started | Config + docker profile only |
 | Skill runtime (3 skills) | ❌ Not started | SKILL.md stubs exist |
 | MCP manifests | 🟡 Partial | USAspending only; 7 more planned |
-| Frontend command center | 🟡 Foundation shell | HTMX Command Center dashboard, Pulse (`/pulse`), sidebar nav, opp workspace; Phase 12b–12j largely ✅ — Insights UI (17) next |
+| Frontend command center | 🟡 Foundation shell | HTMX Command Center, Pulse (`/pulse`), **Capture** (`/capture`), workspace (`/capture/{id}`); Phase 12b–12l + 14a–14h ✅ — Phase 19/20 next |
 | Theseus visual language | ✅ Done | `frontend/styles/theseus.css` synced from proj-theseus |
 | Orchestration (LangGraph) | 🟡 Placeholder | Env + tracing bootstrap; runtime deferred |
 | Git | ✅ Done | Repo pushed; commit early/often |
@@ -50,8 +50,8 @@ Thread exists to help you do three jobs end-to-end — tailored solo-operator, r
 
 | Lane | What you need | Thread surfaces (build toward) |
 |------|----------------|--------------------------------|
-| **1. Opportunity identification** | Find and qualify pursuits before you invest capture | **Data Insights** (live explore), **Watchlist** on Pulse (potential + research → vault), Track → opp |
-| **2. Capture development** | MS-gated strategy, intel, customer engagement, gate decisions | Living Briefing Packet (slide deck), Actions, Research, Intel Context, vault, Clew (`clew_intel`), MinerU ingest |
+| **1. Opportunity identification** | Find and qualify pursuits before you invest capture | **Data Insights** (live explore), **Watchlist** on Pulse (potential + research → vault), Track → Capture |
+| **2. Capture development** | MS-gated strategy, intel, customer engagement, gate decisions | **Capture home** (`/capture`), Living Briefing Packet workspace (`/capture/{id}`), Actions, Research, vault, Clew (`clew_intel`), MinerU ingest |
 | **3. Winning proposals** | pWin artifacts: eval mapping, win themes, PTW, outline, compliant narrative | Activation band produce lane, Theseus solicitation merge, skills + Grok synthesis → handoff to humans |
 
 Lanes overlap on one **opportunity record** — identification feeds capture; capture feeds proposal produce. Review gate sits across all three.
@@ -94,7 +94,7 @@ Lanes overlap on one **opportunity record** — identification feeds capture; ca
 |-----------|-----|-------|
 | **Attention over volume** | Gate reviews, hot signals, pursuits by phase, migration health when blocking | Row counts, charts, or tables that only prove data exists |
 | **Action over display** | Every widget links to a queue, workspace tab, or pre-filled tool run | Full-width metric cards with no next step |
-| **Thin home, deep elsewhere** | Pulse = morning briefing; Insights = trends; workspace = capture work | Duplicate radar, analytics, or inbox on both `/` and `/pulse` |
+| **Thin home, deep elsewhere** | Pulse = morning briefing; Insights = trends; **Capture** = packet work | Duplicate radar, analytics, or inbox on both `/` and `/pulse` |
 | **AI as copilot** | Grok/skills draft, summarize, chain lookups; human approves via review gate | Auto-promote LLM output; bury actions behind chat-only UX |
 | **Tool-fed UI** | Widgets/regions declare which capability feeds them (MCP, skill, PG intel, research) | Hand-rolled placeholders that look live but aren't wired |
 
@@ -164,18 +164,18 @@ Data Insights — live explore (USAspending PG + SAM MCP)
     → Watch (operator choice) → .thread/watchlist.json
         → Pulse · Potential / Watchlist
             → Research (agency / awardee stubs → vault entities/)
-            → Track → Opportunity workspace (Living Briefing Packet)
+            → Track → Capture workspace (Living Briefing Packet)
 ```
 
 | Stage | Surface | State | Action |
 |-------|---------|-------|--------|
 | **Explore** | `/insights` | Ephemeral query results | Run facets live; saved lenses reopen only |
 | **Watch** | Insights row action | `watchlist.json` entry | Deduped by `award_key` or `notice_id` |
-| **Potential** | `/pulse#potential-watchlist` | Untracked but intentional | Research → vault; Track → opp |
-| **Track** | Pulse / workspace | Opportunity record | `entry_reason` + provenance |
-| **Capture** | Workspace tabs | Living Briefing Packet | MS gates, research chains |
+| **Potential** | `/pulse#potential-watchlist` | Untracked but intentional | Research → vault; Track → opp (`pursuing`) |
+| **Track** | Pulse forms | Opportunity record | `entry_reason` + provenance; lifecycle → `pursuing` |
+| **Capture** | `/capture` + `/capture/{id}` | Post-identify pursuits | Living Briefing Packet, MS gates, research chains |
 
-**Pulse is not fed by active lenses.** Morning briefing shows **watchlist + inbox + digest + tracked pursuits** — not “whatever query was last activated.”
+**Pulse is not fed by active lenses.** Morning briefing shows **watchlist + inbox + digest + capture pursuit snapshot** — not “whatever query was last activated.” Packet work lives on **Capture**, not as step 4 of the identify funnel.
 
 ---
 
@@ -533,7 +533,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 **Platform pillars:**
 
-1. **Command Center Shell** — Pulse, Data Insights, opportunity workspace, review queue
+1. **Command Center Shell** — Pulse, Data Insights, Capture home + workspace, review queue
 2. **Knowledge Layer** — Obsidian vault, MinerU ingest, `domain_intel`
 3. **Developer Skills** — skill-creator, clew_intel, mcp_federal_tools
 4. **Data & Intel** — PG intel, 1102 MCPs, web research, MinerU utility
@@ -559,6 +559,15 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | POST | `/api/intel/mcp/{server}/invoke` | ❌ |
 | GET | `/api/knowledge/vault/*` | ✅ |
 
+### HTMX UI routes (shell)
+
+| Method | Path | Status |
+|--------|------|--------|
+| GET | `/capture` | ✅ Capture home — post-identify pursuits |
+| GET | `/capture/{id}` | ✅ Living Briefing Packet workspace |
+| GET | `/opportunities/{id}` | ✅ 307 → `/capture/{id}` (legacy alias) |
+| POST | `/opportunities`, `/sam/track`, `/signals/track` | ✅ Track → `pursuing` → redirect `/capture/{id}` |
+
 ---
 
 ## Frontend / command center shell
@@ -576,10 +585,11 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | Screen | Foundation | Product gap |
 |--------|------------|-------------|
 | Command Center (`/`) | Attention widgets, compact nav, pursuit rail — **not** analytics home | Widget row (12c–12h): reviews, phase band, hot signals, health strip, **quick actions**; anti-pattern: metrics dump |
-| Portfolio Pulse (`/pulse`) | Morning briefing: **watchlist** + inbox + digest + pursuits | Potential panel (watchlist + research stubs); not active-lens feeds |
+| Portfolio Pulse (`/pulse`) | Morning briefing: **watchlist** + inbox + digest + capture snapshot | Identify-only; Track → `/capture/{id}`; not packet home |
 | Data Insights (`/insights`) | ✅ Live explore + bookmarks + Watch; **Connect the dots** (17b, DR-inspired) | PG18 vectors + MinerU search (17c) |
-| Opportunity workspace | Packet slide deck UX (14a–14e): MS-gated slides, approval criteria, progression | Workspace templates; MS gate selector UI; extra pills |
-| Sidebar nav | Command / Identify / Capture / **Tools** / Win / System + Lucide icons | Studio route (Phase 21) |
+| **Filament** (`/capture`) | ✅ Post-identify pursuit list; nav **Filament** (connected packets, not hand-jammed decks) | CRM pipeline board (deferred) |
+| Filament workspace (`/capture/{id}`) | ✅ Slide canvas + **connected fill routes** (14j) + evidence inspector; MS pills | Phase 20 executes route chips |
+| Sidebar nav | Command / Identify / **Filament** (home first) / **Tools** / Win / System | Studio route (Phase 21) |
 | Settings (`/settings`) | ✅ Read-only platform health | Editable keys deferred to Tools/MCP (12k) |
 | MCP Servers (`/tools/mcp`) | ✅ Catalog + guides + test handshake + .env key save | — |
 | Agent Skills (`/tools/skills`) | ✅ Skill card grid from `skills/` | Run/install UX (Phase 20); **not** Theseus Skills Retrieval settings |
@@ -588,7 +598,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 **Settings vs Tools split:** Settings = platform health, migration, providers, orchestration flags. **Tools** = operator-facing catalogs (MCP Servers, Agent Skills) with guides — modeled on Theseus MCP settings + RFP Intelligence briefing guides (`settings-label-tip`, `tuning-guide-*`). Do **not** port Theseus Settings → Skills Retrieval panel (too complex).
 
-**Target nav (product):** Dashboard, Pulse, Insights, Knowledge, Review · **MCP Servers, Agent Skills** · Studio (soon) · Settings.
+**Target nav (product):** Dashboard, Pulse, Insights · **Filament**, Knowledge, Review · **MCP Servers, Agent Skills** · Studio (soon) · Settings.
 
 **Solo operator model:** one user; technology produces **pWin artifacts** (BLUF, PTW, win themes, eval mapping) for external humans — not multi-user CRM, not post-award.
 
@@ -611,6 +621,8 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 - `test_llm_router.py` — reasoning→xAI, admin→Ollama
 - `test_capture_research.py` — findings stay candidate
 - `test_packet_field_seed.py` — ✅ exists
+- `test_capture_lane.py` — ✅ Filament home, lifecycle filter, workspace alias
+- `test_packet_workflows.py` — ✅ fill route chips for open fields
 - `test_orchestration_config.py` — ✅ exists
 
 ---
@@ -712,23 +724,26 @@ Shell first, then region widgets. One slice per PR. Concrete targets below — d
 | **12k** | Tools — MCP ops | `/tools/mcp`: test connection, .env key save (Theseus settings-mcp pattern); guides already on page |
 | **12l** | Tools — Agent Skills UX | ✅ `/tools/skills`: inline run panel per wired skill, HTMX → review queue — **not** settings-skills-retrieval |
 | **12c** | Global review queue | ✅ `/review` human titles (`review_display`); approve works; **widget on Command Center**: pending count → `/review` |
-| **12d** | Pulse — active pursuits | ✅ Lifecycle-filtered opps; urgency/gate pills; **Command Center widget**: `phase_band` breakdown; compact multi-column layout |
+| **12d** | Pulse — active pursuits | ✅ Capture-lane pursuits (`qualified`+); urgency/gate pills; **Command Center widget**: `phase_band` breakdown; deep links → `/capture/{id}` |
 | **12e** | Intel / migration health | ✅ Settings + **Command Center widget**: blocking status (PG, migration %, vault, Grok) — not award analytics |
 | **12f** | Recompete radar v2 | ✅ Hot ≤6mo widget; **facet queries** (`facet_query.py`) — no NAICS default; lenses managed on Insights (17) |
 | **12g** | Intel inbox | ✅ Recent candidates → review — **Pulse region** (morning briefing), source lanes + chain hints; not dashboard home |
 | **12h** | Quick actions | ✅ **Command Center strip**: track signal, run research, insights, vault, review; hot-signal chip when ≤6 mo |
-| **12i** | SAM monitor | ✅ **Pulse region**: SAM.gov MCP `search_opportunities` leads, operator `sam_queries.json`, cache, Track → opp |
+| **12i** | SAM monitor | ✅ **Pulse region**: SAM.gov MCP `search_opportunities` leads, operator `sam_queries.json`, cache, Track → `/capture/{id}` |
 | **12j** | Knowledge digest | ✅ **Pulse region**: `domain_intel` capabilities/UEI highlights → bid-fit context before Track |
+| **12m** | Stale vault ingest pulse | **Command Center widget**: vault candidates pending **>72h** → Knowledge vault review (not Pulse inbox) |
+| **12a-nav** | Sidebar label | Rename boring **Dashboard** → **Command Center** (matches page h1 + C&C doctrine) |
 
 #### Command Center dashboard (`/`) — widget row (solo GovDash pattern)
 
 Not the morning briefing — that stays on **Portfolio Pulse** (`/pulse`). Not analytics — that stays on **Data Insights** (`/insights`). See **Command & control doctrine** above.
 
-1. **Pending reviews** — count + link to `/review` (12c) ✅
-2. **Active pursuits by phase band** — mini breakdown + drill to Pulse/opp (12d) ✅
-3. **Recompete signals (hot ≤6 mo)** — count + link to Pulse radar; chain to incumbent/SAM when wired (12f) ✅
-4. **Intel / migration health** — **blocking status only** (migration %, intel ready) — not award analytics (12e) ✅
-5. **Quick actions** — track signal, run research, open insights lens, vault shortcut (12h) ✅ — highest priority for C&C usefulness
+1. **Pending reviews** — count + link to `/review` (12c) ✅ — excludes `vault_candidate` (see 15b)
+2. **Stale vault ingest** — candidates pending **>72h** → `/knowledge#knowledge-vault-review` (12m)
+3. **Active pursuits by phase band** — mini breakdown + drill to Capture (12d) ✅
+4. **Recompete signals (hot ≤6 mo)** — count + link to Pulse radar; chain to incumbent/SAM when wired (12f) ✅
+5. **Intel / migration health** — **blocking status only** (migration %, intel ready) — not award analytics (12e) ✅
+6. **Quick actions** — track signal, run research, open insights lens, vault shortcut (12h) ✅ — highest priority for C&C usefulness
 
 **Anti-patterns on `/`:** prime award totals as hero metrics, full recompete tables, NAICS analytics, anything that belongs on Insights or Pulse body.
 
@@ -736,25 +751,26 @@ Not the morning briefing — that stays on **Portfolio Pulse** (`/pulse`). Not a
 
 **Not** GovDash Capture CRM, **not** pipeline management, **not** award analytics. Daily identification horizon for solo operator.
 
-**Funnel (UI + copy):** Data Insights (live explore) → Watch (explicit) → Pulse watchlist (potential + research) → Track → Workspace.
+**Funnel (UI + copy):** Data Insights (live explore) → Watch (explicit) → Pulse watchlist (potential + research) → Track → **Capture**.
 
 | Region | Role | Object state |
 |--------|------|--------------|
-| Doctrine banner | Explains Insights / Watch / Research / Track | — |
-| **Potential · watchlist** | Operator-watched recompete + SAM leads | Untracked potential — Research → vault; Track → opp |
+| Doctrine banner | Explains Insights / Watch / Research / Track → Capture | — |
+| **Potential · watchlist** | Operator-watched recompete + SAM leads | Untracked potential — Research → vault; Track → opp (`pursuing`) |
 | **Candidates · intel inbox** (12g) | Review-gated triage preview | Candidate until approve |
 | **Context · knowledge digest** (12j) | `domain_intel` capabilities / UEI highlights | Bid-fit before Track — not analytics |
-| **Tracked · pursuits** (12d) | Snapshot of committed opps | Workspace owns packet/MS progression |
-| Rail funnel | 4-step identify → workspace | No prime-award hero counts |
+| **Tracked · pursuits** (12d) | Snapshot of capture-lane opps | Deep link → `/capture/{id}`; home on `/capture` |
+| Rail funnel | 4-step identify → **Capture** (not “workspace” on Pulse) | No prime-award hero counts |
 
 **Retired on Pulse:** recompete-radar + SAM-monitor panels driven by `active_*_query.json` — explore moved to Insights; SAM live fetch on explicit Run only.
 
 - Collapsible panels + per-item cards (leads, inbox) — collapse to reach other regions without page scroll
-- Active pursuits panel — compact cards linking to workspace; capture work not on Pulse
+- Tracked pursuits panel — compact cards linking to Capture; packet/MS work not on Pulse body
 
-#### Opportunity workspace — templates (no CRM bloat)
+#### Capture workspace — templates (no CRM bloat)
 
-- **Default:** Capture — Packet, Actions, Research, Review tabs (current)
+- **URL:** `/capture/{id}` (canonical); `/opportunities/{id}` → 307 redirect
+- **Default tabs:** Packet, Actions, Research, Review (current)
 - **Future templates:** Competitive analysis (incumbent, PTW hints, eval mapping stubs); Proposal readiness (MS-critical %, due dates, pending reviews)
 - **Pills:** keep milestone gate, phase band, intel signal; add `pending_review`, `days_to_due` when data exists
 
@@ -778,6 +794,11 @@ Central artifact — not “parallel afterthought.”
 - **14c ✅ (2026-06-18):** MS gate slide applicability — deck markers filter slide nav; fields filtered by `required_gates` vs `opp.current_milestone_gate`
 - **14d ✅ (2026-06-18):** Approval slides 17–18 with starter criterion fields (`ms1_*`, `ms2_*`, `ms3_*`, `ms4_*`); expand toward full dictionary
 - **14e ✅ (2026-06-18):** Packet progression — MS-critical fill %, pending review count, trusted tally in slide nav
+- **14f ✅ (2026-06-18):** Full `BRIEFING_PACKET_DATA_DICTIONARY` → `packet_field_catalog.py` (141 answerable fields); `packet_answer_sources.py` route stubs per field (USAspending, Clew, vault, web research, Grok); UI route hints on field cards; expanded slide nav (slides 3–15)
+- **14g ✅ (2026-06-18):** MS gate selector on opportunity header — HTMX `POST /opportunities/{id}/milestone-gate` → `current_milestone_gate` + packet slide/field filter refresh
+- **14h ✅ (2026-06-18):** **Capture lane IA** — `/capture` home (post-identify pursuits via `CAPTURE_LANE_LIFECYCLES`); sidebar entry; `/capture/{id}` workspace; Track/create → `pursuing` + redirect; dashboard/Pulse/review deep links; `capture_display.py` + `test_capture_lane.py`
+- **14i ✅ (2026-06-18):** Deck UX — MS1–MS4 **clickable pills**; 3-column layout: slide navigator · **16:9 slide canvas** · evidence inspector; readiness metrics strip
+- **14j ✅ (2026-06-18):** **Filament** lane name (connected milestone packets — Thread metaphor, not bland “deck”); **Connected fill routes** panel under slide canvas — open fields show `route_kind` + source action chips (Insights, Clew, Vault, Research, Grok stub); `packet_workflows.py` + `test_packet_workflows.py`
 
 ### Phase 17 — Data Insights
 
@@ -797,13 +818,173 @@ Central artifact — not “parallel afterthought.”
 
 **17d (future):** Distinct-value facet autocomplete (no vectors required) — quick win before 17c semantic search.
 
-### Phase 15 — Knowledge vault browser
+### Phase 15 — Knowledge vault browser + Capture Studio
 
 **15 ✅ (2026-06-18):** `/knowledge` replaces shell stub — two-pane HTMX browser over `knowledge/thread/` (read-only). Tree nav + breadcrumbs; `.md` rendered via marked + wikilink deep links; `.json` raw view. API already at `/api/knowledge/vault/*`. Pulse digest **Open** links deep-link to vault pages. Unblocks **17b-vault** (Clew trusted → wiki ingest).
+
+**15b ✅ (2026-06-19):** **Vault review lane** on Knowledge — `vault_candidate` excluded from Pulse intel inbox + global `/review` queue; dedicated **Vault review** panel (`vault_review_queue.py`, `#knowledge-vault-review`); approve/reject with archive to `generated-projections/rejected/`. Settings sandbox + vault ops guides.
+
+#### Capture rigor doctrine (operator offloads admin; platform enforces llm-wiki)
+
+You approve; Thread maintains Karpathy wiki structure so captures never bypass schema.
+
+| Gate | Enforcement | Where |
+|------|-------------|-------|
+| **Candidate write** | `write_candidate_note` — frontmatter (`name`, `type`, `id`, `trust`, `citations`, `source`), `## Related` wikilinks, index + log append, sandbox path when testing | `vault_write.py` |
+| **Promote** | Zone guards, dedup by `review_id`/`award_key`, strip candidate banner, `append_trusted_page`, archive source, semantic link compound | `promote_vault_candidate` |
+| **Lint/repair** | Orphans, broken wikilinks, hub normalize — batch via vault ops (not hand-edit every page) | `vault_lint.py`, `vault_repair.py` |
+| **Skill contract** | `vault_maintainer` + `obsidian-markdown` + `foundation/capture-llm-wiki.md` checklist | `skills/vault_maintainer/` |
+| **Studio rule** | Capture Studio never writes trusted paths; edit/save stays `generated-projections/` until approve | Phase 15c–15h |
+
+**Ollama** = admin polish (frontmatter normalize, wikilink suggestions). **Grok** = synthesis/enrich when deterministic routes insufficient. Deterministic dedup (`vault_link_index`) before LLM merge hints.
+
+#### Capture Studio slices (Knowledge ingest UX — one PR each)
+
+| Slice | Scope | Done when |
+|-------|--------|-----------|
+| **15c** | Layout: vault ops top → browse middle → **Capture Studio** drawer bottom; vault review moves into drawer; candidate **edit + save** (still candidate path) | ✅ `save_candidate_note`, studio drawer, Edit/Save on Knowledge |
+| **15d** | Dedup hints via `vault_link_index` + merge-target picker on promote | ✅ `vault_dedup.py`, amber hints + Approve merge picker |
+| **15e** | Ollama polish pass + diff accept (frontmatter, Related, callouts) | ✅ `vault_candidate_polish.py`, diff accept in Studio |
+| **15f** | Enrich: Clew/research stubs → append draft section with provenance | ✅ `vault_candidate_enrich.py`, Enrich drawer in Studio |
+| **15g** | Global FAB + context prefill (opp, award_key, entity from workspace/Pulse) | ✅ Dump + MinerU doc upload; ingest spellfix (≤20s Ollama); title routing fixes; Vault Inbox UX |
+| **15h** | `idea_capturer` skill wired to Studio + `vault_maintainer` gate | ✅ Fleeting thought → schema-valid candidate |
+
+**Command Center stale ingest (12m):** Dedicated Attention widget — vault candidates pending **>72h** → `/knowledge#knowledge-vault-review` (not buried in Pulse inbox or generic gate-reviews count).
+
+#### External skills research (2026-06-19 — patterns only)
+
+| Skill (skills.sh / GitHub) | Installs | Fit for Thread |
+|----------------------------|----------|----------------|
+| `jmsktm/claude-settings@idea-capturer` | ~174 | **Port/adapt** — Zettelkasten/GTD capture → wire to 15h + Studio |
+| `yuque/yuque-plugin@yuque-personal-daily-capture` | ~198 | Daily capture workflow ideas |
+| `sean-esk/second-brain-gtd@second-brain` | ~260 | GTD second-brain patterns |
+| `treylom/knowledge-manager@zettelkasten-note-creation` | ~39 | Zettelkasten note structure |
+| `oakoss/agent-skills@knowledge-base-manager` | ~69 | KB manager patterns |
+| `ailabs-393/ai-labs-claude-skills@personal-assistant` | ~2.4K | **Poor fit** — separate memory DB, not vault |
+| **Repo already** | — | `kepano/obsidian-skills`, `vault_maintainer` — **best fit** for OFM rigor |
+
+**Decision:** Do not install generic PA skills. Port `idea-capturer` into `skills/` bound to Capture Studio + `vault_maintainer` lint gate. Borrow workflow ideas from second-brain/GTD skills only.
+
+### Phase 16 — Operator tasks (executive assistant lane)
+
+**Verdict (2026-06-19 research):** **Doable.** Same global FAB; platform classifies **knowledge vs admin task** and routes accordingly. Fits Thread doctrine: PG = execution truth, vault = compounding synthesis, Command Center = attention + action.
+
+**Operator need:** Dump like *"schedule a meeting for LIS SECREP transition prep with Molly B and Teresa Deming"* → task row in Postgres + today roadmap + checkoff — not a vault note. Some tasks tie to a pursuit (`opportunity_id`); most do not. Completed tasks may later seed vault checklists/playbooks (review-gated).
+
+**Executive assistant doctrine (2026-06-19):** Ollama/Grok acts as **EA at ingest** — chicken-scratch → polished title, description, attendees, dates, categories. Same bar as vault spellfix; **no raw dump stored as display title**. DB enforces **closed enums + normalized fields** so UI/listings stay consistent — LLM maps messy input → schema, not freeform hand-jam.
+
+#### Why not reuse existing tables
+
+| Store | Scope | Gap |
+|-------|--------|-----|
+| `action_matrix_items` | Opp-scoped packet matrix | No personal/admin tasks; no FAB ingest |
+| `review_records` | Candidate → trusted promotion | Wrong lifecycle for todos |
+| Vault candidates | Knowledge synthesis | Meetings/reminders are execution, not wiki pages |
+
+#### Architecture — unified FAB, split routing
+
+```mermaid
+flowchart TD
+  FAB[Global FAB dump]
+  FAB --> Classify[intent classify]
+  Classify -->|knowledge| Vault[15g vault ingest lane]
+  Classify -->|admin_task| Task[16 operator_tasks PG]
+  Vault --> Inbox[Vault Inbox approve]
+  Task --> TasksUI[/tasks + C&C widget]
+  Task -->|optional later| VaultPlaybook[completed → vault checklist candidate]
+```
+
+**Intent classify** (`capture_intent.py` — new):
+
+1. **Deterministic first** (instant): `schedule`, `meeting`, `remind`, `follow up`, `call`, `email`, `due`, `todo`, `need to` + date/name patterns.
+2. **Ollama ADMIN** when ambiguous (≤12s): JSON `intent` + task extract (see **EA polish** below).
+3. **Context prefill:** if FAB opened from `/capture/{id}`, attach `opportunity_id`; else null.
+
+**EA polish at ingest** (`ingest_task_assistant.py` — new, mirrors `ingest_polish_candidate`):
+
+- Input: raw FAB dump + optional `opportunity_id`
+- Output JSON (ADMIN, ≤20s): polished `title` (Title Case, 3–8 words), `description` (clean prose), `task_kind`, `status`, `priority`, `due_at`, `start_at`, `duration_minutes`, `project_label`, `context_tags[]`, `attendees[]`, `location`, `waiting_on`, `checklist[]`, `categories[]`
+- Rules: fix typos; **do not invent** facts; null when unknown; attendees = structured `{name, email?, role?}`
+- Fallback: deterministic parse + `rules_fix_common_typos` (same as 15g) — never blank failure
+- Store `raw_dump` separately from polished `title`/`description` for provenance
+
+**Task path uses EA polish** — not raw insert. Target ~20s (classify + polish + PG write); parallelize with knowledge path later.
+
+#### Framework alignment (schema design)
+
+Borrow field **names and lifecycles** from established task models — Thread uses PG enums, not ad-hoc strings:
+
+| Framework | Thread borrows |
+|-----------|----------------|
+| **GTD** | `inbox` → clarify → `next` / `waiting` / `scheduled` / `someday`; `project_label`; `context_tags` (@call, @email, @office); `waiting_on` |
+| **RFC 5545 VTODO** | `summary`→`title`, `description`, `due`→`due_at`, `dtstart`→`start_at`, `categories`, `priority`, `status` |
+| **Microsoft Graph todoTask** | `importance`→`priority`, `body`→`description`, `dueDateTime`, `categories`, linked resource → `opportunity_id` |
+| **schema.org Action** | `actionStatus`→`status`, `agent`→attendees, `startTime`/`endTime` |
+
+**Not copied:** team assignment, multi-user queues, external calendar sync (deferred 16f).
+
+#### Postgres — `operator_tasks` (proposed)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `title` | text NOT NULL | EA-polished summary — display only |
+| `description` | text | EA-polished clean prose |
+| `raw_dump` | text NOT NULL | Original chicken-scratch — provenance |
+| `task_kind` | enum | `meeting`, `call`, `email`, `follow_up`, `prep`, `errand`, `waiting_for`, `someday`, `other` |
+| `status` | enum | `inbox`, `next`, `waiting`, `scheduled`, `done`, `cancelled`, `deferred` |
+| `priority` | enum | `low`, `normal`, `high`, `urgent` |
+| `due_at` | timestamptz nullable | |
+| `start_at` | timestamptz nullable | Meetings / scheduled blocks |
+| `duration_minutes` | int nullable | |
+| `opportunity_id` | UUID FK nullable | Pursuit link |
+| `project_label` | text nullable | GTD project — "LIS SECREP transition" |
+| `context_tags` | JSONB | `["@call","@office"]` — controlled vocabulary |
+| `attendees` | JSONB | `[{"name":"Molly B","role":"stakeholder"}]` |
+| `location` | text nullable | |
+| `waiting_on` | text nullable | GTD waiting-for |
+| `categories` | JSONB | `["admin","capture"]` — EA-assigned taxonomy |
+| `checklist` | JSONB | `[{"item":"…","done":false}]` — sub-steps |
+| `source` | enum | `fab`, `manual`, `import` |
+| `provenance` | JSONB | FAB context, classify provider |
+| `llm_polish` | JSONB | `{provider, model, polished_at}` |
+| `completed_at` | timestamptz nullable | |
+| `created_at` / `updated_at` | timestamptz | |
+
+**Domain enums:** `backend/src/thread/domain/enums.py` — same pattern as `LifecycleState`, `TrustLevel` (no random strings in app code).
+
+Alembic migration when **16a** ships.
+
+#### UI surfaces
+
+| Surface | Slice | Done when |
+|---------|-------|-----------|
+| FAB success branch | **16a** | Task dump → EA polish → PG row → flash "Added to Tasks" + link `/tasks` |
+| **`/tasks`** page | **16b** | HTMX list: today / overdue / open; one-click checkoff; filter by opp |
+| **Command Center widget** | **16c** | Attention row: "Open tasks (N)" → `/tasks#today` (≤2 clicks) |
+| Opp chip on task row | **16d** | Link to `/capture/{id}` when `opportunity_id` set |
+| **Compound to vault** | **16e** (deferred) | Done task → "Save as checklist" → vault candidate (review-gated) |
+
+#### External research — what to borrow vs avoid
+
+| Source | Borrow | Avoid |
+|--------|--------|-------|
+| GTD / second-brain skills (skills.sh) | Inbox → clarify → tickler; checkoff dopamine; daily roadmap | Separate memory DB, Notion-style PA |
+| `ailabs personal-assistant` skill | — | Generic chat PA; not vault/PG aligned |
+| `idea-capturer` / Zettelkasten | Fleeting capture UX | Forcing all captures into notes |
+| GovDash / CRM task modules | Opp-linked action matrix pattern | Team CRM, assignment workflows |
+
+**Decision:** Thread-native **operator_tasks** in PG + FAB intent router. Not a third inbox silo — Command Center Attention widget alongside review queue and stale vault ingest.
+
+#### Performance note (15g / 16)
+
+FAB knowledge path: title infer (≤12s) + ingest spellfix (≤20s) sequential — ~30s worst case until parallelized. Admin task path (16a): classify + **EA polish** (≤20s) + PG insert — ~25s worst case; faster than knowledge (no vault write). Warmup + parallel LLM calls = post-MVP polish backlog.
 
 ### Phase 19 — MinerU document utility
 
 General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault wiki ingest (notes + Grok polish) → opp doc attach. **Not** DataRepublican pdfparser. Optional 19e: solicitation → `ExtractionBundle` candidate fields.
+
+**15g → 19 bridge (2026-06-19):** Quick capture FAB accepts all MinerU catalog types (PDF, Office, images, epub, txt/md). Files stage to `.thread/ingest/inbox/{id}/`; citations carry `ingest:` + `ingest_path:`. Stub markdown until `mineru_parse_document()` docker wire ships; flip `MINERU_ENABLED=true` to queue parse without UX change.
 
 ### Phase 20 — Route-driven fill
 
@@ -813,7 +994,7 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 
 **Studio** (`/studio`, Win lane): eval ↔ win-theme map, outline, PTW, compliance shred candidates — artifacts for external humans. **Theseus** solicitation merge after MinerU stable (activation produce, not CRM).
 
-**Rules (anti–scope-creep):** One slice per PR. No new backend unless UI needs it. pytest before commit. Prior repos = reference only — no UI tree ports.
+**Rules (anti–scope-creep):** One slice per PR. No new backend unless UI needs it. pytest before commit. **Update `PLAN.md` in the same commit** when status, routes, or phase checklist changes. Prior repos = reference only — no UI tree ports.
 
 ### Deferred — knowledge & intelligence runtime (after MVP)
 
@@ -848,19 +1029,26 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 | 9 | Full API (skills, MCP, intel, capture-profile) | ✅ |
 | 10 | HTMX command center shell + Research tab (retire transitional Next) | ✅ |
 | 11 | E2E smoke + README verification | ✅ |
-| 12+ | Product command center + workspace UX | 🟡 incremental (12a–12l, 14a–14e, 15, 17a–17b ✅) |
+| 12+ | Product command center + workspace UX | 🟡 incremental (12a–12l, 14a–14i, 15, 17a–17b ✅) |
 
 ---
 
 ## Immediate next actions (resume here)
 
-1. **Phase 17b-vault** — Clew trusted output → Karpathy wiki ingest (review gate first; vault browser ✅)
-2. **Phase 14 remainder** — MS gate selector on opportunity UI; expand approval criteria toward full dictionary
-3. **Intel migration** — finish in separate window; verify `Complete: True` + indexes
-4. **Phase 19** — MinerU stub → real parse → vault wiki ingest
-5. **Phase 20** — route-driven fill (`route_kind` → MCP/skill/research/Grok)
+**Current build slice (MVP):** finish **Phase 15** before branching to 16 or 19.
 
-**Paused:** 2026-06-18 — operator updating Grok Build; no in-flight slice.
+1. **Phase 16a** ← **you are here** — FAB intent router + `operator_tasks` PG + EA polish at ingest
+2. **Phase 15 polish backlog** (non-blocking) — faster FAB (parallel title+spellfix); richer title prompts
+3. **Phase 16b–16c** — `/tasks` page + Command Center open-tasks widget
+4. **Intel migration** — background; verify `Complete: True` + indexes
+5. **Phase 19** — MinerU stub → real parse → vault wiki ingest
+6. **Phase 20** — route-driven fill (`route_kind` → MCP/skill/research/Grok) — stubs from 14f
+
+**Done (2026-06-18):** Phase 14k — Milestone deck alignment (private refs gitignored); reference slides in navigator; workspace tabs retired in favor of utilities bar + action drawer.
+
+**Done (2026-06-18):** Phase 14h Capture lane IA — Identify on Pulse; Capture home + workspace; lifecycle handoff on Track.
+
+**Deferred:** Phase 17b-vault (Clew → wiki ingest) until vault write path is ready beyond read-only browser; CRM pipeline board / widget builder.
 
 ---
 
@@ -902,8 +1090,29 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 - [x] Phase 14c — MS gate slide applicability
 - [x] Phase 14d — Approval criteria slides 17–18 (starter fields)
 - [x] Phase 14e — Packet progression (MS-critical %, pending review)
+- [x] Phase 14f — Full data dictionary catalog + answer-route stubs (Phase 20 prep)
+- [x] Phase 14g — MS gate selector (opportunity header → packet filter)
+- [x] Phase 14h — Capture lane IA (`/capture`, `/capture/{id}`, sidebar, lifecycle filter, deep links)
+- [x] Phase 14i — Deck UX (slide canvas preview, MS pills, evidence inspector)
+- [x] Phase 14j — Filament nav + connected fill routes under slide canvas
+- [x] Phase 14k — Milestone slide map alignment (reference slides, deck titles/timing) + single-view workspace (retired Packet/Actions/Review/Research tabs)
+- [x] Phase 14l — Field catalog audit: MS1 SWOT/team/B&P gates, optional slide markers, path-to-blue row fields
 - [x] Phase 15 — Knowledge vault browser (`/knowledge` HTMX tree + markdown viewer)
-- [ ] Phase 17b-vault — Clew trusted → Karpathy wiki ingest (**after Phase 15 — vault browser** ✅)
+- [x] Phase 15b — Vault review lane on Knowledge (excludes vault_candidate from Pulse inbox + global review)
+- [x] Phase 15c — Capture Studio drawer + candidate edit/save
+- [x] Phase 15d — Dedup hints + merge target picker
+- [x] Phase 15e — Ollama polish + diff accept
+- [x] Phase 15f — Enrich via Clew/research append
+- [x] Phase 15g — Global capture FAB + context prefill
+- [x] Phase 15h — `idea_capturer` skill wired to Studio + `vault_maintainer` gate
+- [ ] Phase 16a — FAB intent router (knowledge vs admin_task) + `operator_tasks` PG + FAB task branch
+- [ ] Phase 16b — `/tasks` page + HTMX checkoff + today/overdue filters
+- [ ] Phase 16c — Command Center open-tasks Attention widget
+- [ ] Phase 16d — Task ↔ opportunity link chip
+- [ ] Phase 16e — Completed task → vault checklist candidate (deferred)
+- [x] Phase 12m — Stale vault ingest widget (>72h) on Command Center
+- [x] Phase 12a-nav — Sidebar **Command Center** label (was Dashboard)
+- [ ] Phase 17b-vault — Clew trusted → Karpathy wiki ingest (deferred — vault browser ✅, write ingest TBD)
 - [ ] Phase 17b-interact — DR browse-style Sankey node expansion (future)
 - [ ] Phase 17c — vectorized USAspending + SAM semantic facet search (future)
 - [ ] Phase 17c-graph — BFS expose-style graph + people relations (future)

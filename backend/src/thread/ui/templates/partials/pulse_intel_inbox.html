@@ -11,7 +11,7 @@
         <i data-lucide="chevron-down" class="w-3.5 h-3.5 pulse-collapse-chevron"></i>
       </span>
       <i data-lucide="inbox" class="w-4 h-4 {% if inbox.needs_attention %}text-neon-amber{% else %}text-neon-lime{% endif %} shrink-0"></i>
-      <span class="pulse-panel-kicker text-neon-amber/80">Candidates</span>
+      <span class="pulse-panel-kicker text-neon-amber/80">Capture</span>
       <span class="pulse-panel-title">Intel inbox</span>
       {% if inbox.needs_attention %}
       <span class="pill pill-compact border border-neon-amber/45 text-neon-amber">{{ inbox.count }}</span>
@@ -35,11 +35,11 @@
 
     {% if not inbox.needs_attention %}
     <div class="py-1">
-      <p class="text-xs text-slate-400">No candidates waiting — research, skills, and MCP outputs stay gated until you approve in inbox or <a href="/review" class="text-neon-cyan no-underline hover:underline">review queue</a>.</p>
+      <p class="text-xs text-slate-400">No capture candidates waiting — packet edits, research, and federal MCP outputs triage here or on <a href="/review" class="text-neon-cyan no-underline hover:underline">Review Queue</a>.</p>
       <p class="text-[10px] text-slate-600 mt-1.5 leading-relaxed">
-        Radar discovers expiring awards; inbox triages gated intel.
-        SAM.gov and USAspending MCP chains wire here after 12i / packet fill.
-        Clew traces live on <a href="/clew" class="text-neon-cyan no-underline hover:underline">Clew</a> (Tools) — trusted findings compound to vault (ingest design TBD).
+        Vault test ingests and skill-creator runs review on
+        <a href="/knowledge#knowledge-vault-review" class="text-neon-cyan no-underline hover:underline">Knowledge → Vault review</a>
+        — not this inbox.
       </p>
     </div>
     {% else %}
@@ -52,7 +52,7 @@
               <span class="pill pill-compact border border-neon-cyan/35 text-neon-cyan">{{ item.source_label }}</span>
               <span class="pill pill-compact border border-neon-magenta/30 text-neon-magenta text-[10px]">{{ item.trust_level }}</span>
               {% if item.opportunity_id %}
-              <a href="/opportunities/{{ item.opportunity_id }}?tab=review" class="pill pill-compact border border-neon-lime/35 text-neon-lime text-[10px] no-underline hover:underline truncate max-w-[9rem]">
+              <a href="{{ capture_href(item.opportunity_id) }}" class="pill pill-compact border border-neon-lime/35 text-neon-lime text-[10px] no-underline hover:underline truncate max-w-[9rem]">
                 {{ item.opportunity_name or 'Pursuit' }}
               </a>
               {% endif %}
