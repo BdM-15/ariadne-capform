@@ -45,10 +45,10 @@ def main() -> int:
         # C — /tasks GTD board surface
         t = client.get("/tasks")
         ok("C1 tasks page 200", t.status_code == 200)
-        ok("C2 GTD board", "tasks-board" in t.text or "tasks-lane" in t.text)
+        ok("C2 GTD board", "tasks-board-scroll" in t.text or "tasks-lane" in t.text)
         ok("C3 accomplish actions", "task-card-actions" in t.text)
         ok("C4 filter tabs", all(x in t.text for x in ("Open", "Today", "Overdue", "Done")))
-        ok("C5 view toggle", "tasks-view-toggle" in t.text)
+        ok("C5 view toggle", "tasks-segment" in t.text)
         status_m = re.search(r'/partials/tasks/([0-9a-f-]{36})/status', t.text)
         complete_m = re.search(r'/partials/tasks/([0-9a-f-]{36})/complete', t.text)
         task_id = status_m.group(1) if status_m else (complete_m.group(1) if complete_m else None)

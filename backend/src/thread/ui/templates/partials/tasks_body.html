@@ -1,23 +1,31 @@
 <div id="tasks-body" class="tasks-workspace">
-  <div class="tasks-toolbar">
+  <div class="tasks-toolbar card card-accent accent-cyan p-3">
     <div class="tasks-stats">
-      <span class="tasks-stat"><strong>{{ page.inbox_count }}</strong> inbox</span>
-      <span class="tasks-stat tasks-stat-next"><strong>{{ page.next_count }}</strong> next</span>
-      <span class="tasks-stat"><strong>{{ page.scheduled_count }}</strong> scheduled</span>
+      <span class="pill border border-neon-cyan/35 text-neon-cyan text-[10px] font-mono tabular-nums">
+        <strong class="text-slate-100">{{ page.inbox_count }}</strong> inbox
+      </span>
+      <span class="pill border border-neon-lime/35 text-neon-lime text-[10px] font-mono tabular-nums">
+        <strong class="text-slate-100">{{ page.next_count }}</strong> next
+      </span>
+      <span class="pill border border-neon-magenta/35 text-neon-magenta text-[10px] font-mono tabular-nums">
+        <strong class="text-slate-100">{{ page.scheduled_count }}</strong> scheduled
+      </span>
       {% if page.overdue_count %}
-      <span class="tasks-stat tasks-stat-warn"><strong>{{ page.overdue_count }}</strong> overdue</span>
+      <span class="pill border border-neon-amber/45 text-neon-amber text-[10px] font-mono tabular-nums">
+        <strong class="text-slate-100">{{ page.overdue_count }}</strong> overdue
+      </span>
       {% endif %}
     </div>
     <div class="tasks-toolbar-actions">
-      <div class="tasks-view-toggle">
-        <a href="/tasks?filter={{ page.filter_key }}&view=board" class="tasks-view-btn {% if page.view_mode == 'board' %}is-active{% endif %}">Board</a>
-        <a href="/tasks?filter={{ page.filter_key }}&view=list" class="tasks-view-btn {% if page.view_mode == 'list' %}is-active{% endif %}">List</a>
+      <div class="tasks-segment" role="group" aria-label="View mode">
+        <a href="/tasks?filter={{ page.filter_key }}&view=board" class="tasks-segment-btn {% if page.view_mode == 'board' %}is-active{% endif %}">Board</a>
+        <a href="/tasks?filter={{ page.filter_key }}&view=list" class="tasks-segment-btn {% if page.view_mode == 'list' %}is-active{% endif %}">List</a>
       </div>
-      <div class="tasks-filters">
-        <a href="/tasks?filter=open&view={{ page.view_mode }}" class="tasks-filter-btn {% if page.filter_key == 'open' %}is-active{% endif %}">Open</a>
-        <a href="/tasks?filter=today&view={{ page.view_mode }}" class="tasks-filter-btn {% if page.filter_key == 'today' %}is-active{% endif %}">Today</a>
-        <a href="/tasks?filter=overdue&view={{ page.view_mode }}" class="tasks-filter-btn {% if page.filter_key == 'overdue' %}is-active{% endif %}">Overdue</a>
-        <a href="/tasks?filter=done&view={{ page.view_mode }}" class="tasks-filter-btn {% if page.filter_key == 'done' %}is-active{% endif %}">Done</a>
+      <div class="tasks-segment" role="group" aria-label="Task filters">
+        <a href="/tasks?filter=open&view={{ page.view_mode }}" class="tasks-segment-btn {% if page.filter_key == 'open' %}is-active{% endif %}">Open</a>
+        <a href="/tasks?filter=today&view={{ page.view_mode }}" class="tasks-segment-btn {% if page.filter_key == 'today' %}is-active{% endif %}">Today</a>
+        <a href="/tasks?filter=overdue&view={{ page.view_mode }}" class="tasks-segment-btn {% if page.filter_key == 'overdue' %}is-active{% endif %}">Overdue</a>
+        <a href="/tasks?filter=done&view={{ page.view_mode }}" class="tasks-segment-btn {% if page.filter_key == 'done' %}is-active{% endif %}">Done</a>
       </div>
     </div>
   </div>
@@ -25,12 +33,21 @@
   <p id="tasks-body-working" class="tasks-working htmx-indicator text-[10px] font-mono text-neon-cyan">Updating…</p>
 
   {% if page.view_mode == 'board' and page.filter_key != 'done' %}
-  <div class="tasks-board">
+  <div class="tasks-board-scroll" role="region" aria-label="GTD board">
     {% for lane in page.lanes %}
-    <section class="tasks-lane tasks-lane-{{ lane.status }}" aria-label="{{ lane.title }}">
+    {% set lane_accent = {
+      'inbox': 'cyan',
+      'next': 'lime',
+      'scheduled': 'magenta',
+      'waiting': 'amber',
+      'deferred': 'cyan'
+    }[lane.status] or 'cyan' %}
+    <section class="tasks-lane card card-accent accent-{{ lane_accent }} tasks-lane-{{ lane.status }}" aria-label="{{ lane.title }}">
       <header class="tasks-lane-head">
-        <h2 class="tasks-lane-title">{{ lane.title }}</h2>
-        <span class="tasks-lane-count">{{ lane.items|length }}</span>
+        <div class="tasks-lane-head-row">
+          <h2 class="tasks-lane-title">{{ lane.title }}</h2>
+          <span class="tasks-lane-count pill border border-edge text-slate-400 text-[10px] font-mono tabular-nums">{{ lane.items|length }}</span>
+        </div>
         <p class="tasks-lane-hint">{{ lane.hint }}</p>
       </header>
       <div class="tasks-lane-cards">
@@ -40,7 +57,7 @@
           {% include "partials/task_card.html" %}
           {% endfor %}
         {% else %}
-        <p class="tasks-lane-empty">—</p>
+        <p class="tasks-lane-empty">Empty lane</p>
         {% endif %}
       </div>
     </section>
@@ -54,9 +71,16 @@
       {% include "partials/task_card.html" %}
       {% endfor %}
     {% else %}
-    <div class="tasks-empty card-accent">
-      <p class="text-sm text-slate-400">No tasks here.</p>
-      <p class="text-xs text-slate-500 mt-1">Dump meeting / reminder / follow-up from global FAB — platform routes admin work here.</p>
+    <div class="tasks-empty card card-accent accent-lime p-6 text-center">
+      <div class="flex flex-col items-center gap-2">
+        <i data-lucide="check-circle-2" class="w-8 h-8 text-neon-lime"></i>
+        <p class="text-sm text-slate-300 font-semibold">No tasks here</p>
+        <p class="text-xs text-slate-500 max-w-md">Dump meeting / reminder / follow-up from global FAB — platform routes admin work here.</p>
+        <button type="button" class="btn btn-primary btn-compact text-xs mt-1" data-capture-fab-open>
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+          Capture task
+        </button>
+      </div>
     </div>
     {% endif %}
   </div>

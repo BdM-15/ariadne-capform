@@ -1,15 +1,26 @@
+{% set lane_accent = {
+  'inbox': 'cyan',
+  'next': 'lime',
+  'scheduled': 'magenta',
+  'waiting': 'amber',
+  'deferred': 'cyan',
+  'done': 'lime'
+}[item.status] or 'cyan' %}
+{% set show_status = view_mode != 'board' %}
 <article
   id="task-card-{{ item.id }}"
-  class="task-card {% if item.is_overdue %}task-card-overdue{% endif %} {% if item.status == 'done' %}task-card-done{% endif %}"
+  class="task-card card card-hover card-accent accent-{{ lane_accent }} p-3 {% if item.is_overdue %}task-card-overdue{% endif %} {% if item.status == 'done' %}task-card-done{% endif %}"
   data-task-status="{{ item.status }}"
 >
   <div class="task-card-head">
-    <div class="task-card-title-row">
+    <div class="task-card-title-row min-w-0 flex-1">
+      {% if show_status %}
       <span class="task-card-status-pill task-status-{{ item.status }}">{{ item.status|replace('_', ' ') }}</span>
-      <h3 class="task-card-title {% if item.status == 'done' %}line-through text-slate-500{% endif %}">{{ item.title }}</h3>
+      {% endif %}
+      <h3 class="task-card-title {% if item.status == 'done' %}line-through text-slate-500{% else %}text-slate-100{% endif %}">{{ item.title }}</h3>
     </div>
     {% if item.priority in ('high', 'urgent') or item.is_overdue %}
-    <div class="task-card-badges">
+    <div class="task-card-badges shrink-0">
       {% if item.priority in ('high', 'urgent') %}
       <span class="pill border border-neon-amber/40 text-neon-amber text-[10px] font-mono">{{ item.priority }}</span>
       {% endif %}
@@ -20,20 +31,20 @@
     {% endif %}
   </div>
 
-  {% if item.description %}
+  {% if item.description and item.description|trim|lower != item.title|trim|lower %}
   <p class="task-card-desc">{{ item.description }}</p>
   {% endif %}
 
   <div class="task-card-meta">
-    <span class="pill border border-slate-700 text-slate-400 text-[10px] font-mono">{{ item.task_kind|replace('_', ' ') }}</span>
+    <span class="pill border border-edge text-slate-500 text-[10px] font-mono">{{ item.task_kind|replace('_', ' ') }}</span>
     {% if item.opportunity_id and item.opportunity_name %}
-    <a href="{{ capture_href(item.opportunity_id) }}" class="task-card-opp no-underline">{{ item.opportunity_name }}</a>
+    <a href="{{ capture_href(item.opportunity_id) }}" class="pill border border-neon-cyan/35 text-neon-cyan text-[10px] no-underline hover:underline">{{ item.opportunity_name }}</a>
     {% endif %}
     {% if item.project_label %}
-    <span class="task-card-project">{{ item.project_label }}</span>
+    <span class="pill border border-edge text-slate-500 text-[10px] font-mono">{{ item.project_label }}</span>
     {% endif %}
     {% if item.attendees %}
-    <span class="task-card-people">{% for a in item.attendees %}{{ a.name }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
+    <span class="task-card-people text-[10px] text-slate-500">{% for a in item.attendees %}{{ a.name }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
     {% endif %}
   </div>
 
@@ -41,7 +52,7 @@
   <div class="task-card-actions" role="group" aria-label="Task actions">
     {% for action in actions %}
     <form
-      class="task-action-form"
+      class="task-action-form m-0"
       hx-post="/partials/tasks/{{ item.id }}/status"
       hx-target="#tasks-body"
       hx-swap="innerHTML"
@@ -50,7 +61,11 @@
       <input type="hidden" name="status" value="{{ action.status }}" />
       <input type="hidden" name="filter" value="{{ filter_key }}" />
       <input type="hidden" name="view" value="{{ view_mode }}" />
-      <button type="submit" class="task-action-btn task-action-{{ action.status }}" title="{{ action.label }}">
+      <button
+        type="submit"
+        class="btn btn-compact text-xs {% if action.status == 'done' %}btn-primary{% elif action.status == 'next' %}btn-soft text-neon-lime{% else %}btn-soft{% endif %}"
+        title="{{ action.label }}"
+      >
         <i data-lucide="{{ action.icon }}" class="w-3.5 h-3.5"></i>
         <span>{{ action.label }}</span>
       </button>

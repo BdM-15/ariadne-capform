@@ -34,7 +34,7 @@ def test_tasks_page_shell():
     assert res.status_code == 200
     assert "Tasks" in res.text
     assert "tasks-body" in res.text
-    assert "tasks-board" in res.text or "tasks-list-view" in res.text
+    assert "tasks-board-scroll" in res.text or "tasks-list-view" in res.text
     assert "task-card-actions" in res.text or "No tasks here" in res.text
     assert "Accomplish" in res.text
 
@@ -108,6 +108,6 @@ def test_tasks_page_has_gtd_filters_and_view_toggle():
     assert res.status_code == 200
     for label in ("Open", "Today", "Overdue", "Done"):
         assert label in res.text
-    assert "tasks-view-toggle" in res.text
+    assert "tasks-segment" in res.text
     assert 'view=board' in res.text
     assert 'view=list' in res.text

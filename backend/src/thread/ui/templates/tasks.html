@@ -4,7 +4,8 @@
 <header class="page-nav-bar glass-section-bar h-12 shrink-0 flex items-center px-6 justify-between gap-4">
   <div class="flex items-center gap-3 min-w-0">
     <h1 class="text-base font-semibold tracking-tight h1-gradient shrink-0">Tasks</h1>
-    <span class="text-[11px] font-mono text-slate-500 truncate">Accomplish · GTD lanes</span>
+    <span class="pill border border-neon-cyan/35 text-neon-cyan text-[10px] font-mono uppercase">Accomplish</span>
+    <span class="text-[11px] font-mono text-slate-500 truncate hidden md:inline">GTD lanes · inbox → next → done</span>
   </div>
   <div class="flex items-center gap-2 shrink-0">
     <span class="pill border border-neon-cyan/40 text-neon-cyan text-[10px] font-mono tabular-nums">{{ page.open_count }} open</span>
@@ -16,11 +17,7 @@
 </header>
 {% endblock %}
 {% block content %}
-<div id="tasks-page" class="page-content">
-  <div class="tasks-doctrine settings-tip-box">
-    <strong>Accomplish, not archive.</strong> Move inbox → next → done. Knowledge dumps still go Vault Inbox via FAB.
-    <span class="settings-label-tip" title="GTD: inbox clarify, next = do now, waiting = blocked on someone, scheduled = time-bound.">?</span>
-  </div>
+<div id="tasks-page" class="tasks-page-layout">
   {% include "partials/tasks_body.html" %}
 </div>
 {% endblock %}
