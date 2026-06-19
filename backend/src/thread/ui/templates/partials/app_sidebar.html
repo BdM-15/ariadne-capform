@@ -25,6 +25,12 @@
           {% endwith %}
           <span class="sidebar-nav-text">Command Center</span>
         </a>
+        <a href="/tasks" class="nav-item w-full no-underline {% if active_nav == 'tasks' %}nav-item-active{% endif %}">
+          {% with icon="list-todo", tile_class="tile-purple" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
+          <span class="sidebar-nav-text">Tasks</span>
+        </a>
       </div>
     </div>
 

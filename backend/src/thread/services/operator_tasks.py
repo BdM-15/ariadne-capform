@@ -215,6 +215,16 @@ async def count_open_tasks(session: AsyncSession) -> int:
     )
 
 
+async def get_task_list_item(session: AsyncSession, task_id: uuid.UUID) -> TaskListItem | None:
+    stmt = (
+        select(OperatorTask)
+        .options(selectinload(OperatorTask.opportunity))
+        .where(OperatorTask.id == task_id)
+    )
+    row = (await session.execute(stmt)).scalar_one_or_none()
+    return _task_to_item(row) if row else None
+
+
 async def complete_operator_task(session: AsyncSession, task_id: uuid.UUID) -> OperatorTask:
     row = await session.get(OperatorTask, task_id)
     if row is None:

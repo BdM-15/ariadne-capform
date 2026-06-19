@@ -37,7 +37,14 @@ from thread.services.idea_capturer import IdeaCaptureError, capture_idea_to_vaul
 from thread.services.portfolio import build_portfolio_pulse, signal_opportunity_name
 from thread.services.platform_health import build_platform_health_widget
 from thread.services.insights_display import build_insights_page_context
-from thread.services.operator_tasks import ingest_fab_task
+from thread.services.operator_tasks import (
+    build_open_tasks_widget,
+    complete_operator_task,
+    count_open_tasks,
+    get_task_list_item,
+    ingest_fab_task,
+    list_operator_tasks,
+)
 from thread.services.quick_actions import build_quick_actions
 from thread.intel.facet_query import (
     delete_insight_query,
@@ -1783,6 +1790,7 @@ async def dashboard_page(
     pulse = await build_portfolio_pulse(db, settings)
     pending_reviews = await build_pending_reviews_widget(db, settings)
     vault_stale = await build_stale_vault_review_widget(db, settings)
+    open_tasks = await build_open_tasks_widget(db)
     quick_actions = build_quick_actions(
         opportunities=pulse["opportunities"],
         intel_signals=pulse["intel_signals"],
@@ -1796,6 +1804,7 @@ async def dashboard_page(
             "phase_band_widget": pulse["phase_band_widget"],
             "pending_reviews": pending_reviews,
             "vault_stale": vault_stale,
+            "open_tasks": open_tasks,
             "quick_actions": quick_actions,
             "platform_health": platform_health,
             "app_name": settings.public_app_name,
@@ -1803,6 +1812,51 @@ async def dashboard_page(
             "flash": None,
         },
     )
+
+
+@router.get("/tasks", response_class=HTMLResponse)
+async def tasks_page(
+    request: Request,
+    filter: str = Query("open", alias="filter"),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    filter_key = filter if filter in ("open", "today", "overdue", "done") else "open"
+    items = await list_operator_tasks(db, filter_key=filter_key)
+    open_count = await count_open_tasks(db)
+    return templates.TemplateResponse(
+        request,
+        "tasks.html",
+        {
+            "items": items,
+            "filter_key": filter_key,
+            "open_count": open_count,
+            "app_name": settings.public_app_name,
+            "active_nav": "tasks",
+            "flash": None,
+        },
+    )
+
+
+@router.post("/partials/tasks/{task_id}/complete", response_class=HTMLResponse)
+async def tasks_complete_partial(
+    request: Request,
+    task_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    try:
+        await complete_operator_task(db, task_id)
+        await db.commit()
+        item = await get_task_list_item(db, task_id)
+        if item is None:
+            raise ValueError("Task not found")
+        return templates.TemplateResponse(
+            request,
+            "partials/task_row.html",
+            {"item": item},
+        )
+    except ValueError as exc:
+        return HTMLResponse(f'<p class="text-neon-amber text-xs">{exc}</p>', status_code=404)
 
 
 @router.get("/pulse", response_class=HTMLResponse)

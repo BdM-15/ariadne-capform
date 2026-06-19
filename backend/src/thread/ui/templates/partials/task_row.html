@@ -1,0 +1,15 @@
+<li
+  id="task-row-{{ item.id }}"
+  class="tasks-row flex flex-wrap items-start gap-3 p-3 rounded-md border border-slate-800/70 bg-slate-950/40 {% if item.is_overdue %}border-neon-amber/35{% endif %}"
+>
+  <span class="pill border border-neon-lime/40 text-neon-lime text-[10px] font-mono shrink-0">Done</span>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="font-semibold text-slate-400 line-through">{{ item.title }}</span>
+      <span class="pill border border-slate-700 text-slate-500 text-[10px] font-mono">{{ item.task_kind|replace('_', ' ') }}</span>
+    </div>
+    {% if item.opportunity_id and item.opportunity_name %}
+    <a href="{{ capture_href(item.opportunity_id) }}" class="text-neon-cyan text-[11px] no-underline hover:underline">{{ item.opportunity_name }}</a>
+    {% endif %}
+  </div>
+</li>

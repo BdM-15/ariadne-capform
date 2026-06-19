@@ -1,0 +1,80 @@
+<div id="tasks-body" class="tasks-panel card-accent border border-slate-800/80 rounded-lg p-4 space-y-4">
+  <div class="flex flex-wrap items-center gap-2">
+    <a
+      href="/tasks?filter=open#today"
+      class="btn btn-soft btn-compact text-xs no-underline {% if filter_key == 'open' %}btn-primary{% endif %}"
+    >Open</a>
+    <a
+      href="/tasks?filter=today#today"
+      class="btn btn-soft btn-compact text-xs no-underline {% if filter_key == 'today' %}btn-primary{% endif %}"
+    >Today</a>
+    <a
+      href="/tasks?filter=overdue#today"
+      class="btn btn-soft btn-compact text-xs no-underline {% if filter_key == 'overdue' %}btn-primary{% endif %}"
+    >Overdue</a>
+    <a
+      href="/tasks?filter=done#today"
+      class="btn btn-soft btn-compact text-xs no-underline {% if filter_key == 'done' %}btn-primary{% endif %}"
+    >Done</a>
+  </div>
+
+  <div id="today" class="tasks-list space-y-2">
+    {% if items %}
+    <ul class="space-y-2">
+      {% for item in items %}
+      <li
+        id="task-row-{{ item.id }}"
+        class="tasks-row flex flex-wrap items-start gap-3 p-3 rounded-md border border-slate-800/70 bg-slate-950/40 {% if item.is_overdue %}border-neon-amber/35{% endif %}"
+      >
+        {% if item.status != 'done' %}
+        <form
+          class="tasks-checkoff shrink-0"
+          hx-post="/partials/tasks/{{ item.id }}/complete"
+          hx-target="#task-row-{{ item.id }}"
+          hx-swap="outerHTML"
+        >
+          <button type="submit" class="btn btn-ghost btn-compact text-xs" title="Mark done">
+            <i data-lucide="circle-check" class="w-4 h-4 text-neon-lime"></i>
+            <span class="sr-only">Complete</span>
+          </button>
+        </form>
+        {% else %}
+        <span class="pill border border-neon-lime/40 text-neon-lime text-[10px] font-mono shrink-0">Done</span>
+        {% endif %}
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="font-semibold text-slate-100">{{ item.title }}</span>
+            <span class="pill border border-slate-700 text-slate-400 text-[10px] font-mono">{{ item.task_kind|replace('_', ' ') }}</span>
+            {% if item.priority in ('high', 'urgent') %}
+            <span class="pill border border-neon-amber/40 text-neon-amber text-[10px] font-mono">{{ item.priority }}</span>
+            {% endif %}
+            {% if item.is_overdue %}
+            <span class="pill border border-neon-amber/45 text-neon-amber text-[10px] font-mono">overdue</span>
+            {% endif %}
+          </div>
+          {% if item.description %}
+          <p class="text-xs text-slate-500 line-clamp-2">{{ item.description }}</p>
+          {% endif %}
+          <div class="flex flex-wrap items-center gap-2 text-[11px]">
+            {% if item.opportunity_id and item.opportunity_name %}
+            <a
+              href="{{ capture_href(item.opportunity_id) }}"
+              class="pill border border-neon-cyan/35 text-neon-cyan no-underline hover:underline"
+            >{{ item.opportunity_name }}</a>
+            {% endif %}
+            {% if item.project_label %}
+            <span class="text-slate-600 font-mono">{{ item.project_label }}</span>
+            {% endif %}
+            {% if item.attendees %}
+            <span class="text-slate-500">{% for a in item.attendees %}{{ a.name }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
+            {% endif %}
+          </div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-slate-500">No tasks in this view. Dump a meeting or reminder from the global FAB.</p>
+    {% endif %}
+  </div>
+</div>

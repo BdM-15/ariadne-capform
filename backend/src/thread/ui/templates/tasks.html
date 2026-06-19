@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Tasks — {{ app_name }}{% endblock %}
+{% block page_header %}
+<header class="page-nav-bar glass-section-bar h-12 shrink-0 flex items-center px-6 justify-between gap-4">
+  <div class="flex items-center gap-3 min-w-0">
+    <h1 class="text-base font-semibold tracking-tight h1-gradient shrink-0">Tasks</h1>
+    <span class="text-[11px] font-mono text-slate-500 truncate">EA lane · GTD execution truth</span>
+  </div>
+  <span class="pill border border-neon-cyan/40 text-neon-cyan text-[10px] font-mono tabular-nums">
+    {{ open_count }} open
+  </span>
+</header>
+{% endblock %}
+{% block content %}
+<div id="tasks-page" class="page-content space-y-4">
+  <div class="settings-tip-box">
+    Admin tasks from the global FAB — meetings, reminders, follow-ups. Knowledge dumps still route to Vault Inbox.
+    <span class="settings-label-tip" title="Completed tasks may seed vault checklists later (Phase 16e).">?</span>
+  </div>
+  {% include "partials/tasks_body.html" %}
+</div>
+{% endblock %}

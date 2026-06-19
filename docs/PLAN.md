@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-19 (Phase 16 EA schema + 15h idea_capturer)
+**Last updated:** 2026-06-19 (Phase 16 EA lane complete + external tooling assessment)
 
 ---
 
@@ -19,7 +19,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | `.env` / `config.py` | ✅ Done | Full categorized config including research, MCP, orchestration |
 | Docker Compose | ✅ Done | Postgres **16** image on `:55432` (matches volume; PG18 needs pg_upgrade) + `research` profile |
 | Reference corpus | ✅ Done | Briefing packet, call plan, risk register, Shipley, USAspending |
-| Workflow DB models | 🟡 Partial | Opportunities, packet, actions, review; **`operator_tasks` planned (Phase 16)**; missing intel/research/capability tables |
+| Workflow DB models | 🟡 Partial | Opportunities, packet, actions, review, **`operator_tasks` (Phase 16 ✅)**; missing intel/research/capability tables |
 | Alembic migrations | ❌ Not started | Still using `create_all()` |
 | Intel migration (DuckDB→PG) | 🟡 In progress | Resumable via `scripts/run-intel-migration.ps1` (~64M rows, separate window) |
 | `pg_queries` intel layer | ✅ Done | Core queries + portfolio intel signals |
@@ -64,7 +64,17 @@ Lanes overlap on one **opportunity record** — identification feeds capture; ca
 | [capture-insights](https://github.com/BdM-15/capture-insights) | USAspending intel, Karpathy vault, skill runtime | Vite/React UI stack |
 | [proj-theseus](https://github.com/BdM-15/proj-theseus) | **Skin only:** `theseus.css`, shell UX patterns; MCP manifest pattern | Graph/RAG/LightRAG plumbing |
 | [1102 MCP tools](https://github.com/1102tools/federal-contracting-mcps) | Deterministic federal data | — |
-| [DataRepublican](https://github.com/DataRepublican/datarepublican) · [datarepublican.com](https://datarepublican.com) | Connect-the-dots / follow-the-money **methods** (graphs, flows, cross-entity tracing) via **Clew** (`clew_intel`) + Insights drill-down | NGO/990 charity product surface, Jekyll app, DR pdfparser (use **MinerU 3.3**) |
+| [DataRepublican](https://github.com/DataRepublican/datarepublican) · [datarepublican.com](https://datarepublican.com) | Connect-the-dots / follow-the-money **methods** (graphs, flows, cross-entity tracing) via **Clew** (`clew_intel`) + Insights drill-down; `?path=` deep-link pattern (**17b.1**) | NGO/990 charity product surface, Jekyll app, client-side full-graph load, DR pdfparser (use **MinerU 3.3**) |
+| [deer-flow](https://github.com/bytedance/deer-flow) | LangGraph sub-agent harness **patterns** — progressive `SKILL.md` load, fan-out → converge, context offload to filesystem/vault | Full harness import, sandbox shell, IM channels (Telegram/Slack), autonomous busywork |
+| [Odysseus](https://github.com/pewdiepie-archdaemon/odysseus) | Single-launcher shell validation; **Deep Research → report** UX model for `research/` runs → candidate → `/review` | Email/calendar/notes/tasks productivity sprawl; **AGPL code vendoring** (patterns only) |
+| [Apache Superset](https://github.com/apache/superset) | ECharts chart **recipes** (Sankey, mixed time-series, treemap); semantic-layer thinking for saved lenses | Second platform install, RBAC/multi-tenant BI, Superset as primary Insights surface |
+
+**Rejected (2026-06-19 external tooling pass — see [`EXTERNAL_TOOLING_ASSESSMENT.md`](EXTERNAL_TOOLING_ASSESSMENT.md)):**
+
+| Repo | Why reject |
+|------|------------|
+| [Appsmith](https://github.com/appsmithorg/appsmith) | Low-code client bindings — conflicts server-owned truth (#11) |
+| [Twenty](https://github.com/twentyhq/twenty) | Team CRM — conflicts solo-operator + Living Briefing Packet model; **one-time** `packet_field_catalog.py` cross-read only |
 
 ---
 
@@ -355,6 +365,8 @@ backend/src/thread/research/
 
 **Run flow:** User triggers research → discovery → crawl → Grok interpretation → `candidate` findings → review gate → optional evidence + vault mirror.
 
+**UX reference:** [Odysseus](https://github.com/pewdiepie-archdaemon/odysseus) Deep Research flow — multi-step web search → source reading → **citation-backed synthesized report** → promote via `/review`. Patterns only (AGPL); Thread stays capture-focused, not personal-productivity workspace.
+
 ---
 
 ## Orchestration (LangGraph — deferred runtime)
@@ -369,6 +381,8 @@ Route-first capture orchestration ships **before** LangGraph runtime adoption (p
 | `LANGSMITH_*` / `LANGCHAIN_*` | Tracing for skill chains (`thread-capture-orchestration` project) |
 
 **Module:** `backend/src/thread/orchestration/` — tracing bootstrap done; chain executor TBD.
+
+**Reference impl (patterns only):** [deer-flow](https://github.com/bytedance/deer-flow) — lead agent plans → spawns isolated sub-agents (parallel fan-out → converge); progressive skill loading; summarize-and-offload intermediates. Map to Thread **named retrieval chains** (recompete → incumbent → SAM UEI → web → packet field). Every sub-agent output stays `candidate` until `/review`. No sandbox shell, no IM channels, no wholesale harness import.
 
 ---
 
@@ -636,6 +650,10 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 - Neo4j runtime
 - Full Capability Studio
 - LangGraph runtime (until route-first + thin skill chains proven)
+- [Appsmith](https://github.com/appsmithorg/appsmith) as low-code shell — server-owned truth makes client-binding builders anti-fit
+- [Twenty](https://github.com/twentyhq/twenty) as CRM — solo operator + packet record ≠ team deal pipeline
+- [Apache Superset](https://github.com/apache/superset) as primary Insights platform — second-process BI tax; mine ECharts recipes natively instead
+- [deer-flow](https://github.com/bytedance/deer-flow) wholesale harness import — pattern-mine only; keep review-gated bounds
 
 ---
 
@@ -655,6 +673,10 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | **Theseus** | proj-theseus | Solicitation merge, activation produce (outline, compliance) | 21+ |
 | Grok/xAI | cloud-primary | `model_synthesis` packet fields, vault polish, narratives | 20 |
 | Ollama | admin offload | Summaries, lint — not capture-critical path | ongoing |
+
+### External tooling assessment (2026-06-19)
+
+Full research pass: [`docs/EXTERNAL_TOOLING_ASSESSMENT.md`](EXTERNAL_TOOLING_ASSESSMENT.md). Verdict: adopt **methods/patterns only**; everything converges on review gate + vault. Repo links in **Inspiration repos** table above.
 
 ### DataRepublican inspiration (captured 2026-06, parity updated 2026-06-18)
 
@@ -810,7 +832,11 @@ Central artifact — not “parallel afterthought.”
 
 **17b ✅ (2026-06-18):** ECharts on `/clew` — Sankey (money flow, teaming), bars (spend trend, landscape); dark ink/neon theme; collapsible data table; optional **Live MCP supplement** checkbox (USAspending + SAM subawards on teaming). Click-to-drill deferred to **17b-interact**.
 
+**17b.1 (next Clew slice):** [DataRepublican](https://github.com/DataRepublican/datarepublican) deep-link pattern — `?path=src,tgt,value;…` on `/clew` so Insights/Clew result rows open graph pre-loaded (encoded edge list; no server round-trip). High value / low effort; ship before **17b-interact**.
+
 **17b-interact (future):** DR browse-style — Sankey node click → narrow facet → re-run; focus/remove node in slice.
+
+**17 chart craft (ongoing ref-only):** Mine [Apache Superset](https://github.com/apache/superset) ECharts configs for unbuilt Insights charts (mixed time-series, treemap, geospatial). Formalize saved lenses (`.thread/insight_queries.json`) as lightweight semantic layer — define metric/dimension once, reuse across charts. Embed Superset dashboards via iframe **only** if Insights analytics outgrow hand-coded charts.
 
 **17c (future):** PG `pgvector` on USAspending labels, SAM snapshots, vault entities, MinerU chunks; **semantic facet autocomplete**; hybrid search across PG intel, parsed docs, and MCP snapshots.
 
@@ -1035,12 +1061,11 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 
 ## Immediate next actions (resume here)
 
-**Current build slice (MVP):** finish **Phase 15** before branching to 16 or 19.
+**Current build slice (MVP):** **Phase 17b.1** Clew deep-link (16 ✅ complete).
 
-1. **Phase 16a** ← **you are here** — FAB intent router + `operator_tasks` PG + EA polish at ingest
+1. **Phase 17b.1** ← **you are here** — DR `?path=` deep-link on `/clew` (cheap Clew slice)
 2. **Phase 15 polish backlog** (non-blocking) — faster FAB (parallel title+spellfix); richer title prompts
-3. **Phase 16b–16c** — `/tasks` page + Command Center open-tasks widget
-4. **Intel migration** — background; verify `Complete: True` + indexes
+3. **Intel migration** — background; verify `Complete: True` + indexes
 5. **Phase 19** — MinerU stub → real parse → vault wiki ingest
 6. **Phase 20** — route-driven fill (`route_kind` → MCP/skill/research/Grok) — stubs from 14f
 
@@ -1105,15 +1130,17 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 - [x] Phase 15f — Enrich via Clew/research append
 - [x] Phase 15g — Global capture FAB + context prefill
 - [x] Phase 15h — `idea_capturer` skill wired to Studio + `vault_maintainer` gate
-- [ ] Phase 16a — FAB intent router (knowledge vs admin_task) + `operator_tasks` PG + FAB task branch
-- [ ] Phase 16b — `/tasks` page + HTMX checkoff + today/overdue filters
-- [ ] Phase 16c — Command Center open-tasks Attention widget
-- [ ] Phase 16d — Task ↔ opportunity link chip
+- [x] Phase 16a — FAB intent router (knowledge vs admin_task) + `operator_tasks` PG + FAB task branch
+- [x] Phase 16b — `/tasks` page + HTMX checkoff + today/overdue filters
+- [x] Phase 16c — Command Center open-tasks Attention widget
+- [x] Phase 16d — Task ↔ opportunity link chip
 - [ ] Phase 16e — Completed task → vault checklist candidate (deferred)
 - [x] Phase 12m — Stale vault ingest widget (>72h) on Command Center
 - [x] Phase 12a-nav — Sidebar **Command Center** label (was Dashboard)
 - [ ] Phase 17b-vault — Clew trusted → Karpathy wiki ingest (deferred — vault browser ✅, write ingest TBD)
+- [ ] Phase 17b.1 — DR `?path=` deep-link on `/clew` + Insights row handoff (do before 17b-interact)
 - [ ] Phase 17b-interact — DR browse-style Sankey node expansion (future)
+- [ ] Twenty `packet_field_catalog.py` cross-read — one-time sanity check vs CRM object model (trivial)
 - [ ] Phase 17c — vectorized USAspending + SAM semantic facet search (future)
 - [ ] Phase 17c-graph — BFS expose-style graph + people relations (future)
 - [ ] Phase 17d — facet distinct-value autocomplete (future)
