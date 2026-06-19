@@ -118,6 +118,14 @@ def _extract_rows(payload: Any, *, title_keys: tuple[str, ...], subtitle_keys: t
     return rows
 
 
+def _as_keyword_list(value: str | tuple[str, ...] | list[str] | None) -> list[str]:
+    if not value:
+        return []
+    if isinstance(value, (list, tuple)):
+        return [str(v).strip() for v in value if str(v).strip()]
+    return [part.strip() for part in str(value).split(",") if part.strip()]
+
+
 def _mcp_server_ready(settings: Settings, server_id: str) -> bool:
     mcp = MCPService(settings)
     row = next((s for s in mcp.list_servers() if s["id"] == server_id), None)
@@ -129,7 +137,7 @@ def _build_usaspending_args(query: InsightFacetQuery, mode: str) -> tuple[str, d
         return (
             "spending_by_subaward_grouped",
             {
-                "keywords": query.recipient,
+                "keywords": _as_keyword_list(query.recipient),
                 "award_type": "contracts",
                 "limit": _OVERLAY_LIMIT,
             },
@@ -138,15 +146,15 @@ def _build_usaspending_args(query: InsightFacetQuery, mode: str) -> tuple[str, d
     args: dict[str, Any] = {"award_type": "contracts", "limit": _OVERLAY_LIMIT}
     label = "Live contract awards"
     if query.recipient:
-        args["keywords"] = query.recipient
+        args["keywords"] = _as_keyword_list(query.recipient)
         label = f"Live awards for “{query.recipient}”"
     if query.agency:
         args["awarding_agency"] = query.agency
         label = f"Live awards — {query.agency}"
     if query.naics_codes:
-        args["naics_codes"] = query.naics_codes
+        args["naics_codes"] = list(query.naics_codes)
     if query.psc_codes:
-        args["psc_codes"] = query.psc_codes
+        args["psc_codes"] = list(query.psc_codes)
     if mode == "spend_trend":
         return ("spending_over_time", {**args, "group": "fiscal_year"}, label + " (spend over time)")
     return ("search_awards", args, label)

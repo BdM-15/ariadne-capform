@@ -1,6 +1,23 @@
 {% with clew_surface='page' %}
 {% include "partials/insights_radar_drilldown.html" %}
 {% endwith %}
+{% if drilldown.status == 'ready' and not drilldown.analysis.path_preloaded %}
+<div class="clew-save-run-row mt-4 pt-4 border-t border-edge/50">
+  <form
+    class="insights-bookmark-save"
+    hx-post="/clew/save"
+    hx-target="#clew-saved-traces-panel"
+    hx-swap="outerHTML"
+    hx-include="#clew-facet-form, #clew-mode, #clew-mcp-toggle"
+  >
+    <input type="hidden" name="last_summary" value="{{ drilldown.analysis.summary|default(drilldown.summary, true) }}" />
+    <div class="insights-bookmark-save-row">
+      <input class="thread-input" name="name" placeholder="Save as…" required />
+      <button type="submit" class="btn btn-primary btn-compact shrink-0">Save trace</button>
+    </div>
+  </form>
+</div>
+{% endif %}
 <script>
   (function () {
     function boot() {

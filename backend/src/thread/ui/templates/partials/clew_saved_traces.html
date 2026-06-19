@@ -1,0 +1,69 @@
+<div id="clew-saved-traces-panel" class="clew-saved-traces">
+  {% if clew_flash %}
+  <p class="settings-tip-box text-neon-cyan text-[11px] mb-3">{{ clew_flash }}</p>
+  {% endif %}
+  <details
+    id="clew-saved-traces"
+    class="insights-section-collapse insights-bookmarks-drawer"
+    {% if clew_traces|length > 0 %}open{% endif %}
+  >
+    <summary class="insights-section-summary insights-bookmarks-summary">
+      <span class="pulse-collapse-toggle" aria-hidden="true">
+        <i data-lucide="chevron-down" class="w-3 h-3 pulse-collapse-chevron"></i>
+      </span>
+      <span class="pulse-panel-kicker text-neon-magenta/80">Saved traces</span>
+      <span class="pill pill-compact border border-neon-magenta/30 text-neon-magenta/90 text-[10px]">{{ clew_traces|length }}</span>
+    </summary>
+    <div class="insights-section-body insights-bookmarks-body">
+      <p class="insights-bookmarks-hint">Bookmark facets + mode — reopen and re-run. Not a frozen chart snapshot.</p>
+      <form
+        class="insights-bookmark-save"
+        hx-post="/clew/save"
+        hx-target="#clew-saved-traces-panel"
+        hx-swap="outerHTML"
+        hx-include="#clew-facet-form, #clew-mode, #clew-mcp-toggle"
+      >
+        <input type="hidden" name="last_summary" value="{{ drilldown.analysis.summary|default('', true) if drilldown.status == 'ready' else '' }}" />
+        <div class="insights-bookmark-save-row">
+          <input class="thread-input" name="name" placeholder="Trace name" required />
+          <input class="thread-input" name="description" placeholder="Notes (optional)" />
+          <button type="submit" class="btn btn-primary shrink-0">Save current trace</button>
+        </div>
+      </form>
+      {% if clew_traces|length == 0 %}
+      <p class="insights-bookmarks-empty">No saved traces yet.</p>
+      {% else %}
+      <ul class="insights-bookmark-list">
+        {% for item in clew_traces %}
+        <li class="insights-bookmark-item">
+          <div class="insights-bookmark-meta">
+            <span class="insights-bookmark-name">{{ item.trace.name }}</span>
+            <span class="insights-bookmark-facets">{{ item.summary }}</span>
+            {% if item.trace.mode == 'teaming' and not ctx.intel_stats.subaward_count %}
+            <span class="pill pill-compact border border-neon-amber/40 text-neon-amber text-[9px]">needs subaward bulk</span>
+            {% endif %}
+            {% if item.trace.last_summary %}
+            <span class="insights-bookmark-stat">{{ item.trace.last_summary }}</span>
+            {% endif %}
+            {% if item.trace.saved_at %}
+            <span class="text-[9px] font-mono text-slate-600">{{ item.trace.saved_at[:10] }}</span>
+            {% endif %}
+          </div>
+          <div class="insights-bookmark-actions">
+            <a href="{{ item.href }}" class="btn btn-primary no-underline">Open</a>
+            <form
+              hx-post="/clew/{{ item.trace.id }}/delete"
+              hx-target="#clew-saved-traces-panel"
+              hx-swap="outerHTML"
+              hx-confirm="Delete {{ item.trace.name }}?"
+            >
+              <button type="submit" class="btn btn-ghost btn-compact text-[10px]">Delete</button>
+            </form>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </details>
+</div>

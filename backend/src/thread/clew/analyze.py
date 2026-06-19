@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.intel.facet_query import InsightFacetQuery, build_facet_sql, query_from_dict
 from thread.intel.pg_queries import table_exists
-from thread.intel.sql_expressions import AGENCY_EXPR, PRIME_TABLE
+from thread.intel.sql_expressions import AGENCY_EXPR, PRIME_TABLE, round_numeric
 
 SUB_TABLE = "intel_usaspending_subawards"
 
@@ -91,7 +91,7 @@ async def _spend_trend(
     sql = f"""
         SELECT
             EXTRACT(YEAR FROM action_date)::int AS fiscal_year,
-            ROUND(SUM(federal_action_obligation) / 1000000.0, 2) AS millions,
+            {round_numeric("SUM(federal_action_obligation) / 1000000.0")} AS millions,
             COUNT(*) AS actions
         FROM {PRIME_TABLE}
         WHERE action_date IS NOT NULL
@@ -131,7 +131,7 @@ async def _money_flow(
         SELECT
             recipient_name AS recipient,
             {AGENCY_EXPR} AS agency,
-            ROUND(SUM(federal_action_obligation) / 1000000.0, 2) AS millions,
+            {round_numeric("SUM(federal_action_obligation) / 1000000.0")} AS millions,
             COUNT(*) AS actions
         FROM {PRIME_TABLE}
         WHERE recipient_name IS NOT NULL
@@ -171,7 +171,7 @@ async def _recipient_landscape(
     sql = f"""
         SELECT
             recipient_name AS recipient,
-            ROUND(SUM(federal_action_obligation) / 1000000.0, 2) AS millions,
+            {round_numeric("SUM(federal_action_obligation) / 1000000.0")} AS millions,
             COUNT(*) AS actions,
             COUNT(DISTINCT {AGENCY_EXPR}) AS agency_count
         FROM {PRIME_TABLE}
@@ -211,7 +211,13 @@ async def _teaming(
     if not await table_exists(session, SUB_TABLE):
         return {
             "mode": "teaming",
-            "error": "Subaward table not migrated — run migration without --skip-subawards.",
+            "error": "FFATA subaward bulk not in PostgreSQL yet.",
+            "error_hint": (
+                "Teaming Sankey needs intel_usaspending_subawards. "
+                "Re-run intel migration without --skip-subawards "
+                "(scripts/run-intel-migration.ps1). "
+                "Until then: use Money flow mode, or Teaming + Live MCP for SAM/USAspending live rows."
+            ),
             "method": "Prime → sub teaming edges (FFATA bulk).",
         }
     sub_count = int(
@@ -220,7 +226,11 @@ async def _teaming(
     if sub_count == 0:
         return {
             "mode": "teaming",
-            "error": "Subaward table empty — resume migration for teaming graphs.",
+            "error": "Subaward table empty — migration still loading FFATA rows.",
+            "error_hint": (
+                "Resume or wait for intel migration (do not use --skip-subawards). "
+                "Live MCP supplement can still return SAM subawards when recipient is set."
+            ),
             "method": "Prime → sub teaming edges (FFATA bulk).",
         }
 
@@ -230,7 +240,7 @@ async def _teaming(
         SELECT
             prime_awardee_name AS prime,
             subawardee_name AS sub,
-            ROUND(SUM(COALESCE(subaward_amount, 0)) / 1000000.0, 2) AS millions,
+            {round_numeric("SUM(COALESCE(subaward_amount, 0)) / 1000000.0")} AS millions,
             COUNT(*) AS links
         FROM {SUB_TABLE}
         WHERE prime_awardee_name IS NOT NULL

@@ -109,4 +109,40 @@
   document.addEventListener("DOMContentLoaded", function () {
     if (document.querySelector(".clew-echarts-host")) window.initClewCharts();
   });
+
+  function showClewError(message) {
+    var panel = document.getElementById("clew-results-panel");
+    if (!panel) return;
+    panel.innerHTML =
+      '<div class="p-4 space-y-2">' +
+      '<p class="text-neon-amber text-xs font-semibold">Clew analysis failed.</p>' +
+      '<p class="text-[11px] text-slate-500 font-mono">' +
+      message +
+      "</p></div>";
+  }
+
+  document.body.addEventListener("htmx:beforeRequest", function (e) {
+    var target = e.detail && e.detail.target;
+    if (!target || target.id !== "clew-results-panel") return;
+    target.innerHTML =
+      '<div class="clew-results-loading p-6 text-center space-y-2">' +
+      '<p class="text-neon-cyan text-sm font-semibold">Running trace…</p>' +
+      '<p class="text-[11px] text-slate-500 font-mono">PG bulk query on ~4M awards — may take 5–15s. Live MCP adds a few seconds.</p>' +
+      "</div>";
+  });
+
+  document.body.addEventListener("htmx:responseError", function (e) {
+    var target = e.detail && e.detail.target;
+    if (!target || target.id !== "clew-results-panel") return;
+    var status = e.detail.xhr && e.detail.xhr.status;
+    showClewError(
+      "Server error" + (status ? " (HTTP " + status + ")" : "") + ". Check terminal log.",
+    );
+  });
+
+  document.body.addEventListener("htmx:sendError", function (e) {
+    var target = e.detail && e.detail.target;
+    if (!target || target.id !== "clew-results-panel") return;
+    showClewError("Network error — is python app.py running?");
+  });
 })();

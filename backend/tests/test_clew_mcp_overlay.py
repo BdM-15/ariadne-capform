@@ -66,5 +66,17 @@ async def test_fetch_mcp_overlay_usaspending_layer():
     assert out["layers"][0]["server"] == "usaspending"
     assert out["layers"][0]["rows"][0]["title"] == "Acme Corp"
     mock_service.invoke.assert_awaited_once()
+    _server, tool, args = mock_service.invoke.await_args.args
+    assert tool == "search_awards"
+    assert args["keywords"] == ["Acme"]
+
+
+def test_build_usaspending_args_keywords_are_list():
+    from thread.clew.mcp_overlay import _build_usaspending_args
+
+    query = InsightFacetQuery(id="t", name="t", recipient="Amentum")
+    _tool, args, _label = _build_usaspending_args(query, "money_flow")
+    assert _tool == "search_awards"
+    assert args["keywords"] == ["Amentum"]
 
 

@@ -1,0 +1,51 @@
+{% set overlay = mcp_overlay %}
+{% if overlay and overlay.enabled %}
+<div class="clew-mcp-overlay mt-4 pt-4 border-t border-edge/50 space-y-3">
+  <div class="flex flex-wrap items-center gap-2">
+    <span class="cc-section-label text-neon-cyan mb-0 text-[10px]">Live MCP supplement</span>
+    <span class="pill pill-compact border border-neon-amber/40 text-neon-amber text-[10px]">candidate</span>
+    {% if overlay.fetched_at %}
+    <span class="text-[10px] font-mono text-slate-600">{{ overlay.fetched_at[:19] }}Z</span>
+    {% endif %}
+  </div>
+  {% if overlay.note %}
+  <p class="text-[10px] font-mono text-slate-500">{{ overlay.note }}</p>
+  {% endif %}
+  {% for layer in overlay.layers %}
+  <div class="card card-accent accent-cyan p-3">
+    <div class="flex flex-wrap items-center gap-2 mb-2">
+      <code class="text-[10px] text-neon-cyan font-bold">{{ layer.server }}</code>
+      <span class="text-[10px] text-slate-400">{{ layer.tool }}</span>
+      <span class="pill pill-compact border text-[9px] uppercase
+        {% if layer.status == 'ready' %}border-neon-lime/40 text-neon-lime{% elif layer.status == 'error' %}border-neon-amber/40 text-neon-amber{% else %}border-edge text-slate-500{% endif %}">
+        {{ layer.status }}
+      </span>
+    </div>
+    <p class="text-[11px] text-slate-300 mb-2">{{ layer.label }}</p>
+    {% if layer.error %}
+    <p class="text-[10px] text-neon-amber font-mono">{{ layer.error }}</p>
+    {% elif layer.rows %}
+    <ul class="insights-flow-list">
+      {% for row in layer.rows %}
+      <li class="insights-flow-row">
+        <div class="insights-flow-main min-w-0">
+          <span class="insights-result-title">{{ row.title }}</span>
+          {% if row.subtitle %}<span class="insights-result-sub">{{ row.subtitle }}</span>{% endif %}
+          {% if row.meta %}<span class="insights-result-sub text-slate-600">{{ row.meta }}</span>{% endif %}
+        </div>
+        {% if row.amount %}
+        <span class="insights-trend-val shrink-0">{{ row.amount }}</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-[10px] text-slate-500 font-mono italic">No live rows returned for this slice.</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% if overlay.layers|length == 0 and overlay.status == 'disabled' %}
+  <p class="text-[10px] text-slate-500 font-mono">Enable live MCP in Settings or check <a href="/tools/mcp" class="text-neon-cyan no-underline hover:underline">MCP Servers</a>.</p>
+  {% endif %}
+</div>
+{% endif %}

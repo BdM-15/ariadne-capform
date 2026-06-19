@@ -1,96 +1,139 @@
-<div id="clew-body" class="clew-page page-content max-w-6xl">
-  <div class="settings-tip-box clew-page-tip mb-4">
-    <strong class="text-slate-300">Clew</strong> traces money paths across recipients, agencies, primes, subs, and time.
-    Not tied to Data Insights explore — set facets here. Pulse and explore rows link here with pre-filled context.
-    Outputs stay <span class="text-neon-amber">candidate</span> until review.
-  </div>
-
-  <div class="insights-status-row flex flex-wrap gap-2 text-[10px] font-mono mb-4">
-    <span class="pill pill-compact border {% if ctx.intel_live %}border-neon-lime/40 text-neon-lime{% else %}border-neon-amber/40 text-neon-amber{% endif %}">
-      PG {% if ctx.intel_live %}ready{% else %}loading{% endif %}
-    </span>
-    {% if ctx.intel_live %}
-    <span class="pill pill-compact border border-edge text-slate-500">{{ "{:,}".format(ctx.intel_stats.prime_award_count) }} awards</span>
-    {% endif %}
-    <span class="pill pill-compact border {% if ctx.sam_configured %}border-neon-cyan/40 text-neon-cyan{% else %}border-neon-amber/40 text-neon-amber{% endif %}">
-      SAM {% if ctx.sam_configured %}ready{% else %}no key{% endif %}
-    </span>
-  </div>
-
-  <div class="card card-accent accent-magenta p-5 mb-4">
-    <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
-      <p class="insights-frame-lead mb-0 flex-1 min-w-0">{{ clew_guide.purpose }}</p>
-      <button
-        type="button"
-        class="btn btn-ghost btn-compact text-xs shrink-0"
-        onclick="openGuideDialog('guide-clew')"
-      >
-        <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
-        Guide
-      </button>
+<div id="clew-body" class="clew-page page-content w-full">
+  <div class="clew-page-setup max-w-5xl">
+    <div class="settings-tip-box clew-page-tip mb-4">
+      <strong class="text-slate-300">Clew</strong> traces money paths across recipients, agencies, primes, subs, and time.
+      Not tied to Data Insights explore — set facets here. Pulse and explore rows link here with pre-filled context.
+      Outputs stay <span class="text-neon-amber">candidate</span> until review.
     </div>
 
-    <form
-      id="clew-facet-form"
-      class="clew-facet-form"
-      hx-get="/partials/clew/results"
-      hx-target="#clew-results-panel"
-      hx-swap="innerHTML"
-      hx-include="#clew-facet-form, #clew-mode, #clew-mcp-toggle"
-    >
-      <input type="hidden" name="run" value="1" />
-      <div class="insights-form-grid mb-3">
-        <input class="thread-input" name="agency" placeholder="Agency" value="{{ clew_form.agency }}" />
-        <input class="thread-input" name="sub_agency" placeholder="Sub-agency" value="{{ clew_form.sub_agency }}" />
-        <input class="thread-input" name="recipient" placeholder="Recipient / incumbent" value="{{ clew_form.recipient }}" />
-        <input class="thread-input" name="naics_codes" placeholder="NAICS (comma-sep)" value="{{ clew_form.naics_codes }}" />
-        <input class="thread-input" name="psc_codes" placeholder="PSC (comma-sep)" value="{{ clew_form.psc_codes }}" />
-      </div>
-      <div class="insights-form-actions flex flex-wrap items-center gap-2">
-        <select id="clew-mode" name="mode" class="thread-input text-xs max-w-[12rem]">
-          <option value="money_flow" {% if clew_form.mode == 'money_flow' %}selected{% endif %}>Money flow</option>
-          <option value="spend_trend" {% if clew_form.mode == 'spend_trend' %}selected{% endif %}>Spend trend</option>
-          <option value="teaming" {% if clew_form.mode == 'teaming' %}selected{% endif %}>Teaming (prime→sub)</option>
-          <option value="recipient_landscape" {% if clew_form.mode == 'recipient_landscape' %}selected{% endif %}>Recipient landscape</option>
-        </select>
-        <label id="clew-mcp-toggle" class="flex items-center gap-2 text-[10px] font-mono text-slate-400 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            name="include_mcp"
-            value="1"
-            class="accent-neon-cyan"
-            {% if clew_form.include_mcp %}checked{% endif %}
-          />
-          Live MCP supplement
-        </label>
-        <button type="submit" class="btn btn-hero-magenta">Run analysis</button>
+    <div class="insights-status-row flex flex-wrap gap-2 text-[10px] font-mono mb-4">
+      <span class="pill pill-compact border {% if ctx.intel_live %}border-neon-lime/40 text-neon-lime{% else %}border-neon-amber/40 text-neon-amber{% endif %}">
+        PG {% if ctx.intel_live %}ready{% else %}loading{% endif %}
+      </span>
+      {% if ctx.intel_live %}
+      <span class="pill pill-compact border border-edge text-slate-500">{{ "{:,}".format(ctx.intel_stats.prime_award_count) }} prime</span>
+      <span class="pill pill-compact border {% if ctx.intel_stats.subaward_count %}border-neon-lime/40 text-neon-lime{% else %}border-neon-amber/40 text-neon-amber{% endif %}">
+        Subawards {% if ctx.intel_stats.subaward_count %}{{ "{:,}".format(ctx.intel_stats.subaward_count) }}{% else %}not migrated{% endif %}
+      </span>
+      {% endif %}
+      <span class="pill pill-compact border {% if ctx.sam_configured %}border-neon-cyan/40 text-neon-cyan{% else %}border-neon-amber/40 text-neon-amber{% endif %}">
+        SAM {% if ctx.sam_configured %}ready{% else %}no key{% endif %}
+      </span>
+    </div>
+
+    <div class="card card-accent accent-magenta p-5 mb-4">
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <p class="insights-frame-lead mb-0 flex-1 min-w-0">{{ clew_guide.purpose }}</p>
         <button
           type="button"
-          class="btn btn-ghost btn-compact text-xs"
+          class="btn btn-ghost btn-compact text-xs shrink-0"
           onclick="openGuideDialog('guide-clew')"
         >
           <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
           Guide
         </button>
-        <span class="settings-label-tip" title="Open Guide for modes, data layers (PG + MCP), review gate, and vault compounding.">?</span>
-        <span class="insights-form-hint">At least one facet · optional USAspending + SAM live pull (slower)</span>
       </div>
-    </form>
 
-    <form
-      id="clew-review-form"
-      class="mt-2 flex flex-wrap items-center gap-2"
-      hx-post="/clew/analyze"
-      hx-target="#clew-results-panel"
-      hx-swap="innerHTML"
-      hx-include="#clew-facet-form, #clew-mode, #clew-mcp-toggle"
-    >
-      <input type="hidden" name="run" value="1" />
-      <button type="submit" class="btn btn-primary btn-compact">Queue for review</button>
-    </form>
+      <form
+        id="clew-facet-form"
+        class="clew-facet-form"
+        hx-get="/partials/clew/results"
+        hx-target="#clew-results-panel"
+        hx-swap="innerHTML"
+        hx-include="#clew-facet-form, #clew-mode, #clew-mcp-toggle"
+      >
+        <input type="hidden" name="run" value="1" />
+        <div class="clew-facet-grid mb-4">
+          <label class="clew-facet-field">
+            <span class="clew-facet-label">
+              Agency
+              <span class="settings-label-tip" title="Funding or awarding department — substring match on USAspending labels. FH hierarchy pickers planned (17d).">?</span>
+            </span>
+            <input class="thread-input" name="agency" placeholder="e.g. Department of Defense" value="{{ clew_form.agency }}" />
+          </label>
+          <label class="clew-facet-field">
+            <span class="clew-facet-label">
+              Sub-agency / service
+              <span class="settings-label-tip" title="Component under the department — Army, DISA, FAS, etc. Matches awarding or funding sub-agency in bulk intel.">?</span>
+            </span>
+            <input class="thread-input" name="sub_agency" placeholder="e.g. Department of the Army" value="{{ clew_form.sub_agency }}" />
+          </label>
+          <label class="clew-facet-field">
+            <span class="clew-facet-label">
+              Recipient / incumbent
+              <span class="settings-label-tip" title="Prime contractor or competitor name — ILIKE match. Best single facet for teaming + live SAM subawards.">?</span>
+            </span>
+            <input class="thread-input" name="recipient" placeholder="e.g. Amentum Services, Inc." value="{{ clew_form.recipient }}" />
+          </label>
+          <label class="clew-facet-field">
+            <span class="clew-facet-label">
+              NAICS
+              <span class="settings-label-tip" title="One or more NAICS codes, comma-separated. Industry slice — never a platform default.">?</span>
+            </span>
+            <input class="thread-input" name="naics_codes" placeholder="e.g. 541512, 541519" value="{{ clew_form.naics_codes }}" />
+          </label>
+          <label class="clew-facet-field">
+            <span class="clew-facet-label">
+              PSC
+              <span class="settings-label-tip" title="Product/service codes, comma-separated — complements NAICS for contract line analysis.">?</span>
+            </span>
+            <input class="thread-input" name="psc_codes" placeholder="e.g. R499, D302" value="{{ clew_form.psc_codes }}" />
+          </label>
+        </div>
+        <div class="insights-form-actions flex flex-wrap items-center gap-2">
+          <label class="clew-facet-field clew-facet-field-inline max-w-[14rem]">
+            <span class="clew-facet-label">
+              Trace mode
+              <span class="settings-label-tip" title="Money flow = recipient→agency. Teaming = prime→sub (needs subaward bulk or Live MCP). Spend trend = FY bars. Landscape = recipient concentration.">?</span>
+            </span>
+            <select id="clew-mode" name="mode" class="thread-input text-xs w-full">
+              <option value="money_flow" {% if clew_form.mode == 'money_flow' %}selected{% endif %}>Money flow</option>
+              <option value="spend_trend" {% if clew_form.mode == 'spend_trend' %}selected{% endif %}>Spend trend</option>
+              <option value="teaming" {% if clew_form.mode == 'teaming' %}selected{% endif %}>Teaming (prime→sub)</option>
+              <option value="recipient_landscape" {% if clew_form.mode == 'recipient_landscape' %}selected{% endif %}>Recipient landscape</option>
+            </select>
+          </label>
+          <label id="clew-mcp-toggle" class="flex items-center gap-2 text-[10px] font-mono text-slate-400 cursor-pointer select-none self-end pb-1">
+            <input
+              type="checkbox"
+              name="include_mcp"
+              value="1"
+              class="accent-neon-cyan"
+              {% if clew_form.include_mcp %}checked{% endif %}
+            />
+            Live MCP supplement
+          </label>
+          <button type="submit" class="btn btn-hero-magenta self-end" hx-indicator="#clew-working">Run analysis</button>
+          <span id="clew-working" class="clew-working htmx-indicator text-[10px] font-mono text-neon-cyan self-end pb-2">Running…</span>
+          <button
+            type="button"
+            class="btn btn-ghost btn-compact text-xs self-end"
+            onclick="openGuideDialog('guide-clew')"
+          >
+            <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+            Guide
+          </button>
+          <span class="insights-form-hint w-full">At least one facet · Teaming chart needs subaward bulk or use Live MCP · USAspending on all modes</span>
+        </div>
+      </form>
+
+      <form
+        id="clew-review-form"
+        class="mt-2 flex flex-wrap items-center gap-2"
+        hx-post="/clew/analyze"
+        hx-target="#clew-results-panel"
+        hx-swap="innerHTML"
+        hx-include="#clew-facet-form, #clew-mode, #clew-mcp-toggle"
+      >
+        <input type="hidden" name="run" value="1" />
+        <button type="submit" class="btn btn-primary btn-compact">Queue for review</button>
+      </form>
+    </div>
+
+    {% include "partials/clew_saved_traces.html" %}
   </div>
 
-  <div class="card card-accent accent-magenta clew-results-canvas p-5 min-h-[20rem]" id="clew-results-shell">
+  <div class="card card-accent accent-magenta clew-results-canvas clew-results-full p-5 min-h-[20rem] mt-4" id="clew-results-shell">
     <div class="flex items-center justify-between gap-2 mb-3">
       <span class="cc-section-label text-neon-magenta mb-0">Trace results</span>
       <span class="settings-label-tip" title="ECharts — Sankey for money flow/teaming, bars for trends and landscape. Data table collapsible below chart.">?</span>
