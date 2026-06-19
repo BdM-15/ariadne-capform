@@ -13,6 +13,7 @@ from thread.api.knowledge_routes import router as knowledge_router
 from thread.api.research_routes import router as research_router
 from thread.api.routes import router as api_router
 from thread.api.skill_routes import router as skill_router
+from thread.bootstrap.warmup import log_warmup_report, run_startup_warmup
 from thread.config import get_settings
 from thread.db.session import init_db
 from thread.orchestration.tracing import apply_langsmith_env
@@ -29,6 +30,11 @@ async def lifespan(app: FastAPI):
         await init_db()
     except Exception as exc:
         print(f"[thread] Database init note: {exc}")
+
+    warmup_report = await run_startup_warmup(app, settings)
+    log_warmup_report(warmup_report)
+    app.state.warmup_report = warmup_report
+
     yield
     print("[thread] Shutting down")
 

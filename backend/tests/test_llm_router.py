@@ -17,10 +17,10 @@ def test_reasoning_prefers_xai_when_key_set():
 
 
 def test_reasoning_falls_back_to_ollama_without_xai_key():
-    s = Settings(xai_api_key=None, llm_fallback_enabled=True, local_daily_model="qwen3.5:9b")
+    s = Settings(xai_api_key=None, llm_fallback_enabled=True, local_daily_model="qwen3:8b")
     resolved = resolve_provider(s, LlmTaskKind.REASONING)
     assert resolved.provider is LlmProvider.OLLAMA
-    assert resolved.model == "qwen3.5:9b"
+    assert resolved.model == "qwen3:8b"
 
 
 def test_reasoning_raises_when_no_provider():
@@ -30,7 +30,7 @@ def test_reasoning_raises_when_no_provider():
 
 
 def test_admin_prefers_ollama():
-    s = Settings(local_admin_model_enabled=True, local_daily_model="qwen3.5:9b")
+    s = Settings(local_admin_model_enabled=True, local_daily_model="qwen3:8b")
     resolved = resolve_provider(s, LlmTaskKind.ADMIN)
     assert resolved.provider is LlmProvider.OLLAMA
 

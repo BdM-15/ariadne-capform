@@ -144,6 +144,9 @@ def main() -> int:
     from thread.config import get_settings
     from thread.logging_config import configure_logging
 
+    if args.no_warmup:
+        os.environ["ENABLE_STARTUP_WARMUP"] = "false"
+
     get_settings.cache_clear()
     settings = get_settings()
     configure_logging(level=settings.log_level, sql_echo=settings.database_echo)

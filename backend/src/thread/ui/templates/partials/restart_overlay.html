@@ -1,0 +1,136 @@
+<div
+  id="thread-restart-overlay"
+  class="fixed inset-0 z-[70] bg-ink-950/95 backdrop-blur-md flex items-center justify-center hidden"
+  aria-hidden="true"
+  role="alertdialog"
+  aria-labelledby="thread-restart-title"
+>
+  <div class="text-center">
+    <svg
+      class="restart-scene mx-auto"
+      viewBox="0 0 200 200"
+      width="220"
+      height="220"
+      aria-label="Reactor powering up"
+    >
+      <defs>
+        <radialGradient id="rs-core" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="1" />
+          <stop offset="35%" stop-color="#7df9ff" stop-opacity="0.95" />
+          <stop offset="70%" stop-color="#00f0ff" stop-opacity="0.55" />
+          <stop offset="100%" stop-color="#00f0ff" stop-opacity="0" />
+        </radialGradient>
+        <radialGradient id="rs-aura" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#ff2bd6" stop-opacity="0.6" />
+          <stop offset="60%" stop-color="#ff2bd6" stop-opacity="0.1" />
+          <stop offset="100%" stop-color="#ff2bd6" stop-opacity="0" />
+        </radialGradient>
+        <filter id="rs-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2.2" result="b" />
+          <feMerge>
+            <feMergeNode in="b" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <circle cx="100" cy="100" r="92" fill="url(#rs-aura)" />
+      <g class="rs-ring-outer" style="transform-origin: 100px 100px">
+        <circle
+          cx="100"
+          cy="100"
+          r="78"
+          fill="none"
+          stroke="#00f0ff"
+          stroke-width="1.4"
+          stroke-dasharray="6 10"
+          opacity="0.85"
+          filter="url(#rs-glow)"
+        />
+        <g stroke="#00f0ff" stroke-width="2" stroke-linecap="round" filter="url(#rs-glow)">
+          <line x1="100" y1="14" x2="100" y2="24" />
+          <line x1="186" y1="100" x2="176" y2="100" />
+          <line x1="100" y1="186" x2="100" y2="176" />
+          <line x1="14" y1="100" x2="24" y2="100" />
+        </g>
+      </g>
+      <g class="rs-ring-mid" style="transform-origin: 100px 100px">
+        <circle
+          cx="100"
+          cy="100"
+          r="60"
+          fill="none"
+          stroke="#ff2bd6"
+          stroke-width="1.6"
+          stroke-dasharray="22 8"
+          opacity="0.9"
+          filter="url(#rs-glow)"
+        />
+      </g>
+      <g
+        class="rs-hex"
+        fill="none"
+        stroke="#7df9ff"
+        stroke-width="1.2"
+        stroke-linejoin="round"
+        opacity="0.75"
+        filter="url(#rs-glow)"
+        style="transform-origin: 100px 100px"
+      >
+        <polygon points="100,55 139,77 139,123 100,145 61,123 61,77" />
+      </g>
+      <g
+        class="rs-beams"
+        stroke="#7df9ff"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        opacity="0.85"
+        filter="url(#rs-glow)"
+        style="transform-origin: 100px 100px"
+      >
+        <line x1="100" y1="100" x2="100" y2="40" />
+        <line x1="100" y1="100" x2="160" y2="100" />
+        <line x1="100" y1="100" x2="100" y2="160" />
+        <line x1="100" y1="100" x2="40" y2="100" />
+        <line x1="100" y1="100" x2="142" y2="58" />
+        <line x1="100" y1="100" x2="142" y2="142" />
+        <line x1="100" y1="100" x2="58" y2="142" />
+        <line x1="100" y1="100" x2="58" y2="58" />
+      </g>
+      <circle class="rs-core-glow" cx="100" cy="100" r="36" fill="url(#rs-core)" />
+      <circle class="rs-core" cx="100" cy="100" r="14" fill="#ffffff" filter="url(#rs-glow)" />
+      <g class="rs-spark-orbit" style="transform-origin: 100px 100px">
+        <circle cx="100" cy="22" r="2.4" fill="#ffeb00" filter="url(#rs-glow)" />
+        <circle cx="174" cy="143" r="2" fill="#ff2bd6" filter="url(#rs-glow)" />
+        <circle cx="26" cy="143" r="2" fill="#00f0ff" filter="url(#rs-glow)" />
+      </g>
+    </svg>
+    <h2 id="thread-restart-title" class="mt-4 text-2xl font-semibold neon-text">
+      <span id="thread-restart-status">Restarting server…</span>
+    </h2>
+    <p class="mt-2 text-slate-400 text-sm">Picking up .env and vault config changes</p>
+    <div id="thread-restart-pulse" class="mt-6 dot-pulse">
+      <span></span><span></span><span></span>
+    </div>
+    <p id="thread-restart-hint" class="mt-6 text-xs font-mono text-slate-500">
+      UI will reload automatically when API is back.
+    </p>
+    <div id="thread-restart-stuck" class="mt-6 hidden flex flex-col items-center gap-3">
+      <p class="text-xs font-mono text-slate-500 max-w-sm">
+        The server hasn't responded for 60 seconds. Check the terminal running
+        <span class="text-neon-cyan">python app.py</span>.
+      </p>
+      <div class="flex gap-2">
+        <button type="button" class="btn btn-primary" onclick="window.location.reload()">
+          Reload anyway
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost border border-edge"
+          onclick="window.threadDismissRestart()"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

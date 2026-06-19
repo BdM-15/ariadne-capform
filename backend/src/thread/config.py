@@ -49,6 +49,14 @@ class Settings(BaseSettings):
     knowledge_vault_path: Path = Path("knowledge/thread")
     knowledge_seed_source: Path = Path("../capture-insights/data/knowledge")
     knowledge_bootstrap_on_start: bool = True
+    vault_sandbox_mode: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("THREAD_VAULT_SANDBOX", "vault_sandbox_mode"),
+    )
+    vault_allow_test_promote: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("THREAD_ALLOW_TEST_PROMOTE", "vault_allow_test_promote"),
+    )
     reference_docs_root: Path = Path("docs/reference")
     graph_edges_path: Path = Path("data/graph/edges.jsonl")
 
@@ -62,7 +70,7 @@ class Settings(BaseSettings):
     llm_timeout_seconds: int = 120
 
     ollama_host: str = "http://localhost:11434"
-    local_daily_model: str = "qwen3.5:9b"
+    local_daily_model: str = "qwen3:8b"
     local_admin_model_enabled: bool = True
     ollama_temperature: float = 0.3
 
