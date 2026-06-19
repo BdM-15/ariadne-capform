@@ -121,6 +121,7 @@ class OperatorTask(Base):
     waiting_on: Mapped[str | None] = mapped_column(String(256), nullable=True)
     categories: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     checklist: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    work_log: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     source: Mapped[str] = mapped_column(String(64), nullable=False)
     provenance: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     llm_polish: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

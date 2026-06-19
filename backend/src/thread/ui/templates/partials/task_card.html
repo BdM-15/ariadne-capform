@@ -9,8 +9,14 @@
 {% set show_status = view_mode != 'board' %}
 <article
   id="task-card-{{ item.id }}"
-  class="task-card card card-hover card-accent accent-{{ lane_accent }} p-3 {% if item.is_overdue %}task-card-overdue{% endif %} {% if item.status == 'done' %}task-card-done{% endif %}"
+  class="task-card card card-hover card-accent accent-{{ lane_accent }} p-3 cursor-pointer {% if item.is_overdue %}task-card-overdue{% endif %} {% if item.status == 'done' %}task-card-done{% endif %}"
   data-task-status="{{ item.status }}"
+  data-task-id="{{ item.id }}"
+  role="button"
+  tabindex="0"
+  onclick="openTaskDrawer('{{ item.id }}')"
+  onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openTaskDrawer('{{ item.id }}'); }"
+  title="Open task workspace"
 >
   <div class="task-card-head">
     <div class="task-card-title-row min-w-0 flex-1">
@@ -57,6 +63,7 @@
       hx-target="#tasks-body"
       hx-swap="innerHTML"
       hx-indicator="#tasks-body-working"
+      onclick="event.stopPropagation()"
     >
       <input type="hidden" name="status" value="{{ action.status }}" />
       <input type="hidden" name="filter" value="{{ filter_key }}" />
@@ -64,7 +71,8 @@
       <button
         type="submit"
         class="btn btn-compact text-xs {% if action.status == 'done' %}btn-primary{% elif action.status == 'next' %}btn-soft text-neon-lime{% else %}btn-soft{% endif %}"
-        title="{{ action.label }}"
+        title="{{ action.hint }}"
+        aria-label="{{ action.label }} — {{ action.hint }}"
       >
         <i data-lucide="{{ action.icon }}" class="w-3.5 h-3.5"></i>
         <span>{{ action.label }}</span>

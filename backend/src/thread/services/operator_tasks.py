@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from thread.config import Settings
 from thread.db.models import OperatorTask, Opportunity
+from thread.services import opportunities as opp_svc
 from thread.domain.enums import OperatorTaskSource, OperatorTaskStatus
 from thread.services.capture_fab import CaptureContext, parse_opp_id
 from thread.services.ingest_task_assistant import PolishedTaskDraft, polish_task_at_ingest
@@ -49,6 +50,50 @@ class OpenTasksWidget:
     needs_attention: bool
 
 
+@dataclass(frozen=True)
+class WorkLogEntry:
+    id: str
+    at: datetime
+    kind: str
+    body: str
+    author: str
+
+
+@dataclass(frozen=True)
+class ChecklistItem:
+    item: str
+    done: bool
+
+
+@dataclass(frozen=True)
+class TaskDetail:
+    id: uuid.UUID
+    title: str
+    description: str
+    raw_dump: str
+    status: str
+    priority: str
+    task_kind: str
+    due_at: datetime | None
+    start_at: datetime | None
+    duration_minutes: int | None
+    opportunity_id: uuid.UUID | None
+    opportunity_name: str | None
+    project_label: str | None
+    location: str | None
+    waiting_on: str | None
+    is_overdue: bool
+    attendees: tuple[dict[str, str], ...]
+    categories: tuple[str, ...]
+    checklist: tuple[ChecklistItem, ...]
+    work_log: tuple[WorkLogEntry, ...]
+    provenance: dict | None
+    llm_polish: dict | None
+    created_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None
+
+
 def _utc_day_bounds(day: date) -> tuple[datetime, datetime]:
     start = datetime.combine(day, time.min, tzinfo=timezone.utc)
     end = datetime.combine(day, time.max, tzinfo=timezone.utc)
@@ -80,6 +125,65 @@ def _task_to_item(row: OperatorTask) -> TaskListItem:
     )
 
 
+async def find_opportunity_by_text(session: AsyncSession, text: str) -> Opportunity | None:
+    needle = text.strip().lower()
+    if len(needle) < 4:
+        return None
+    opps = await opp_svc.list_opportunities(session)
+    best: Opportunity | None = None
+    best_score = 0
+    for opp in opps:
+        name = opp.name.strip().lower()
+        if not name:
+            continue
+        if name == needle:
+            return opp
+        if name in needle or needle in name:
+            score = len(name)
+            if score > best_score:
+                best = opp
+                best_score = score
+    return best
+
+
+async def resolve_opportunity_for_task(
+    session: AsyncSession,
+    *,
+    opportunity_id: uuid.UUID | None,
+    project_label: str | None,
+    title: str,
+    raw_dump: str,
+) -> uuid.UUID | None:
+    if opportunity_id is not None:
+        return opportunity_id
+    for candidate in (project_label, title, raw_dump):
+        if not candidate:
+            continue
+        match = await find_opportunity_by_text(session, candidate)
+        if match is not None:
+            return match.id
+    return None
+
+
+async def link_task_to_opportunity(
+    session: AsyncSession,
+    task_id: uuid.UUID,
+    opportunity_id: uuid.UUID | None,
+) -> OperatorTask:
+    row = await session.get(OperatorTask, task_id)
+    if row is None:
+        raise ValueError("Task not found")
+    if opportunity_id is not None:
+        opp = await session.get(Opportunity, opportunity_id)
+        if opp is None:
+            raise ValueError("Opportunity not found")
+    now = datetime.now(timezone.utc)
+    row.opportunity_id = opportunity_id
+    row.updated_at = now
+    await session.flush()
+    return row
+
+
 async def ingest_fab_task(
     settings: Settings,
     session: AsyncSession,
@@ -93,11 +197,19 @@ async def ingest_fab_task(
         raw_dump,
         opportunity_name=context.opp_name,
     )
+    opp_id = parse_opp_id(context.opp_id)
+    opp_id = await resolve_opportunity_for_task(
+        session,
+        opportunity_id=opp_id,
+        project_label=polished.project_label,
+        title=polished.title,
+        raw_dump=raw_dump,
+    )
     task = await create_operator_task(
         session,
         raw_dump=raw_dump,
         polished=polished,
-        opportunity_id=parse_opp_id(context.opp_id),
+        opportunity_id=opp_id,
         provenance={
             "source": "fab",
             "context_label": context.context_label,
@@ -144,6 +256,7 @@ async def create_operator_task(
         waiting_on=polished.waiting_on,
         categories=list(polished.categories),
         checklist=list(polished.checklist),
+        work_log=[],
         source=source,
         provenance=provenance,
         llm_polish=llm_polish,
@@ -287,6 +400,157 @@ async def update_operator_task_status(
 
 async def complete_operator_task(session: AsyncSession, task_id: uuid.UUID) -> OperatorTask:
     return await update_operator_task_status(session, task_id, OperatorTaskStatus.DONE.value)
+
+
+def _parse_work_log(raw: list | None) -> tuple[WorkLogEntry, ...]:
+    if not raw:
+        return ()
+    entries: list[WorkLogEntry] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        body = str(item.get("body") or "").strip()
+        if not body:
+            continue
+        at_raw = item.get("at")
+        try:
+            at = datetime.fromisoformat(str(at_raw).replace("Z", "+00:00"))
+            if at.tzinfo is None:
+                at = at.replace(tzinfo=timezone.utc)
+        except (TypeError, ValueError):
+            at = datetime.now(timezone.utc)
+        entries.append(
+            WorkLogEntry(
+                id=str(item.get("id") or uuid.uuid4()),
+                at=at,
+                kind=str(item.get("kind") or "note"),
+                body=body,
+                author=str(item.get("author") or "operator"),
+            )
+        )
+    entries.sort(key=lambda e: e.at, reverse=True)
+    return tuple(entries)
+
+
+def _parse_checklist(raw: list | None) -> tuple[ChecklistItem, ...]:
+    if not raw:
+        return ()
+    items: list[ChecklistItem] = []
+    for entry in raw:
+        if isinstance(entry, dict) and entry.get("item"):
+            items.append(
+                ChecklistItem(
+                    item=str(entry["item"]).strip(),
+                    done=bool(entry.get("done")),
+                )
+            )
+        elif isinstance(entry, str) and entry.strip():
+            items.append(ChecklistItem(item=entry.strip(), done=False))
+    return tuple(items)
+
+
+def _row_to_detail(row: OperatorTask) -> TaskDetail:
+    base = _task_to_item(row)
+    return TaskDetail(
+        id=base.id,
+        title=base.title,
+        description=base.description,
+        raw_dump=row.raw_dump,
+        status=base.status,
+        priority=base.priority,
+        task_kind=base.task_kind,
+        due_at=base.due_at,
+        start_at=row.start_at,
+        duration_minutes=row.duration_minutes,
+        opportunity_id=base.opportunity_id,
+        opportunity_name=base.opportunity_name,
+        project_label=base.project_label,
+        location=row.location,
+        waiting_on=row.waiting_on,
+        is_overdue=base.is_overdue,
+        attendees=base.attendees,
+        categories=tuple(row.categories or ()),
+        checklist=_parse_checklist(row.checklist),
+        work_log=_parse_work_log(row.work_log),
+        provenance=row.provenance,
+        llm_polish=row.llm_polish,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+        completed_at=row.completed_at,
+    )
+
+
+async def get_task_detail(session: AsyncSession, task_id: uuid.UUID) -> TaskDetail | None:
+    stmt = (
+        select(OperatorTask)
+        .options(selectinload(OperatorTask.opportunity))
+        .where(OperatorTask.id == task_id)
+    )
+    row = (await session.execute(stmt)).scalar_one_or_none()
+    return _row_to_detail(row) if row else None
+
+
+async def toggle_checklist_item(
+    session: AsyncSession,
+    task_id: uuid.UUID,
+    index: int,
+) -> OperatorTask:
+    row = await session.get(OperatorTask, task_id)
+    if row is None:
+        raise ValueError("Task not found")
+
+    checklist = list(row.checklist or [])
+    if not checklist:
+        raise ValueError("Task has no checklist")
+    if index < 0 or index >= len(checklist):
+        raise ValueError("Checklist item not found")
+
+    entry = checklist[index]
+    if isinstance(entry, dict) and entry.get("item"):
+        updated = dict(entry)
+        updated["done"] = not bool(entry.get("done"))
+        checklist[index] = updated
+    elif isinstance(entry, str) and entry.strip():
+        checklist[index] = {"item": entry.strip(), "done": True}
+    else:
+        raise ValueError("Invalid checklist entry")
+
+    now = datetime.now(timezone.utc)
+    row.checklist = checklist
+    row.updated_at = now
+    await session.flush()
+    return row
+
+
+async def append_task_note(
+    session: AsyncSession,
+    task_id: uuid.UUID,
+    body: str,
+    *,
+    author: str = "operator",
+) -> OperatorTask:
+    clean = body.strip()
+    if not clean:
+        raise ValueError("Note cannot be empty")
+
+    row = await session.get(OperatorTask, task_id)
+    if row is None:
+        raise ValueError("Task not found")
+
+    now = datetime.now(timezone.utc)
+    entry = {
+        "id": str(uuid.uuid4()),
+        "at": now.isoformat(),
+        "kind": "note",
+        "body": clean,
+        "author": author,
+    }
+    log = list(row.work_log or [])
+    log.append(entry)
+    row.work_log = log
+    row.updated_at = now
+    await session.flush()
+    return row
 
 
 async def build_open_tasks_widget(

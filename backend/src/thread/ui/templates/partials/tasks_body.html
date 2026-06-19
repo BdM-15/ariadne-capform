@@ -76,7 +76,12 @@
         <i data-lucide="check-circle-2" class="w-8 h-8 text-neon-lime"></i>
         <p class="text-sm text-slate-300 font-semibold">No tasks here</p>
         <p class="text-xs text-slate-500 max-w-md">Dump meeting / reminder / follow-up from global FAB — platform routes admin work here.</p>
-        <button type="button" class="btn btn-primary btn-compact text-xs mt-1" data-capture-fab-open>
+        <button
+          type="button"
+          class="btn btn-primary btn-compact text-xs mt-1"
+          data-capture-fab-open
+          onclick="if (window.openCaptureFab) { openCaptureFab(true); } return false;"
+        >
           <i data-lucide="plus" class="w-3.5 h-3.5"></i>
           Capture task
         </button>

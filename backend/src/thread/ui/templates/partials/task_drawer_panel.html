@@ -1,0 +1,214 @@
+<div class="task-drawer-panel" id="task-drawer-panel" data-task-id="{{ task.id }}">
+  <div class="task-drawer-section px-4 pt-4 pb-3 border-b border-edge">
+    <div class="flex flex-wrap items-start justify-between gap-2">
+      <div class="min-w-0 flex-1">
+        <span class="pill border border-neon-cyan/35 text-neon-cyan text-[10px] font-mono uppercase">{{ task.status|replace('_', ' ') }}</span>
+        <h3 class="task-drawer-task-title text-base font-semibold text-slate-100 mt-2 leading-snug">{{ task.title }}</h3>
+        {% if task.description and task.description|trim|lower != task.title|trim|lower %}
+        <p class="text-xs text-slate-400 mt-1 leading-relaxed">{{ task.description }}</p>
+        {% endif %}
+      </div>
+      {% if task.is_overdue %}
+      <span class="pill border border-neon-amber/45 text-neon-amber text-[10px] font-mono">overdue</span>
+      {% endif %}
+    </div>
+    <div class="flex flex-wrap gap-1.5 mt-3">
+      <span class="pill border border-edge text-slate-500 text-[10px] font-mono">{{ task.task_kind|replace('_', ' ') }}</span>
+      {% if task.priority in ('high', 'urgent') %}
+      <span class="pill border border-neon-amber/40 text-neon-amber text-[10px] font-mono">{{ task.priority }}</span>
+      {% endif %}
+      {% if task.project_label and not task.opportunity_id %}
+      <span class="pill border border-neon-amber/30 text-neon-amber text-[10px] font-mono" title="EA project label — link pursuit below if this is an opportunity">Project: {{ task.project_label }}</span>
+      {% endif %}
+    </div>
+    {% if task.attendees %}
+    <p class="text-[10px] text-slate-500 mt-2 font-mono">With: {% for a in task.attendees %}{{ a.name }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+    {% endif %}
+    {% if task.waiting_on %}
+    <p class="text-[10px] text-neon-amber mt-1">Waiting on: {{ task.waiting_on }}</p>
+    {% endif %}
+  </div>
+
+  <div class="task-drawer-section px-4 py-3 border-b border-edge">
+    <p class="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1">Opportunity</p>
+    <p class="text-[10px] text-slate-600 mb-2" title="operator_tasks.opportunity_id FK — optional pursuit link">Tie admin task to a pursuit (e.g. LIS SECREP). Enables workspace + assist tools.</p>
+    {% if opp_flash %}
+    <p class="text-[10px] text-neon-lime mb-2">{{ opp_flash }}</p>
+    {% endif %}
+    {% if task.opportunity_id and task.opportunity_name %}
+    <div class="flex flex-wrap items-center gap-2 mb-2">
+      <a href="{{ capture_href(task.opportunity_id) }}" class="pill border border-neon-cyan/40 text-neon-cyan text-[11px] font-semibold no-underline hover:underline">{{ task.opportunity_name }}</a>
+      <span class="text-[10px] text-slate-500 font-mono">linked</span>
+    </div>
+    {% elif task.project_label %}
+    <p class="text-[10px] text-neon-amber mb-2">Unlinked — project label <strong>{{ task.project_label }}</strong>. Pick matching pursuit below.</p>
+    {% else %}
+    <p class="text-[10px] text-slate-500 mb-2">No pursuit linked — optional for personal admin tasks.</p>
+    {% endif %}
+    <form
+      class="flex flex-wrap gap-2 items-end"
+      hx-post="/partials/tasks/{{ task.id }}/opportunity"
+      hx-target="#task-drawer-body"
+      hx-swap="innerHTML"
+      onclick="event.stopPropagation()"
+    >
+      <input type="hidden" name="filter" value="{{ filter_key }}" />
+      <input type="hidden" name="view" value="{{ view_mode }}" />
+      <label class="flex-1 min-w-[10rem]">
+        <span class="sr-only">Select opportunity</span>
+        <select name="opportunity_id" class="thread-input text-xs w-full">
+          <option value="">— No pursuit —</option>
+          {% for opp in pursuits %}
+          <option value="{{ opp.id }}" {% if task.opportunity_id == opp.id %}selected{% endif %}>{{ opp.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="btn btn-soft btn-compact text-xs">Save link</button>
+    </form>
+  </div>
+
+  <div class="task-drawer-section px-4 py-3 border-b border-edge">
+    <p class="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1">Assist</p>
+    <p class="text-[10px] text-slate-600 mb-2">Contextual shortcuts — full skill wiring is stub until Phase skills land.</p>
+    <div class="flex flex-wrap gap-2">
+      {% if task.opportunity_id %}
+      <a href="{{ capture_href(task.opportunity_id) }}" class="btn btn-soft btn-compact text-xs no-underline" title="Living Briefing Packet + action matrix for this pursuit">
+        <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+        Pursuit workspace
+      </a>
+      <a href="/clew" class="btn btn-soft btn-compact text-xs no-underline" title="Money-path research — opp prefill coming">
+        <i data-lucide="git-branch" class="w-3.5 h-3.5"></i>
+        Clew
+      </a>
+      {% else %}
+      <span class="pill border border-edge text-slate-500 text-[10px]" title="Link opportunity above to unlock pursuit-scoped tools">Link pursuit for workspace + Clew</span>
+      {% endif %}
+      <a href="/tools/mcp" class="btn btn-soft btn-compact text-xs no-underline" title="Federal data MCP servers">
+        <i data-lucide="plug" class="w-3.5 h-3.5"></i>
+        MCP
+      </a>
+      <a href="/tools/skills" class="btn btn-soft btn-compact text-xs no-underline" title="Agent skills — stubs until wired">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+        Skills
+        <span class="pill border border-neon-amber/35 text-neon-amber text-[9px] ml-1">stub</span>
+      </a>
+    </div>
+  </div>
+
+  {% if actions %}
+  <div class="task-drawer-section px-4 py-3 border-b border-edge">
+    <p class="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1">Accomplish</p>
+    <p class="text-[10px] text-slate-600 mb-2">Instant lane move — no form. Add context in Work notes below.</p>
+    <div class="task-card-actions border-0 pt-0 mt-0">
+      {% for action in actions %}
+      <form
+        class="task-action-form m-0"
+        hx-post="/partials/tasks/{{ task.id }}/status"
+        hx-target="#tasks-body"
+        hx-swap="innerHTML"
+        hx-indicator="#tasks-body-working"
+        onclick="event.stopPropagation()"
+      >
+        <input type="hidden" name="status" value="{{ action.status }}" />
+        <input type="hidden" name="filter" value="{{ filter_key }}" />
+        <input type="hidden" name="view" value="{{ view_mode }}" />
+        <button
+          type="submit"
+          class="btn btn-compact text-xs {% if action.status == 'done' %}btn-primary{% elif action.status == 'next' %}btn-soft text-neon-lime{% else %}btn-soft{% endif %}"
+          title="{{ action.hint }}"
+          aria-label="{{ action.label }} — {{ action.hint }}"
+        >
+          <i data-lucide="{{ action.icon }}" class="w-3.5 h-3.5"></i>
+          <span>{{ action.label }}</span>
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="task-drawer-section px-4 py-3 border-b border-edge">
+    <p class="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-2">Work notes</p>
+    {% if note_flash %}
+    <p class="text-[10px] text-neon-lime mb-2">{{ note_flash }}</p>
+    {% endif %}
+    <form
+      class="space-y-2"
+      hx-post="/partials/tasks/{{ task.id }}/notes"
+      hx-target="#task-drawer-body"
+      hx-swap="innerHTML"
+      onclick="event.stopPropagation()"
+    >
+      <input type="hidden" name="filter" value="{{ filter_key }}" />
+      <input type="hidden" name="view" value="{{ view_mode }}" />
+      <textarea
+        name="body"
+        class="thread-input text-xs min-h-[5rem] resize-y"
+        placeholder="Hand-jam context, blockers, decisions…"
+        required
+      ></textarea>
+      <button type="submit" class="btn btn-primary btn-compact text-xs">
+        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+        Add note
+      </button>
+    </form>
+    {% if task.work_log %}
+    <ul class="task-work-log mt-3 space-y-2">
+      {% for entry in task.work_log %}
+      <li class="task-work-log-entry card card-accent accent-cyan p-2.5">
+        <p class="text-[10px] font-mono text-slate-500 mb-1">{{ entry.at.strftime('%Y-%m-%d %H:%M') }} · {{ entry.author }}</p>
+        <p class="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">{{ entry.body }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-[11px] text-slate-500 mt-2">No notes yet — capture raw context as you work.</p>
+    {% endif %}
+  </div>
+
+  {% if task.checklist %}
+  <div class="task-drawer-section px-4 py-3 border-b border-edge">
+    <p class="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-2">EA checklist</p>
+    {% if checklist_flash %}
+    <p class="text-[10px] text-neon-lime mb-2">{{ checklist_flash }}</p>
+    {% endif %}
+    <ul class="space-y-1.5">
+      {% for step in task.checklist %}
+      <li class="flex items-start gap-2 text-xs text-slate-300">
+        <form
+          class="m-0 shrink-0"
+          hx-post="/partials/tasks/{{ task.id }}/checklist"
+          hx-target="#task-drawer-body"
+          hx-swap="innerHTML"
+          onclick="event.stopPropagation()"
+        >
+          <input type="hidden" name="filter" value="{{ filter_key }}" />
+          <input type="hidden" name="view" value="{{ view_mode }}" />
+          <input type="hidden" name="index" value="{{ loop.index0 }}" />
+          <button
+            type="submit"
+            class="p-0 border-0 bg-transparent cursor-pointer flex items-center"
+            title="{% if step.done %}Mark incomplete{% else %}Mark done{% endif %}"
+            aria-label="{% if step.done %}Mark incomplete{% else %}Mark done{% endif %}: {{ step.item }}"
+          >
+            <i data-lucide="{% if step.done %}check-square{% else %}square{% endif %}" class="w-3.5 h-3.5 mt-0.5 {% if step.done %}text-neon-lime{% else %}text-slate-500 hover:text-neon-cyan{% endif %}"></i>
+          </button>
+        </form>
+        <span class="{% if step.done %}line-through text-slate-500{% endif %}">{{ step.item }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <details class="task-drawer-section px-4 py-3">
+    <summary class="text-[10px] font-mono uppercase tracking-wider text-slate-500 cursor-pointer select-none">Provenance</summary>
+    <div class="mt-2 space-y-2 text-[11px] text-slate-500">
+      <p class="font-mono text-slate-400">Created {{ task.created_at.strftime('%Y-%m-%d') }} · updated {{ task.updated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+      {% if task.llm_polish %}
+      <p>EA polish: {{ task.llm_polish.get('provider', 'unknown') }}</p>
+      {% endif %}
+      <p class="text-slate-400 whitespace-pre-wrap leading-relaxed border border-edge rounded p-2 bg-ink-950/40">{{ task.raw_dump }}</p>
+    </div>
+  </details>
+</div>

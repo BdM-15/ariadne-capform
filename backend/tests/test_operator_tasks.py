@@ -14,11 +14,16 @@ from thread.services import opportunities as opp_svc
 from thread.services.capture_fab import build_capture_context
 from thread.services.ingest_task_assistant import rules_polish_task
 from thread.services.operator_tasks import (
+    append_task_note,
     complete_operator_task,
     count_open_tasks,
     create_operator_task,
+    find_opportunity_by_text,
+    get_task_detail,
     ingest_fab_task,
+    link_task_to_opportunity,
     list_operator_tasks,
+    toggle_checklist_item,
 )
 
 
@@ -90,6 +95,90 @@ async def test_count_open_tasks(db_session):
     await db_session.commit()
     n = await count_open_tasks(db_session)
     assert n >= 1
+
+
+@pytest.mark.asyncio
+async def test_append_task_note_persists_work_log(db_session):
+    polished = rules_polish_task("schedule meeting with PM about gate deck")
+    task = await create_operator_task(db_session, raw_dump="schedule meeting", polished=polished)
+    await append_task_note(db_session, task.id, "Teresa wants deck by Friday")
+    await db_session.commit()
+
+    detail = await get_task_detail(db_session, task.id)
+    assert detail is not None
+    assert len(detail.work_log) == 1
+    assert "Teresa" in detail.work_log[0].body
+
+
+@pytest.mark.asyncio
+async def test_toggle_checklist_item_flips_done(db_session):
+    polished = rules_polish_task("schedule meeting with Molly for SECREP prep")
+    task = await create_operator_task(db_session, raw_dump="schedule meeting", polished=polished)
+    await db_session.commit()
+
+    detail = await get_task_detail(db_session, task.id)
+    assert detail is not None
+    assert len(detail.checklist) >= 2
+    assert detail.checklist[0].done is False
+
+    await toggle_checklist_item(db_session, task.id, 0)
+    await db_session.commit()
+
+    detail = await get_task_detail(db_session, task.id)
+    assert detail is not None
+    assert detail.checklist[0].done is True
+
+    await toggle_checklist_item(db_session, task.id, 0)
+    await db_session.commit()
+
+    detail = await get_task_detail(db_session, task.id)
+    assert detail is not None
+    assert detail.checklist[0].done is False
+
+
+@pytest.mark.asyncio
+async def test_toggle_checklist_invalid_index_rejected(db_session):
+    polished = rules_polish_task("schedule meeting with PM")
+    task = await create_operator_task(db_session, raw_dump="schedule meeting", polished=polished)
+    with pytest.raises(ValueError, match="not found"):
+        await toggle_checklist_item(db_session, task.id, 99)
+
+
+@pytest.mark.asyncio
+async def test_append_empty_note_rejected(db_session):
+    polished = rules_polish_task("email DISA")
+    task = await create_operator_task(db_session, raw_dump="email DISA", polished=polished)
+    with pytest.raises(ValueError, match="empty"):
+        await append_task_note(db_session, task.id, "   ")
+
+
+@pytest.mark.asyncio
+async def test_find_opportunity_by_text_matches_name(db_session):
+    tag = uuid.uuid4().hex[:6]
+    opp = await opp_svc.create_opportunity(
+        db_session,
+        OpportunityCreate(name=f"LIS SECREP {tag}", lifecycle_state="pursuing"),
+    )
+    await db_session.flush()
+    match = await find_opportunity_by_text(db_session, f"schedule LIS SECREP {tag} prep")
+    assert match is not None
+    assert match.id == opp.id
+
+
+@pytest.mark.asyncio
+async def test_link_task_to_opportunity(db_session):
+    opp = await opp_svc.create_opportunity(
+        db_session,
+        OpportunityCreate(name="Army Cyber", lifecycle_state="pursuing"),
+    )
+    polished = rules_polish_task("email PM")
+    task = await create_operator_task(db_session, raw_dump="email PM", polished=polished)
+    await link_task_to_opportunity(db_session, task.id, opp.id)
+    await db_session.commit()
+    item = await get_task_detail(db_session, task.id)
+    assert item is not None
+    assert item.opportunity_id == opp.id
+    assert item.opportunity_name == "Army Cyber"
 
 
 def test_fab_meeting_dump_routes_to_tasks_not_vault(settings, monkeypatch):

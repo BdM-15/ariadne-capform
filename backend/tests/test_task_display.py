@@ -19,8 +19,8 @@ def test_task_actions_for_inbox_includes_complete():
     actions = task_actions_for(OperatorTaskStatus.INBOX.value)
     labels = {a.label for a in actions}
     statuses = {a.status for a in actions}
-    assert "Complete" in labels
-    assert "Do next" in labels
+    assert "Mark complete" in labels
+    assert "Move to Next" in labels
     assert OperatorTaskStatus.DONE.value in statuses
     assert OperatorTaskStatus.NEXT.value in statuses
 

@@ -1,6 +1,7 @@
 """Phase 16b–16f — /tasks page, GTD board, C&C widget, opp chip."""
 
 import uuid
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -36,7 +37,18 @@ def test_tasks_page_shell():
     assert "tasks-body" in res.text
     assert "tasks-board-scroll" in res.text or "tasks-list-view" in res.text
     assert "task-card-actions" in res.text or "No tasks here" in res.text
-    assert "Accomplish" in res.text
+    assert "Accomplish" in res.text or "guide-tasks" in res.text
+    assert "guide-tasks" in res.text
+    assert "task-drawer-root" in res.text
+    assert "thread_task_drawer.js" in res.text
+    assert "data-capture-fab-open" in res.text
+    assert "openCaptureFab" in res.text
+
+
+def test_capture_fab_js_ignores_header_open_clicks():
+    """Header Capture buttons live outside #capture-fab-root — must not trigger outside-close."""
+    js = Path("src/thread/ui/static/thread_capture_fab.js").read_text(encoding="utf-8")
+    assert 'event.target.closest("[data-capture-fab-open]")' in js
 
 
 def test_command_center_shows_open_tasks_widget():

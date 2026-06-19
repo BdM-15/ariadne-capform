@@ -95,6 +95,28 @@ def main() -> int:
         # G — sidebar nav
         ok("G1 sidebar Tasks link", 'href="/tasks"' in tasks.text and "list-todo" in tasks.text)
 
+        # H — task drawer + notes (16g)
+        ok("H1 drawer shell", "task-drawer-root" in tasks.text)
+        drawer_id = status_m.group(1) if status_m else (complete_m.group(1) if complete_m else None)
+        if drawer_id:
+            drawer = client.get(f"/partials/tasks/{drawer_id}/drawer")
+            ok("H2 drawer panel 200", drawer.status_code == 200)
+            ok("H3 work notes UI", "Work notes" in drawer.text)
+            noted = client.post(
+                f"/partials/tasks/{drawer_id}/notes",
+                data={"body": f"operator proof note {tag}", "filter": "open", "view": "board"},
+            )
+            ok("H4 note append 200", noted.status_code == 200)
+            ok("H5 note in drawer", f"operator proof note {tag}" in noted.text)
+            deep = client.get(f"/tasks?task={drawer_id}")
+            ok("H6 deep link", f'openTaskDrawer("{drawer_id}")' in deep.text)
+        else:
+            ok("H2 drawer panel 200", False, "no task id")
+            ok("H3 work notes UI", False, "skipped")
+            ok("H4 note append 200", False, "skipped")
+            ok("H5 note in drawer", False, "skipped")
+            ok("H6 deep link", False, "skipped")
+
     passed = sum(1 for _, p, _ in results if p)
     total = len(results)
     print(f"\n=== Operator proof: {passed}/{total} ===")

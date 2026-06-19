@@ -6,40 +6,41 @@ from dataclasses import dataclass
 
 from thread.domain.enums import OperatorTaskStatus
 from thread.services.operator_tasks import TaskListItem
+from thread.ui.tasks_guides import action_hint
 
 _LANE_ORDER: tuple[tuple[str, str, str], ...] = (
-    (OperatorTaskStatus.INBOX.value, "Inbox", "Clarify · triage from FAB"),
-    (OperatorTaskStatus.NEXT.value, "Next", "Do now · highest leverage"),
-    (OperatorTaskStatus.SCHEDULED.value, "Scheduled", "Calendar · time-bound"),
-    (OperatorTaskStatus.WAITING.value, "Waiting", "Blocked · follow up later"),
-    (OperatorTaskStatus.DEFERRED.value, "Deferred", "Someday · low urgency"),
+    (OperatorTaskStatus.INBOX.value, "Inbox", "New from FAB — clarify before doing"),
+    (OperatorTaskStatus.NEXT.value, "Next", "Do now — your highest-leverage queue"),
+    (OperatorTaskStatus.SCHEDULED.value, "Scheduled", "Time-bound — calendar / due date"),
+    (OperatorTaskStatus.WAITING.value, "Waiting", "Blocked — waiting on someone else"),
+    (OperatorTaskStatus.DEFERRED.value, "Deferred", "Someday — low urgency backlog"),
 )
 
 _STATUS_ACTIONS: dict[str, tuple[tuple[str, str, str], ...]] = {
     OperatorTaskStatus.INBOX.value: (
-        ("next", "Do next", "arrow-right-circle"),
-        ("scheduled", "Schedule", "calendar"),
-        ("waiting", "Waiting", "hourglass"),
-        ("done", "Complete", "circle-check"),
+        ("next", "Move to Next", "arrow-right-circle"),
+        ("scheduled", "Move to Scheduled", "calendar"),
+        ("waiting", "Move to Waiting", "hourglass"),
+        ("done", "Mark complete", "circle-check"),
     ),
     OperatorTaskStatus.NEXT.value: (
-        ("scheduled", "Schedule", "calendar"),
-        ("waiting", "Waiting", "hourglass"),
-        ("done", "Complete", "circle-check"),
+        ("scheduled", "Move to Scheduled", "calendar"),
+        ("waiting", "Move to Waiting", "hourglass"),
+        ("done", "Mark complete", "circle-check"),
         ("deferred", "Defer", "archive"),
     ),
     OperatorTaskStatus.SCHEDULED.value: (
-        ("next", "Do next", "arrow-right-circle"),
-        ("done", "Complete", "circle-check"),
+        ("next", "Move to Next", "arrow-right-circle"),
+        ("done", "Mark complete", "circle-check"),
         ("deferred", "Defer", "archive"),
     ),
     OperatorTaskStatus.WAITING.value: (
-        ("next", "Do next", "arrow-right-circle"),
-        ("done", "Complete", "circle-check"),
+        ("next", "Move to Next", "arrow-right-circle"),
+        ("done", "Mark complete", "circle-check"),
     ),
     OperatorTaskStatus.DEFERRED.value: (
-        ("next", "Do next", "arrow-right-circle"),
-        ("inbox", "To inbox", "inbox"),
+        ("next", "Move to Next", "arrow-right-circle"),
+        ("inbox", "Back to Inbox", "inbox"),
     ),
     OperatorTaskStatus.DONE.value: (
         ("inbox", "Reopen", "rotate-ccw"),
@@ -60,6 +61,7 @@ class TaskAction:
     status: str
     label: str
     icon: str
+    hint: str
 
 
 @dataclass(frozen=True)
@@ -77,7 +79,7 @@ class TasksPageContext:
 
 def task_actions_for(status: str) -> tuple[TaskAction, ...]:
     return tuple(
-        TaskAction(status=key, label=label, icon=icon)
+        TaskAction(status=key, label=label, icon=icon, hint=action_hint(key))
         for key, label, icon in _STATUS_ACTIONS.get(status, ())
     )
 
@@ -99,7 +101,7 @@ def build_tasks_page_context(
     lanes: list[TaskLane] = []
     if filter_key == "done":
         done_items = [i for i in items if i.status == OperatorTaskStatus.DONE.value]
-        lanes.append(TaskLane("done", "Done", "Completed · archive or reopen", tuple(done_items)))
+        lanes.append(TaskLane("done", "Done", "Completed — reopen or archive", tuple(done_items)))
     else:
         for status, title, hint in _LANE_ORDER:
             lanes.append(TaskLane(status, title, hint, tuple(by_status.get(status, []))))

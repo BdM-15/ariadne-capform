@@ -1,0 +1,23 @@
+<div id="task-drawer-root" class="task-drawer-root task-drawer-hidden" aria-hidden="true">
+  <button
+    type="button"
+    class="task-drawer-backdrop"
+    aria-label="Close task"
+    onclick="closeTaskDrawer()"
+  ></button>
+  <aside id="task-drawer" class="task-drawer" role="dialog" aria-labelledby="task-drawer-title">
+    <header class="task-drawer-head">
+      <div class="task-drawer-head-main min-w-0">
+        <span class="pulse-panel-kicker text-neon-cyan/80">Task workspace</span>
+        <h2 id="task-drawer-title" class="task-drawer-title text-neon-cyan">Task</h2>
+        <p class="task-drawer-sub text-[10px] text-slate-500">Notes · context · accomplish</p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-compact task-drawer-close" onclick="closeTaskDrawer()" title="Close">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </header>
+    <div id="task-drawer-body" class="task-drawer-body">
+      <p class="insights-idle-hint p-4">Select a task card to open full context.</p>
+    </div>
+  </aside>
+</div>

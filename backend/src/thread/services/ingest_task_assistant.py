@@ -83,6 +83,26 @@ def _extract_attendees(raw: str) -> tuple[dict[str, str], ...]:
     return tuple(names)
 
 
+def _parse_checklist_raw(raw: object) -> tuple[dict[str, object], ...]:
+    if not isinstance(raw, list):
+        return ()
+    items: list[dict[str, object]] = []
+    for entry in raw[:12]:
+        if isinstance(entry, dict) and entry.get("item"):
+            items.append({"item": str(entry["item"]).strip(), "done": bool(entry.get("done"))})
+        elif isinstance(entry, str) and entry.strip():
+            items.append({"item": entry.strip(), "done": False})
+    return tuple(items)
+
+
+def _meeting_checklist_fallback() -> tuple[dict[str, object], ...]:
+    return (
+        {"item": "Confirm attendees and time", "done": False},
+        {"item": "Draft agenda / objectives", "done": False},
+        {"item": "Send calendar invite", "done": False},
+    )
+
+
 def rules_polish_task(raw_dump: str) -> PolishedTaskDraft:
     """Deterministic fallback when Ollama off or unreachable."""
     cleaned = _rules_fix_common_typos(raw_dump.strip())
@@ -113,7 +133,7 @@ def rules_polish_task(raw_dump: str) -> PolishedTaskDraft:
         attendees=_extract_attendees(cleaned),
         location=None,
         waiting_on=None,
-        checklist=(),
+        checklist=_meeting_checklist_fallback() if kind == OperatorTaskKind.MEETING.value else (),
         categories=("admin",),
         provider="rules",
     )
@@ -157,7 +177,7 @@ def _parse_task_json(raw: str) -> PolishedTaskDraft:
         attendees=tuple(attendees),
         location=str(data.get("location")).strip() if data.get("location") else None,
         waiting_on=str(data.get("waiting_on")).strip() if data.get("waiting_on") else None,
-        checklist=(),
+        checklist=_parse_checklist_raw(data.get("checklist")),
         categories=tuple(str(c) for c in (data.get("categories") or []) if c),
         provider="ollama",
     )
@@ -170,11 +190,14 @@ def build_task_polish_prompt(raw_dump: str, *, opportunity_name: str = "") -> li
             "role": "system",
             "content": (
                 "Return ONLY JSON with keys: title, description, task_kind, status, priority, "
-                "duration_minutes, project_label, context_tags, attendees, location, waiting_on, categories. "
+                "duration_minutes, project_label, context_tags, attendees, location, waiting_on, "
+                "categories, checklist. "
                 "title = Title Case 3-8 words. Fix typos; do not invent facts. "
                 "task_kind: meeting|call|email|follow_up|prep|errand|waiting_for|someday|other. "
                 "status: inbox|next|waiting|scheduled. priority: low|normal|high|urgent. "
-                "attendees: [{\"name\": \"...\"}]. Null/omit unknown fields."
+                "attendees: [{\"name\": \"...\"}]. "
+                "checklist: [{\"item\": \"actionable sub-step\", \"done\": false}] — 2-6 steps when task is multi-step; [] if single action. "
+                "Null/omit unknown fields."
             ),
         },
         {"role": "user", "content": f"{ctx}\n\nPolish this admin task dump:\n{raw_dump[:3000]}"},

@@ -5,11 +5,26 @@
   <div class="flex items-center gap-3 min-w-0">
     <h1 class="text-base font-semibold tracking-tight h1-gradient shrink-0">Tasks</h1>
     <span class="pill border border-neon-cyan/35 text-neon-cyan text-[10px] font-mono uppercase">Accomplish</span>
-    <span class="text-[11px] font-mono text-slate-500 truncate hidden md:inline">GTD lanes · inbox → next → done</span>
+    <span class="text-[11px] font-mono text-slate-500 truncate hidden md:inline">GTD lanes · click card for notes</span>
   </div>
   <div class="flex items-center gap-2 shrink-0">
     <span class="pill border border-neon-cyan/40 text-neon-cyan text-[10px] font-mono tabular-nums">{{ page.open_count }} open</span>
-    <button type="button" class="btn btn-primary btn-compact text-xs" data-capture-fab-open title="Dump admin task">
+    <button
+      type="button"
+      class="btn btn-ghost btn-compact text-xs"
+      onclick="openGuideDialog('guide-tasks')"
+      title="Tasks guide — lanes, actions, notes"
+    >
+      <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+      Guide
+    </button>
+    <button
+      type="button"
+      class="btn btn-primary btn-compact text-xs"
+      data-capture-fab-open
+      onclick="if (window.openCaptureFab) { openCaptureFab(true); } return false;"
+      title="Open quick capture — dump meeting, reminder, follow-up"
+    >
       <i data-lucide="plus" class="w-3.5 h-3.5"></i>
       Capture task
     </button>
@@ -17,7 +32,24 @@
 </header>
 {% endblock %}
 {% block content %}
+<div class="tasks-doctrine settings-tip-box mb-3">
+  <strong class="text-neon-cyan">How this works:</strong>
+  Lane buttons only <em>move</em> the card (no form). <strong>Click a card</strong> → drawer for notes + full context.
+  <button type="button" class="settings-label-tip border-0 bg-transparent cursor-pointer text-neon-cyan" onclick="openGuideDialog('guide-tasks')" title="Open Tasks guide">?</button>
+</div>
 <div id="tasks-page" class="tasks-page-layout">
   {% include "partials/tasks_body.html" %}
 </div>
+{% include "partials/task_drawer_shell.html" %}
+{% set guide_id = "tasks" %}
+{% set guide = tasks_guide %}
+{% include "partials/insights_guide_dialog.html" %}
+<script src="/static/thread_task_drawer.js"></script>
+{% if open_task_id %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    openTaskDrawer("{{ open_task_id }}");
+  });
+</script>
+{% endif %}
 {% endblock %}
