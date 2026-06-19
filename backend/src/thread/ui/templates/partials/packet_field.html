@@ -12,6 +12,13 @@
       </span>
     </div>
     <div class="text-[10px] font-mono text-slate-600 mt-1">{{ field.field_key }}</div>
+    {% if field.route_hint %}
+    <p class="text-[10px] text-slate-500 mt-2 leading-relaxed packet-route-hint" title="Phase 20 route stub">
+      {% if field.deterministic %}<span class="text-neon-lime">fast</span> · {% endif %}
+      {% if field.answer_sources %}{{ field.answer_sources|join(' → ') }} · {% endif %}
+      {{ field.route_hint }}
+    </p>
+    {% endif %}
   </div>
   <div class="p-5">
     <form

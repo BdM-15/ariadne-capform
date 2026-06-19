@@ -41,7 +41,7 @@ Slide 1 is reference/instruction content, not opportunity-specific user data. Ar
 | `milestone_instructions.ms_purpose`                | Milestone (MS) Purpose | prose          | Static template instruction.                 |
 | `milestone_instructions.required_slide_rule`       | Required Slides        | prose          | Defines bottom-right milestone marker rule.  |
 | `milestone_instructions.non_required_slide_rule`   | Non-Required Slides    | prose          | Defines red-x omission rule.                 |
-| `milestone_instructions.approval_rule`             | MS Approval            | prose          | Uses Mission Tech TAM and BU TAM supplement. |
+| `milestone_instructions.approval_rule`             | MS Approval            | prose          | Uses organization TAM and BU TAM supplement. |
 | `milestone_instructions.presentation_time_minutes` | Presentation Time      | scalar integer | Template default is 30 minutes.              |
 | `milestone_profiles.ms1`                           | Milestone 1 profile    | row/prose      | Static profile for Qualification.            |
 | `milestone_profiles.ms2`                           | Milestone 2 profile    | row/prose      | Static profile for Pursuit/No Pursuit.       |
@@ -77,15 +77,15 @@ Slide 1 is reference/instruction content, not opportunity-specific user data. Ar
 | --------------------------------- | ----------------------- | ----------- | ----------------------------------------------------------- |
 | `salesforce_id`                   | Salesforce ID #         | scalar text | Human input or CRM/API later.                               |
 | `draft_rfp_date`                  | Draft RFP Date          | date        | Evidence or human input.                                    |
-| `kbr_role`                        | KBR Role                | enum        | Prime/Sub.                                                  |
+| `kbr_role`                        | Prime/Sub Role          | enum        | Prime/Sub.                                                  |
 | `rfp_release_date`                | RFP Release Date        | date        | Evidence or human input.                                    |
-| `prime_name`                      | Prime Name              | scalar text | Human input/evidence; relevant when KBR is sub.             |
+| `prime_name`                      | Prime Name              | scalar text | Human input/evidence; relevant when pursuing as sub.          |
 | `proposal_due_date`               | Proposal Due Date       | date        | Solicitation evidence or human input.                       |
 | `crm_stage`                       | Stage                   | enum/text   | Template shows 00-04. May map to opportunity lifecycle/CRM. |
 | `award_date`                      | Award Date              | date        | Evidence or human input.                                    |
 | `customer_name`                   | Customer Name           | scalar text | Evidence or human input.                                    |
 | `contract_start_date`             | Contract Start          | date        | Evidence or human input.                                    |
-| `mts_priority`                    | MTS Priority            | enum        | A, B, O.                                                    |
+| `mts_priority`                    | Capture Priority        | enum        | A, B, O.                                                    |
 | `contract_end_date`               | Contract End            | date        | Evidence or human input.                                    |
 | `financial_contract_type`         | Financial Contract Type | enum/list   | FFP, CPFF, CPAF, T&M, Multiple.                             |
 | `total_contract_value`            | Total Contract Value    | money       | Evidence or human input.                                    |
@@ -132,7 +132,7 @@ Slide 5 is mostly prose and recommendation synthesis. It should be backed by evi
 | `customer_need_funding_status`  | Ongoing need / funding context              | prose      | Customer/funding evidence or gap.                                                                        |
 | `competitive_landscape_summary` | Overall competitive landscape               | prose      | Competitive intelligence evidence.                                                                       |
 | `ms1_bluf_focus`                | MS1-specific BLUF focus                     | prose      | Market intelligence, customer relationships, resources/talent, estimated B&P.                            |
-| `ms2_bluf_focus`                | MS2-specific BLUF focus                     | prose      | Customer/contracting engagement, KBR gaps, gap closure approach, competitive/team strategy, updated B&P. |
+| `ms2_bluf_focus`                | MS2-specific BLUF focus                     | prose      | Customer/contracting engagement, team gaps, gap closure approach, competitive/team strategy, updated B&P. |
 | `ms3_bluf_focus`                | MS3-specific BLUF focus                     | prose      | MS2 closure progress, recruiting/staffing activation, additional B&P.                                    |
 | `what_it_takes_to_win`          | What Will It Take To Win?                   | prose/list | Capture and operations recommendations and hurdles.                                                      |
 | `recommendation`                | Recommendation                              | prose/enum | Leadership-ready recommendation, e.g. proceed/hold/no-bid/approve pricing.                               |
@@ -267,7 +267,7 @@ PathToBlueRow
 | `pricing_strategy_summary`             | Pricing Strategy Summary                      | prose/list | Pricing strategy and PTW evidence.         |
 | `customer_pricing_estimating_guidance` | Customer Pricing and Estimating Guidance      | prose/list | RFP/prior solicitation evidence.           |
 | `pricing_variables`                    | Pricing Variables                             | prose/list | Pricing model / capture judgment.          |
-| `kbr_position_relative_to_competition` | Define KBR's Position Relative to Competition | prose/list | Competitive intelligence and price-to-win. |
+| `kbr_position_relative_to_competition` | Position Relative to Competition | prose/list | Competitive intelligence and price-to-win. |
 | `pricing_strategy_risks_opportunities` | Pricing risks/opportunities                   | prose/list | Derived from strategy summary.             |
 
 ## Slide 11 - Proposed Pricing Summary

@@ -1,0 +1,21 @@
+<div id="field-{{ field.field_key }}" class="packet-evidence-field">
+  <div class="packet-evidence-field-head">
+    <span class="packet-evidence-field-label">{{ field.label }}</span>
+    <span class="pill pill-compact text-[8px] text-slate-500">{{ field.status }}</span>
+  </div>
+  {% if field.route_hint %}
+  <p class="packet-evidence-hint text-[9px] text-slate-600 leading-snug">{{ field.route_hint }}</p>
+  {% endif %}
+  <form
+    hx-post="/opportunities/{{ opp_id }}/packet/{{ field.field_key }}"
+    hx-target="#field-{{ field.field_key }}"
+    hx-swap="outerHTML"
+    class="mt-1"
+  >
+    <textarea class="thread-textarea packet-evidence-input w-full text-xs" name="value" rows="2" placeholder="Draft answer — submits as candidate">{{ field.value or '' }}</textarea>
+    <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+      <span class="pill pill-compact text-[8px] border border-neon-cyan/30 text-neon-cyan">{{ field.trust_level }}</span>
+      <button type="submit" class="btn btn-primary btn-compact text-[10px] ml-auto">Submit</button>
+    </div>
+  </form>
+</div>

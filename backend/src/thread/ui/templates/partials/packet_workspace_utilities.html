@@ -1,0 +1,17 @@
+<nav class="packet-workspace-utilities flex flex-wrap items-center gap-2" aria-label="Workspace utilities">
+  {% if packet is defined and packet.progress.pending_review > 0 %}
+  <a href="/review" class="pill pill-compact border border-neon-amber/45 text-neon-amber text-[10px] no-underline hover:underline">
+    {{ packet.progress.pending_review }} pending review
+  </a>
+  {% else %}
+  <a href="/review" class="page-utility-link text-[10px] no-underline">Review queue</a>
+  {% endif %}
+  <span class="text-slate-700 text-[10px]">·</span>
+  <a href="/insights" class="page-utility-link text-[10px] no-underline">Data insights</a>
+  <span class="text-slate-700 text-[10px]">·</span>
+  <a href="/clew" class="page-utility-link text-[10px] no-underline">Clew</a>
+  <span class="text-slate-700 text-[10px]">·</span>
+  <a href="/knowledge" class="page-utility-link text-[10px] no-underline">Vault</a>
+  <span class="text-slate-700 text-[10px]">·</span>
+  <a href="{{ capture_href(opp_id, slide='slide_14_actions') }}#action-matrix" class="page-utility-link text-[10px] no-underline">Action matrix</a>
+</nav>

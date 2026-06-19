@@ -31,6 +31,7 @@ class OpportunityCreate(BaseModel):
     name: str
     capture_phase_band: CapturePhaseBand = CapturePhaseBand.EVERGREEN
     entry_reason: str = "new_lead"
+    lifecycle_state: LifecycleState | None = None
     award_key: str | None = None
     naics_code: str | None = None
     sam_notice_id: str | None = None
@@ -187,6 +188,31 @@ class VaultListingOut(BaseModel):
 class VaultPageOut(BaseModel):
     path: str
     content: str
+
+
+class VaultCandidateWriteIn(BaseModel):
+    name: str
+    body: str
+    page_type: str = "synthesis"
+    citations: str = ""
+    related: list[str] = Field(default_factory=list)
+    target_path: str | None = None
+    opportunity_id: UUID | None = None
+    queue_review: bool = False
+
+
+class VaultWriteResultOut(BaseModel):
+    path: str
+    created: bool
+    appended: bool
+    index_updated: bool
+    log_appended: bool
+    skipped_dedup: bool = False
+
+
+class VaultIngestOut(BaseModel):
+    review_id: str
+    paths: list[str] = Field(default_factory=list)
 
 
 class HealthOut(BaseModel):

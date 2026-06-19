@@ -1,0 +1,59 @@
+{# 16:9 living slide canvas — visual deck preview (Phase 14i / 14k) #}
+{% set data_fields = fields|selectattr('value_kind', 'ne', 'prose')|list %}
+{% set prose_fields = fields|selectattr('value_kind', 'equalto', 'prose')|list %}
+<section class="packet-slide-preview" aria-label="Briefing slide preview">
+  <div class="packet-slide-canvas">
+    <div class="packet-slide-canvas-head">
+      <span class="packet-slide-canvas-kicker">Milestone Decision Briefing</span>
+      <span class="packet-slide-canvas-ms">{{ packet.milestone_gate_label }}</span>
+    </div>
+    <h3 class="packet-slide-canvas-title">
+      {{ packet.active_presentation_title }}
+    </h3>
+    <div class="packet-slide-canvas-body">
+      {% if packet.active_is_reference %}
+      <div class="packet-slide-reference-body">
+        <p class="packet-slide-reference-copy">{{ packet.active_reference_summary }}</p>
+        <p class="packet-slide-canvas-empty text-[10px] mt-3">
+          Process and training slide — not exported. Use approval slides and content slides for live evidence.
+        </p>
+      </div>
+      {% else %}
+      <div class="packet-slide-canvas-col">
+        <div class="packet-slide-canvas-col-label">Visible Data Elements</div>
+        {% if data_fields %}
+        <dl class="packet-slide-data-list">
+          {% for field in data_fields %}
+          <div class="packet-slide-data-row">
+            <dt>{{ field.label }}</dt>
+            <dd class="{% if not field.value %}packet-slide-empty{% endif %}">
+              {{ field.value or '—' }}
+            </dd>
+          </div>
+          {% endfor %}
+        </dl>
+        {% else %}
+        <p class="packet-slide-canvas-empty">No structured fields on this slide for {{ packet.milestone_gate_label }}.</p>
+        {% endif %}
+      </div>
+      <div class="packet-slide-canvas-col">
+        <div class="packet-slide-canvas-col-label">Prose / Decision Outputs</div>
+        {% if prose_fields %}
+        <div class="packet-slide-prose-list">
+          {% for field in prose_fields %}
+          <div class="packet-slide-prose-block">
+            <div class="packet-slide-prose-label">{{ field.label }}</div>
+            <p class="{% if not field.value %}packet-slide-empty{% endif %}">
+              {{ field.value or '—' }}
+            </p>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="packet-slide-canvas-empty">No prose blocks on this slide.</p>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>

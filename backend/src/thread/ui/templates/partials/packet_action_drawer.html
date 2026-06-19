@@ -1,0 +1,43 @@
+<details id="action-matrix" class="packet-action-drawer card card-accent accent-magenta overflow-hidden" {% if expand_action_drawer %}open{% endif %}>
+  <summary class="packet-action-drawer-summary px-4 py-3 cursor-pointer select-none flex items-center justify-between gap-2">
+    <span class="font-semibold text-sm">Capture action matrix</span>
+    <span class="pill text-[10px]">{{ actions|length }} item{% if actions|length != 1 %}s{% endif %} · syncs to slide 14</span>
+  </summary>
+  <div class="border-t border-edge p-4 space-y-4">
+    <form
+      class="space-y-3"
+      hx-post="/opportunities/{{ opp_id }}/actions"
+      hx-target="#workspace-panel"
+      hx-swap="innerHTML"
+    >
+      <input type="hidden" name="tab" value="packet" />
+      <input type="hidden" name="slide" value="slide_14_actions" />
+      <input class="thread-input" name="action" placeholder="Action description" required />
+      <div class="flex flex-wrap gap-3">
+        <input class="thread-input flex-1 min-w-[140px]" name="owner" placeholder="Owner" />
+        <input class="thread-input flex-1 min-w-[140px]" name="due_date" type="date" />
+      </div>
+      <input class="thread-input" name="linked_field_keys" placeholder="Linked field keys (comma-separated)" />
+      <button type="submit" class="btn btn-primary btn-compact">Add action</button>
+    </form>
+    {% if actions|length == 0 %}
+    <p class="text-sm text-slate-400">No actions yet — add capture tasks above; they feed the Action Plan slide.</p>
+    {% else %}
+    <div class="space-y-2">
+      {% for item in actions %}
+      <div class="card card-hover p-3">
+        <p class="text-sm font-medium">{{ item.action }}</p>
+        <p class="text-[11px] font-mono text-slate-500 mt-1">
+          {% if item.owner %}Owner: {{ item.owner }} · {% endif %}
+          {% if item.due_date %}Due {{ item.due_date|datefmt }}{% else %}No due date{% endif %}
+          · <span class="pill">{{ item.status }}</span>
+        </p>
+        {% if item.linked_field_keys %}
+        <p class="text-[11px] text-slate-500 mt-1">Fields: {{ item.linked_field_keys|join(', ') }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</details>

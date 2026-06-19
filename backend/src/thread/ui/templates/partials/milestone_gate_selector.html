@@ -1,0 +1,22 @@
+<div id="ms-gate-shell" class="ms-gate-toolbar" role="group" aria-label="Milestone gate">
+  <span class="ms-gate-label">Milestone</span>
+  {% set gates = [
+    ('milestone_1', 'MS1'),
+    ('milestone_2', 'MS2'),
+    ('milestone_3', 'MS3'),
+    ('milestone_4', 'MS4'),
+  ] %}
+  {% for gate_value, gate_label in gates %}
+  <button
+    type="button"
+    class="ms-gate-btn {% if opp.current_milestone_gate == gate_value %}ms-gate-btn-active{% endif %}"
+    title="Set packet to {{ gate_label }} — filters slides and MS-critical fields"
+    hx-post="/opportunities/{{ opp_id }}/milestone-gate"
+    hx-target="#workspace-panel"
+    hx-swap="innerHTML"
+    hx-vals='{"milestone_gate": "{{ gate_value }}", "tab": "{{ active_tab|default('packet', true) }}", "slide": "{{ packet.active_slide if packet is defined and packet else '' }}"}'
+  >
+    {{ gate_label }}
+  </button>
+  {% endfor %}
+</div>

@@ -1,4 +1,4 @@
-"""Workspace panel data — packet, actions, research, review."""
+"""Workspace panel data — packet brief, actions drawer, review utilities."""
 
 from __future__ import annotations
 
@@ -15,15 +15,27 @@ from thread.db.models import ActionMatrixItem
 from thread.domain.enums import ResearchLens
 from thread.ui.review_display import ReviewQueueItem, build_global_review_queue, build_review_queue
 
+# Legacy tab query params still accepted; workspace is a single Filament brief view.
+_LEGACY_TABS = frozenset({"actions", "review", "research"})
+
 
 def valid_tabs() -> tuple[str, ...]:
-    return ("packet", "actions", "review", "research")
+    return ("packet",)
 
 
 def normalize_tab(tab: str | None) -> str:
+    if tab in _LEGACY_TABS:
+        return "packet"
     if tab in valid_tabs():
         return tab
     return "packet"
+
+
+def legacy_tab_redirect(tab: str | None) -> str | None:
+    """Map obsolete workspace tabs to their replacement destinations."""
+    if tab == "review":
+        return "/review"
+    return None
 
 
 def list_research_runs(settings: Settings, opp_id: uuid.UUID, *, limit: int = 8) -> list[dict[str, Any]]:

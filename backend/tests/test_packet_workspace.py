@@ -49,8 +49,8 @@ async def test_build_packet_workspace_groups_by_slide(db_session):
 
 
 def test_normalize_packet_slide_defaults():
-    assert normalize_packet_slide(None) == PACKET_SLIDE_ORDER[0][0]
-    assert normalize_packet_slide("not_a_slide") == PACKET_SLIDE_ORDER[0][0]
+    assert normalize_packet_slide(None) == "slide_2_cover"
+    assert normalize_packet_slide("not_a_slide") == "slide_2_cover"
     assert normalize_packet_slide("slide_8_swot") == "slide_8_swot"
 
 
@@ -67,10 +67,14 @@ async def test_opportunity_packet_slide_nav_in_ui():
         assert created.status_code == 200, created.text
         opp_id = created.json()["id"]
 
-        res = await client.get(f"/opportunities/{opp_id}?tab=packet&slide=slide_5_bluf")
+        res = await client.get(f"/capture/{opp_id}?tab=packet&slide=slide_5_bluf")
         assert res.status_code == 200
         html = res.text
         assert "packet-slide-nav" in html
+        assert "packet-slide-canvas" in html
+        assert "packet-briefing-layout" in html
+        assert "Evidence Inspector" in html
+        assert "Briefing View" in html
+        assert "Connected fill routes" in html
+        assert "packet-fill-workflows" in html
         assert "BLUF" in html
-        assert "packet-field-card" in html
-        assert "What does leadership need to know?" in html

@@ -21,7 +21,7 @@ Milesonte Instructions:
 Milestone (MS) Purpose: Provides opportunity updates to leadership and allows them the opportunity to evaluate viability, strategy, risks, rewards, and probability of winning the contract.
 Required Slides: For MS1-4, you are only required to brief the corresponding slide number in the bottom right corner (MS1 – brief the slides with a 1 in the bottom right)
 Non-Required Slides: For subcontract, non-competitive , and accelerated acquisition (OTA, CSO, Phase III, etc.) bids, several slides can be omitted from the deck. They will be indicated by a red x in the bottom right.
-MS Approval: MS Approver, Sponsors, and Attendees are based on the Mission Tech TAM as well as Business Units (BU) TAM Supplement.
+MS Approval: MS Approver, Sponsors, and Attendees are based on the organization TAM as well as Business Units (BU) TAM Supplement.
 Presentation Time: 30 min (Slide Timing in Slide Title)
 ```
 
@@ -40,8 +40,8 @@ Pursuit/No Pursuit
 Timeline: 9-12 months before FRFP date
 MS2 is an interim review of Capture progress to determine viability of continuing to provide funding and resources.
 The CM has developed a comprehensive capture strategy and plan.
-The CM presents updates on the Request for Proposal (RFP) shaping strategies, customer engagement strategy (e.g., client visits, call plans), pricing strategies, key or critical personnel hiring, competitive landscape, expanded teaming discussions, unique investment requirements, OCI assessment, Pwin maturation, and exercises to further evaluate KBR capabilities.
-Upon approval, defined by the Mission Tech TAM, proposal activities commence with assignment of Proposal Manager (PropMgr).
+The CM presents updates on the Request for Proposal (RFP) shaping strategies, customer engagement strategy (e.g., client visits, call plans), pricing strategies, key or critical personnel hiring, competitive landscape, expanded teaming discussions, unique investment requirements, OCI assessment, Pwin maturation, and exercises to further evaluate team capabilities.
+Upon approval, defined by the organization TAM, proposal activities commence with assignment of Proposal Manager (PropMgr).
 Briefer: Capture Manager
 ```
 
@@ -113,7 +113,7 @@ This catalog summarizes the deck shape without copying the private template whol
 | 7     | Evaluation Methodology                         | RFP/evaluation table               | Evaluation factors, possible ratings, basis of evaluated price, relative importance, customer award trends.                                                                                      |
 | 8     | Opportunity SWOT                               | Four-column SWOT                   | Strengths, weaknesses, opportunities, threats. Could include generated graphic enhancements later, but the base content should remain evidence-backed.                                           |
 | 9     | Opportunity Development Path to Blue           | Progress/status tracker            | Strategic fit, leadership highlights, win strategy, pursuit areas, previous/current status, updates, next steps/actions. Strong bridge to Action Plan Items.                                     |
-| 10    | Pricing Strategy                               | Pricing strategy panels            | Pricing strategy summary, customer pricing/estimating guidance, pricing variables, KBR position relative to competition. MS3 expectation is stronger than earlier stages.                        |
+| 10    | Pricing Strategy                               | Pricing strategy panels            | Pricing strategy summary, customer pricing/estimating guidance, pricing variables, position relative to competition. MS3 expectation is stronger than earlier stages.                        |
 | 11    | Proposed Pricing Summary                       | Pricing summary placeholder        | No preliminary proposed price expected at MS1/MS2; preliminary price expected at MS3 when feasible; final price at MS4.                                                                          |
 | 12    | Execution Business Case Model                  | Financial model table              | Preliminary business case at MS2, more mature at MS3 if needed, final at MS4 if needed.                                                                                                          |
 | 13    | High Risk Elements                             | Proposal and execution risk tables | Proposal risks and execution risks with responses. Strong fit for risk evidence and action links.                                                                                                |
@@ -196,7 +196,7 @@ Example fields to model first:
 | `award_date`              | Award Date              | TBD                            | Evidence or human input                     |
 | `contract_start`          | Contract Start          | TBD                            | Evidence or human input                     |
 | `contract_end`            | Contract End            | TBD                            | Evidence or human input                     |
-| `kbr_role`                | KBR Role                | Prime/Sub                      | Human input                                 |
+| `kbr_role`                | Prime/Sub Role          | Prime/Sub                      | Human input                                 |
 | `prime_name`              | Prime Name              | TBD                            | Human input or evidence                     |
 | `financial_contract_type` | Financial Contract Type | FFP, CPFF, CPAF, T&M, Multiple | Evidence or human input                     |
 | `total_contract_value`    | Total Contract Value    | TBD                            | Evidence or human input                     |

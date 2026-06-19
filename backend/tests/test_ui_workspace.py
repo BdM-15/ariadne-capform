@@ -4,8 +4,9 @@ from thread.ui.workspace import normalize_tab, research_lenses, valid_tabs
 
 
 def test_valid_workspace_tabs():
-    assert valid_tabs() == ("packet", "actions", "review", "research")
-    assert normalize_tab("research") == "research"
+    assert valid_tabs() == ("packet",)
+    assert normalize_tab("research") == "packet"
+    assert normalize_tab("review") == "packet"
     assert normalize_tab("bogus") == "packet"
 
 

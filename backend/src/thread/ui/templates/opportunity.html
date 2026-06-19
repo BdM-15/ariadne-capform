@@ -1,26 +1,29 @@
 {% extends "base.html" %}
+{% block body_capture_attrs %} data-capture-opp-id="{{ opp.id }}" data-capture-opp-name="{{ opp.name }}"{% endblock %}
 {% block title %}{{ opp.name }} — {{ app_name }}{% endblock %}
 {% block page_header %}
-<header class="page-nav-bar glass-section-bar shrink-0 px-6 py-3 space-y-3">
-  <div class="flex flex-wrap items-center justify-between gap-3">
-    <div class="flex items-center gap-3 min-w-0">
-      <a href="/pulse#tracked-pursuits" class="page-back-link shrink-0" title="Back to tracked pursuits on Pulse">← Pulse</a>
+<header class="page-nav-bar glass-section-bar shrink-0 px-6 py-4 space-y-3 lbp-workspace-header">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div class="flex items-start gap-3 min-w-0">
+      <a href="/capture" class="page-back-link shrink-0 mt-1" title="Back to Filament">← Filament</a>
       <div class="min-w-0">
-        <h1 class="text-base font-semibold tracking-tight h1-gradient truncate">{{ opp.name }}</h1>
-        <p class="text-[10px] font-mono text-slate-600 truncate">Capture workspace · Living Briefing Packet</p>
+        <div class="lbp-kicker">Living Briefing Packet</div>
+        <h1 class="text-lg font-semibold tracking-tight h1-gradient truncate">{{ opp.name }}</h1>
+        <p class="text-[11px] text-slate-500 mt-1 leading-relaxed max-w-2xl">
+          Milestone slide map · connected fill routes · evidence inspector — wired to intel, not pasted from PowerPoint.
+        </p>
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-2 text-[11px] font-mono shrink-0">
-      <span class="pill border border-neon-cyan/40 text-neon-cyan">{{ opp.current_milestone_gate|milestone_label }}</span>
       <span class="pill text-slate-500">{{ opp.capture_phase_band }}</span>
       {% if opp.intel_provenance %}
       <span class="pill border border-neon-magenta/40 text-neon-magenta">intel signal</span>
       {% endif %}
     </div>
   </div>
-  {% set tabs = [("packet", "Packet"), ("actions", "Actions"), ("review", "Review"), ("research", "Research")] %}
   {% set opp_id = opp.id %}
-  {% include "partials/workspace_tabs.html" %}
+  {% include "partials/milestone_gate_selector.html" %}
+  {% include "partials/packet_workspace_utilities.html" %}
 </header>
 {% endblock %}
 {% block content %}

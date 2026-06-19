@@ -1,0 +1,27 @@
+{# Evidence inspector — traceability + field editors beside slide preview #}
+<aside class="packet-evidence-rail card card-accent accent-magenta p-3" aria-label="Evidence inspector">
+  <div class="packet-evidence-head">
+    <span class="cc-section-label text-neon-magenta mb-0">Evidence Inspector</span>
+    {% if packet.active_slide_answered == packet.active_slide_field_count and packet.active_slide_field_count > 0 %}
+    <span class="pill pill-compact border border-neon-lime/40 text-neon-lime text-[9px]">Answered</span>
+    {% elif packet.active_slide_field_count > 0 %}
+    <span class="pill pill-compact border border-neon-amber/40 text-neon-amber text-[9px]">Open</span>
+    {% endif %}
+  </div>
+
+  <div class="packet-evidence-meta text-[10px] font-mono text-slate-500 space-y-1.5 mt-2 mb-3">
+    <div><span class="text-slate-600">Slide</span> {{ packet.active_slide_number }}. {{ packet.active_presentation_title }}</div>
+    <div><span class="text-slate-600">Applicability</span> {{ packet.active_applicability|replace('_', ' ')|title }} for {{ packet.milestone_gate_label }}</div>
+    <div><span class="text-slate-600">Evidence</span> {{ packet.active_slide_answered }} of {{ packet.active_slide_field_count }} filled</div>
+  </div>
+
+  {% if fields|length == 0 %}
+  <p class="text-xs text-slate-500 italic">No MS-critical fields on this slide for {{ packet.milestone_gate_label }}.</p>
+  {% else %}
+  <div class="packet-evidence-fields space-y-2">
+    {% for field in fields %}
+    {% include "partials/packet_field_compact.html" %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</aside>
