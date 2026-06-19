@@ -29,7 +29,7 @@ INSIGHTS_EXPLORE_GUIDES: dict[str, dict[str, Any]] = {
             "Saved bookmarks reopen this explore pane — they do not remote-control Pulse.",
             "Research on Pulse feeds the platform knowledge vault (agencies, competitors) — one ingress among many.",
             "Pinpoint award lookups: USAspending MCP on Tools → MCP Servers.",
-            "Teaming uses FFATA subaward bulk — not prime-only. PDF parse is MinerU 3.3 (stub).",
+            "Teaming uses FFATA subaward bulk — not prime-only. PDF parse is MinerU 3.3 (enable MINERU_ENABLED).",
         ],
     },
     "clew": {
@@ -54,7 +54,7 @@ INSIGHTS_EXPLORE_GUIDES: dict[str, dict[str, Any]] = {
             "portfolio-scale trends, teaming, concentration; (2) live MCP complement — USAspending MCP "
             "for pinpoint award/recipient lookups, SAM.gov MCP for notices, entities, live subaward "
             "discovery when bulk is stale or missing. Clew is a utility over both — separate from "
-            "USAspending explore UI. MinerU 3.3 for solicitation PDF (Phase 19 stub)."
+            "USAspending explore UI. MinerU 3.3 for solicitation PDF (MINERU_ENABLED + FastAPI)."
         ),
         "how_to_use": [
             "Open Clew from Tools → Clew, or follow a deep link from Data Insights explore or Pulse watchlist (recipient/agency/NAICS pre-filled).",

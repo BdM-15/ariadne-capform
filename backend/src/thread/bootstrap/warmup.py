@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from thread.config import Settings
 from thread.llm.router import ollama_model_available, probe_ollama, warm_ollama_model
 from thread.mcp.service import MCPService
+from thread.services.mineru_client import mineru_base_url, probe_mineru_health
 from thread.skills.registry import discover_skills
 
 
@@ -24,6 +25,9 @@ class WarmupReport:
     model_warm_seconds: float | None = None
     mcp_server_count: int = 0
     skill_count: int = 0
+    mineru_enabled: bool = False
+    mineru_reachable: bool = False
+    mineru_endpoint: str = ""
     notes: list[str] = field(default_factory=list)
 
 
@@ -41,6 +45,15 @@ async def run_startup_warmup(app: FastAPI, settings: Settings) -> WarmupReport:
     skills = discover_skills(settings.resolve(settings.skills_root))
     app.state.skill_catalog = skills
     report.skill_count = len(skills)
+
+    report.mineru_enabled = bool(settings.mineru_enabled)
+    report.mineru_endpoint = mineru_base_url(settings)
+    if report.mineru_enabled:
+        report.mineru_reachable = probe_mineru_health(settings)
+        if not report.mineru_reachable:
+            report.notes.append(
+                f"MinerU enabled but unreachable at {report.mineru_endpoint} — capture uses mineru_error fallback"
+            )
 
     if not settings.local_admin_model_enabled:
         report.notes.append("local_admin_model_enabled=false — Ollama warm skipped")
@@ -73,6 +86,14 @@ def log_warmup_report(report: WarmupReport) -> None:
         return
 
     parts = [f"mcp={report.mcp_server_count}", f"skills={report.skill_count}"]
+    if report.mineru_enabled:
+        parts.append(
+            f"mineru={'ready' if report.mineru_reachable else 'unreachable'}"
+            + (f"@{report.mineru_endpoint.replace('http://', '')}" if report.mineru_endpoint else "")
+        )
+    else:
+        parts.append("mineru=off")
+
     if report.ollama_reachable:
         parts.append("ollama=ok")
         if report.model_warmed:

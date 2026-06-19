@@ -102,6 +102,11 @@ def test_settings_page_read_only_health():
     assert "Platform health" in html or "vault controls" in html
     assert 'class="acc ' in html
     assert "Intel migration" in html
+    assert "Document parsing (MinerU)" in html
+    assert "MinerU 3.3" in html
+    assert "Operator workflow" in html
+    assert "capture FAB" in html
+    assert "404" in html
     assert "Research providers" in html
     assert "Grok" in html or "xAI" in html
     assert "default_naics" in html

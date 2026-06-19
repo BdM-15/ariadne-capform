@@ -91,7 +91,12 @@ class Settings(BaseSettings):
     enable_live_mcps: bool = True
     sam_gov_api_key: str | None = Field(
         default=None,
-        validation_alias=AliasChoices("sam_gov_api_key", "sam_api_key"),
+        validation_alias=AliasChoices(
+            "sam_gov_api_key",
+            "SAM_GOV_API_KEY",
+            "sam_api_key",
+            "SAM_API_KEY",
+        ),
     )
     bls_api_key: str | None = None
     api_data_gov_key: str | None = Field(
@@ -109,6 +114,26 @@ class Settings(BaseSettings):
 
     mineru_enabled: bool = False
     mineru_docker_image: str | None = None
+    mineru_local_endpoint: str = Field(
+        default="http://127.0.0.1:8888",
+        validation_alias=AliasChoices("mineru_local_endpoint", "MINERU_LOCAL_ENDPOINT"),
+    )
+    mineru_backend: str = Field(
+        default="pipeline",
+        validation_alias=AliasChoices("mineru_backend", "MINERU_LOCAL_BACKEND", "MINERU_BACKEND"),
+    )
+    mineru_parse_method: str = Field(
+        default="auto",
+        validation_alias=AliasChoices("mineru_parse_method", "MINERU_LOCAL_PARSE_METHOD", "PARSE_METHOD"),
+    )
+    mineru_language: str = Field(
+        default="en",
+        validation_alias=AliasChoices("mineru_language", "MINERU_LANGUAGE"),
+    )
+    mineru_parse_timeout_seconds: int = Field(
+        default=600,
+        validation_alias=AliasChoices("mineru_parse_timeout_seconds", "MINERU_PARSE_TIMEOUT_SECONDS"),
+    )
 
     langgraph_enabled: bool = False
     thread_langgraph_studio_auto_start: bool = Field(

@@ -35,6 +35,10 @@
     <span class="cc-health-pill {% if platform_health.grok_configured %}ok{% else %}warn{% endif %}">
       <i data-lucide="sparkles" class="w-3 h-3"></i> Grok
     </span>
+    <span class="cc-health-pill {% if not platform_health.mineru_enabled %}ok{% elif platform_health.mineru_reachable %}ok{% else %}warn{% endif %}">
+      <i data-lucide="file-text" class="w-3 h-3"></i>
+      MinerU {% if not platform_health.mineru_enabled %}off{% elif platform_health.mineru_reachable %}ok{% else %}down{% endif %}
+    </span>
   </div>
 
   {% if platform_health.blockers %}

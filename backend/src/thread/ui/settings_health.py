@@ -15,6 +15,8 @@ from thread.intel.migration import get_migration_status
 from thread.llm.router import probe_ollama
 from thread.mcp.service import MCPService
 from thread.research.providers import build_provider_registry
+from thread.services.mineru_client import mineru_base_url, probe_mineru_health
+from thread.services.mineru_stub import mineru_ingest_status
 from thread.skills.registry import discover_skills
 
 
@@ -42,6 +44,7 @@ class SettingsHealthContext:
     vault_sandbox_mode: bool
     vault_allow_test_promote: bool
     env_flags: dict[str, Any]
+    mineru: dict[str, Any]
 
 
 async def build_settings_health_context(
@@ -85,6 +88,18 @@ async def build_settings_health_context(
         for p in await build_provider_registry(settings)
         if p.id != "fake"
     ]
+
+    mineru_status = mineru_ingest_status(settings)
+    if settings.mineru_enabled:
+        mineru_status["reachable"] = probe_mineru_health(settings)
+        if mineru_status["reachable"]:
+            mineru_status["status"] = "ready"
+        else:
+            mineru_status["status"] = "unreachable"
+    mineru_status["endpoint"] = mineru_base_url(settings)
+    mineru_status["backend"] = settings.mineru_backend
+    mineru_status["parse_method"] = settings.mineru_parse_method
+    mineru_status["language"] = settings.mineru_language
 
     return SettingsHealthContext(
         status="ok" if postgres_ready else "degraded",
@@ -136,6 +151,7 @@ async def build_settings_health_context(
             "vault_sandbox_mode": settings.vault_sandbox_mode,
             "vault_allow_test_promote": settings.vault_allow_test_promote,
         },
+        mineru=mineru_status,
     )
 
 

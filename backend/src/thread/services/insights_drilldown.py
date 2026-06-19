@@ -11,6 +11,7 @@ from thread.config import Settings
 from thread.intel import pg_queries as intel_queries
 from thread.clew import ANALYSIS_MODES, run_facet_analysis
 from thread.clew.charts import attach_echarts_option
+from thread.clew.path_link import analysis_from_path, parse_path_param
 from thread.intel.facet_query import InsightFacetQuery, describe_query
 from thread.clew.mcp_overlay import fetch_mcp_overlay
 from thread.services.insights_explore import _facet_from_params
@@ -42,9 +43,32 @@ async def build_drilldown(
     run: bool = False,
     review_id: str | None = None,
     include_mcp: bool = False,
+    path: str = "",
 ) -> DrilldownResult:
     stats = await intel_queries.get_intel_stats(session)
     intel_live = bool(stats.get("prime_awards_ready") and stats.get("prime_award_count", 0) > 0)
+    path_edges = parse_path_param(path)
+    if path_edges:
+        path_mode = mode if mode in {"money_flow", "teaming"} else "money_flow"
+        analysis = analysis_from_path(mode=path_mode, edges=path_edges)
+        analysis["mineru"] = mineru_ingest_status(settings)
+        query = _facet_from_params(
+            agency=agency,
+            sub_agency=sub_agency,
+            recipient=recipient,
+            naics_codes=naics_codes,
+            psc_codes=psc_codes,
+        )
+        return DrilldownResult(
+            query=query,
+            summary=describe_query(query) if query else analysis.get("summary", ""),
+            mode=path_mode,
+            analysis=analysis,
+            intel_live=intel_live,
+            status="ready",
+            review_id=review_id,
+        )
+
     query = _facet_from_params(
         agency=agency,
         sub_agency=sub_agency,

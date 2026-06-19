@@ -125,6 +125,56 @@
     </div>
   </details>
 
+  <details class="acc accent-cyan" open>
+    <summary>
+      <span class="font-semibold text-sm">Document parsing (MinerU)</span>
+      <span class="summary-actions">
+        <span class="pill border {% if health.mineru.enabled and health.mineru.reachable %}border-neon-lime/40 text-neon-lime{% elif health.mineru.enabled %}border-neon-amber/40 text-neon-amber{% else %}border-edge text-slate-500{% endif %} text-[10px] font-mono uppercase">
+          {% if not health.mineru.enabled %}off{% elif health.mineru.reachable %}{{ health.mineru.status }}{% else %}unreachable{% endif %}
+        </span>
+        <span class="acc-chevron">›</span>
+      </span>
+    </summary>
+    <div class="acc-body space-y-3 text-sm">
+      <p class="text-xs text-slate-500 max-w-2xl">
+        MinerU 3.3 runs as a local FastAPI parse service. Thread uploads from the
+        <span class="text-slate-400">capture FAB</span> → structured markdown → vault candidate.
+        Autostarts from <span class="font-mono text-slate-400">python app.py</span> when enabled; skips spawn if the port is already bound.
+      </p>
+      <div class="card p-3 border border-edge space-y-1">
+        <div class="text-[10px] font-mono uppercase text-slate-500">Operator workflow</div>
+        <p class="text-xs text-slate-400">{{ health.mineru.operator_path }}</p>
+        <p class="text-[11px] text-slate-600">No need to open MinerU in a browser for normal capture.</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="card p-3 border border-edge">
+          <div class="text-[10px] font-mono uppercase text-slate-500 mb-1">Parse API</div>
+          <div class="{% if health.mineru.enabled and health.mineru.reachable %}text-neon-lime{% elif health.mineru.enabled %}text-neon-amber{% else %}text-slate-500{% endif %} font-semibold">
+            {% if not health.mineru.enabled %}Disabled{% elif health.mineru.reachable %}Reachable{% else %}Unreachable{% endif %}
+          </div>
+          <div class="mt-1 font-mono text-xs text-slate-500 truncate" title="{{ health.mineru.endpoint }}">{{ health.mineru.endpoint }}</div>
+          <p class="mt-2 text-[10px] text-slate-600">Root URL 404 in browser — expected (no web UI).</p>
+          {% if health.mineru.docs_url %}
+          <a href="{{ health.mineru.docs_url }}" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block text-[10px] font-mono text-neon-cyan no-underline hover:underline">
+            API debug (optional) → /docs
+          </a>
+          {% endif %}
+        </div>
+        <div class="card p-3 border border-edge">
+          <div class="text-[10px] font-mono uppercase text-slate-500 mb-1">Parse profile</div>
+          <div class="font-mono text-xs text-slate-400">
+            {{ health.mineru.product }} {{ health.mineru.version }} · {{ health.mineru.backend }} · {{ health.mineru.parse_method }}
+          </div>
+          <div class="mt-1 text-[10px] text-slate-600">lang={{ health.mineru.language }}</div>
+        </div>
+      </div>
+      <p class="text-[11px] text-slate-500">{{ health.mineru.role }}</p>
+      {% if health.mineru.start_hint and health.mineru.enabled and not health.mineru.reachable %}
+      <p class="text-[11px] font-mono text-slate-600">{{ health.mineru.start_hint }}</p>
+      {% endif %}
+    </div>
+  </details>
+
   <details class="acc accent-lime">
     <summary>
       <span class="font-semibold text-sm">Reasoning &amp; models</span>

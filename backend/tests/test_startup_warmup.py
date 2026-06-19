@@ -75,3 +75,24 @@ def test_log_warmup_report_loaded(capsys):
     out = capsys.readouterr().out
     assert "warmup:" in out
     assert "qwen3:8b loaded 4.2s" in out
+    assert "mineru=" in out
+
+
+def test_log_warmup_report_mineru_ready(capsys):
+    from thread.bootstrap.warmup import WarmupReport
+
+    log_warmup_report(
+        WarmupReport(
+            mcp_server_count=8,
+            skill_count=10,
+            mineru_enabled=True,
+            mineru_reachable=True,
+            mineru_endpoint="http://127.0.0.1:8888",
+            ollama_reachable=True,
+            model="qwen3:8b",
+            model_warmed=True,
+            model_warm_seconds=1.1,
+        )
+    )
+    out = capsys.readouterr().out
+    assert "mineru=ready@127.0.0.1:8888" in out

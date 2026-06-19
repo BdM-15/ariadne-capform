@@ -8,7 +8,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import httpx
+
 from thread.config import Settings
+from thread.services.mineru_client import (
+    mineru_base_url,
+    parse_staged_document,
+    probe_mineru_health,
+)
 
 # MinerU 3.3 / Theseus-supported ingest types (expand when Phase 19 wires docker).
 MINERU_CAPTURE_EXTENSIONS: frozenset[str] = frozenset(
@@ -66,17 +73,33 @@ class DocumentExtract:
 
 
 def mineru_ingest_status(settings: Settings) -> dict[str, Any]:
-    """Theseus uses MinerU 3.3; Thread wires ingest when MINERU_ENABLED=true."""
+    """MinerU 3.3 FastAPI status for Insights/Clew panels."""
     enabled = bool(settings.mineru_enabled)
+    reachable = probe_mineru_health(settings) if enabled else False
+    if not enabled:
+        status = "stub"
+    elif reachable:
+        status = "ready"
+    else:
+        status = "unreachable"
+    base = mineru_base_url(settings)
     return {
         "product": "MinerU",
         "version": "3.3",
         "enabled": enabled,
-        "status": "ready" if enabled else "stub",
-        "role": "Any document → structured markdown → vault candidate (Phase 19).",
+        "reachable": reachable,
+        "endpoint": base,
+        "docs_url": f"{base}/docs",
+        "status": status,
+        "role": "Background parse API — Thread calls it from capture; no operator web UI.",
+        "operator_path": "Use the floating capture FAB in Thread to upload documents.",
+        "browser_note": "Opening the API root in a browser returns 404 — expected. /docs is dev API playground only.",
         "capture_extensions": sorted(ALL_CAPTURE_EXTENSIONS),
         "not_used": "Legacy third-party pdfparser forks — Thread uses MinerU only.",
-        "theseus_note": "MinerU 3.3 already runs on Theseus; enable here when docker pipeline lands.",
+        "start_hint": (
+            "Autostarts with python app.py when MINERU_ENABLED=true; "
+            "manual fallback: python -m mineru.cli.fast_api --host 127.0.0.1 --port 8888"
+        ),
     }
 
 
@@ -137,30 +160,43 @@ def stage_capture_document(
     )
 
 
+def _mineru_meta_block(staged: StagedDocument, *, status: str, lead: str, parsed_rel: str = "") -> str:
+    lines = [
+        f"## Document — {staged.filename}",
+        "",
+        f"> [!note] MinerU ingest · `{status}`",
+        f"> {lead}",
+        "",
+        f"- **ingest_id:** `{staged.ingest_id}`",
+        f"- **path:** `{staged.rel_path}`",
+        f"- **size:** {staged.size_bytes:,} bytes",
+        f"- **type:** `{staged.suffix}`",
+    ]
+    if parsed_rel:
+        lines.append(f"- **parsed:** `{parsed_rel}`")
+    return "\n".join(lines) + "\n"
+
+
 def _mineru_placeholder_markdown(staged: StagedDocument, *, settings: Settings) -> str:
-    enabled = bool(settings.mineru_enabled)
-    if enabled:
+    if settings.mineru_enabled:
         lead = (
-            "MinerU is enabled — parse job will run server-side (Phase 19 docker wire). "
-            "Candidate queued with staged source; re-run enrich after parse completes."
+            f"MinerU enabled at {mineru_base_url(settings)} but parse did not complete. "
+            "Staged source preserved — start MinerU FastAPI and re-capture or enrich later."
         )
-        status = "mineru_queued"
+        status = "mineru_error"
     else:
         lead = (
-            "Document staged for MinerU 3.3. Enable `MINERU_ENABLED` in Settings when the "
-            "docker pipeline lands (Phase 19) — platform will extract structure and prose automatically."
+            "Document staged for MinerU 3.3. Set `MINERU_ENABLED=true` and run MinerU FastAPI "
+            "to auto-extract structure and prose on capture."
         )
         status = "mineru_stub"
+    return _mineru_meta_block(staged, status=status, lead=lead)
 
-    return (
-        f"## Document — {staged.filename}\n\n"
-        f"> [!note] MinerU ingest · `{status}`\n"
-        f"> {lead}\n\n"
-        f"- **ingest_id:** `{staged.ingest_id}`\n"
-        f"- **path:** `{staged.rel_path}`\n"
-        f"- **size:** {staged.size_bytes:,} bytes\n"
-        f"- **type:** `{staged.suffix}`\n"
-    )
+
+def _mineru_parsed_markdown(staged: StagedDocument, *, parsed_rel: str, body: str) -> str:
+    lead = "Parsed via MinerU 3.3 FastAPI — full output also on disk."
+    header = _mineru_meta_block(staged, status="mineru_parsed", lead=lead, parsed_rel=parsed_rel)
+    return f"{header}\n### Extracted content\n\n{body.strip()}\n"
 
 
 def extract_document_for_capture(
@@ -185,36 +221,65 @@ def extract_document_for_capture(
             mineru_ready=True,
         )
 
+    source_kind = "mineru_stub"
+    mineru_ready = False
     markdown = _mineru_placeholder_markdown(staged, settings=settings)
+
     if settings.mineru_enabled:
-        # Phase 19: replace body with mineru_parse_document(staged.abs_path) output.
-        markdown = _run_mineru_parse_stub(settings, staged, markdown)
+        parsed_kind, parsed_md, ready = _run_mineru_parse(settings, staged)
+        markdown = parsed_md
+        source_kind = parsed_kind
+        mineru_ready = ready
 
     return DocumentExtract(
         filename=staged.filename,
         ingest_id=staged.ingest_id,
         ingest_rel=staged.rel_path,
         markdown=markdown,
-        source_kind="mineru" if settings.mineru_enabled else "mineru_stub",
-        mineru_ready=bool(settings.mineru_enabled),
+        source_kind=source_kind,
+        mineru_ready=mineru_ready,
     )
 
 
-def _run_mineru_parse_stub(settings: Settings, staged: StagedDocument, fallback: str) -> str:
-    """Placeholder until Phase 19 docker MinerU invocation ships."""
-    del settings
-    return (
-        fallback
-        + "\n\n### Parse output (pending)\n\n"
-        "_MinerU docker hook not wired yet — staged file preserved for batch parse._\n"
-    )
+def _run_mineru_parse(
+    settings: Settings,
+    staged: StagedDocument,
+) -> tuple[str, str, bool]:
+    """Returns (source_kind, markdown, mineru_ready)."""
+    fallback = _mineru_placeholder_markdown(staged, settings=settings)
+    try:
+        result = parse_staged_document(
+            settings,
+            ingest_id=staged.ingest_id,
+            staged_path=staged.abs_path,
+            filename=staged.filename,
+        )
+        return (
+            "mineru",
+            _mineru_parsed_markdown(staged, parsed_rel=result.parsed_rel, body=result.markdown),
+            True,
+        )
+    except (OSError, RuntimeError, httpx.HTTPError) as exc:
+        error_note = f"\n\n### Parse error\n\n`{exc}`\n"
+        return ("mineru_error", fallback + error_note, False)
 
 
 def mineru_parse_document(settings: Settings, staged_path: Path) -> str:
-    """Phase 19 entry — invoke MinerU 3.3 on a staged file, return markdown."""
+    """Invoke MinerU 3.3 on a staged file; return markdown for vault enrichment."""
     if not settings.mineru_enabled:
         raise MineruIngestError("MinerU is disabled — set MINERU_ENABLED=true")
     if not staged_path.is_file():
         raise MineruIngestError(f"Staged document missing: {staged_path}")
-    # Real implementation: subprocess/docker Theseus MinerU API.
-    raise NotImplementedError("MinerU docker parse — Phase 19")
+
+    ingest_id = staged_path.parent.name
+    filename = staged_path.name
+    try:
+        result = parse_staged_document(
+            settings,
+            ingest_id=ingest_id,
+            staged_path=staged_path,
+            filename=filename,
+        )
+    except (OSError, RuntimeError, httpx.HTTPError) as exc:
+        raise MineruIngestError(f"MinerU parse failed: {exc}") from exc
+    return result.markdown

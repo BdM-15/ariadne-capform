@@ -1,6 +1,7 @@
 """Phase 19 prep — MinerU document staging for quick capture FAB."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -39,12 +40,34 @@ def test_extract_pdf_stages_mineru_stub_markdown(tmp_path: Path):
     assert extracted.ingest_id in extracted.markdown
 
 
-def test_extract_pdf_when_mineru_enabled_marks_queued(tmp_path: Path):
+def test_extract_pdf_when_mineru_enabled_parses(tmp_path: Path):
+    from thread.services.mineru_client import MineruParseResult
+
     settings = Settings(thread_state_dir=tmp_path / ".thread", mineru_enabled=True)
-    extracted = extract_document_for_capture(settings, "deck.pdf", b"%PDF stub")
+    with patch(
+        "thread.services.mineru_stub.parse_staged_document",
+        return_value=MineruParseResult(
+            markdown="# Deck\n\nParsed content.",
+            parsed_rel="ingest/parsed/abc/output.md",
+        ),
+    ):
+        extracted = extract_document_for_capture(settings, "deck.pdf", b"%PDF stub")
     assert extracted.source_kind == "mineru"
     assert extracted.mineru_ready is True
-    assert "ingest_id" in extracted.markdown
+    assert "Parsed content" in extracted.markdown
+    assert "mineru_parsed" in extracted.markdown
+
+
+def test_extract_pdf_when_mineru_unreachable_falls_back(tmp_path: Path):
+    settings = Settings(thread_state_dir=tmp_path / ".thread", mineru_enabled=True)
+    with patch(
+        "thread.services.mineru_stub.parse_staged_document",
+        side_effect=RuntimeError("connection refused"),
+    ):
+        extracted = extract_document_for_capture(settings, "deck.pdf", b"%PDF stub")
+    assert extracted.source_kind == "mineru_error"
+    assert extracted.mineru_ready is False
+    assert "Parse error" in extracted.markdown
 
 
 def test_prepare_quick_capture_document_only(tmp_path: Path):
@@ -72,6 +95,7 @@ async def test_ingest_quick_capture_pdf_only(db_session, tmp_path, monkeypatch):
         knowledge_vault_path=vault,
         thread_state_dir=tmp_path / ".thread",
         local_admin_model_enabled=False,
+        mineru_enabled=False,
     )
 
     ctx = build_capture_context()

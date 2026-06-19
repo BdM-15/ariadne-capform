@@ -80,6 +80,20 @@ def _docker_up(*, research: bool) -> bool:
         return False
 
 
+def _port_in_use(host: str, port: int) -> bool:
+    import socket
+
+    bind_host = "127.0.0.1" if host in {"0.0.0.0", "localhost"} else host
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind((bind_host, port))
+        return False
+    except OSError:
+        return True
+    finally:
+        sock.close()
+
+
 async def _preflight_postgres(settings) -> bool:
     """Wait for PG only when docker was skipped; dispose engine so uvicorn gets a fresh loop."""
     from thread.db.ready import wait_for_postgres
@@ -199,7 +213,32 @@ def main() -> int:
             "Use python app.py --legacy-frontend only if you need the archived Next shell."
         )
 
+    from thread.bootstrap.mineru_lifecycle import build_controller_from_settings
     from thread.main import create_app
+
+    mineru_controller = build_controller_from_settings(settings)
+    if mineru_controller is not None:
+        ep = mineru_controller.endpoint
+        if mineru_controller.start():
+            mode = "spawned" if mineru_controller.started_by_us else "already running"
+            print(f"[thread] MinerU: {mode} @ {ep.base_url} (docs {ep.docs_url})")
+        else:
+            print(
+                f"[thread] MinerU: failed @ {ep.base_url} — capture falls back to mineru_error"
+            )
+    elif settings.mineru_enabled:
+        print("[thread] MinerU: enabled but controller missing — check MINERU_LOCAL_ENDPOINT")
+    else:
+        print("[thread] MinerU: off (MINERU_ENABLED=false)")
+
+    bind_host = settings.host if hasattr(settings, "host") else "127.0.0.1"
+    if _port_in_use(bind_host, settings.port):
+        print(
+            f"[thread] ERROR: Port {settings.port} already in use — "
+            f"server likely already running at http://127.0.0.1:{settings.port}"
+        )
+        print("[thread] Stop the other python app.py window, then restart. Do not run two instances.")
+        return 1
 
     print(f"[thread] Command center → http://127.0.0.1:{settings.port}")
     if frontend_proc:
@@ -208,12 +247,14 @@ def main() -> int:
     try:
         uvicorn.run(
             create_app(),
-            host=settings.host if hasattr(settings, "host") else "127.0.0.1",
+            host=bind_host,
             port=settings.port,
             log_level=settings.log_level.lower(),
             access_log=False,
         )
     finally:
+        if mineru_controller is not None:
+            mineru_controller.stop()
         if frontend_proc:
             frontend_proc.terminate()
     return 0

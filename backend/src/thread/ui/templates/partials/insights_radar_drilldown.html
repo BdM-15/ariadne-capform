@@ -28,11 +28,22 @@
 
   {% elif drilldown.error %}
   <p class="insights-explore-msg insights-explore-msg-warn">{{ drilldown.error }}</p>
+  {% if drilldown.analysis.error_hint %}
+  <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">{{ drilldown.analysis.error_hint }}</p>
+  {% endif %}
+  {% with mcp_overlay=drilldown.analysis.mcp_overlay %}
+  {% include "partials/clew_mcp_overlay.html" %}
+  {% endwith %}
 
   {% elif drilldown.status == 'ready' %}
   {% set a = drilldown.analysis %}
+  {% set q = drilldown.query %}
   <div class="insights-drilldown-meta">
+    {% if a.path_preloaded %}
+    <span class="pill pill-compact border border-neon-cyan/40 text-neon-cyan text-[10px]">deep-link path</span>
+    {% else %}
     <span class="pill pill-compact border border-neon-amber/40 text-neon-amber text-[10px]">candidate</span>
+    {% endif %}
     {% if drilldown.review_id %}
     <span class="text-[10px] font-mono text-slate-500">review {{ drilldown.review_id[:8] }}…</span>
     {% endif %}
@@ -79,6 +90,11 @@
         <div class="insights-trend-bar insights-trend-bar-magenta" style="width: {{ flow.pct }}%"></div>
       </div>
       <span class="insights-trend-val shrink-0">${{ flow.millions }}M</span>
+      <a
+        href="{{ clew_path_href(mode='money_flow', source=flow.recipient, target=flow.agency, value=flow.millions, agency=q.agency|default('', true) if q else '', sub_agency=q.sub_agency|default('', true) if q else '', recipient=q.recipient|default('', true) if q else '', naics_codes=(q.naics_codes|join(',') if q and q.naics_codes else ''), psc_codes=(q.psc_codes|join(',') if q and q.psc_codes else '')) }}"
+        class="btn btn-ghost btn-compact text-[9px] shrink-0 no-underline"
+        title="Open this path in Clew (pre-loaded Sankey)"
+      >Path</a>
     </li>
     {% endfor %}
   </ul>
@@ -95,6 +111,11 @@
         <div class="insights-trend-bar insights-trend-bar-cyan" style="width: {{ edge.pct }}%"></div>
       </div>
       <span class="insights-trend-val shrink-0">${{ edge.millions }}M</span>
+      <a
+        href="{{ clew_path_href(mode='teaming', source=edge.prime, target=edge.sub, value=edge.millions, agency=q.agency|default('', true) if q else '', sub_agency=q.sub_agency|default('', true) if q else '', recipient=q.recipient|default('', true) if q else '', naics_codes=(q.naics_codes|join(',') if q and q.naics_codes else ''), psc_codes=(q.psc_codes|join(',') if q and q.psc_codes else '')) }}"
+        class="btn btn-ghost btn-compact text-[9px] shrink-0 no-underline"
+        title="Open this path in Clew (pre-loaded Sankey)"
+      >Path</a>
     </li>
     {% endfor %}
   </ul>
@@ -133,55 +154,8 @@
   </p>
   {% endif %}
 
-  {% if a.mcp_overlay and a.mcp_overlay.enabled %}
-  <div class="clew-mcp-overlay mt-4 pt-4 border-t border-edge/50 space-y-3">
-    <div class="flex flex-wrap items-center gap-2">
-      <span class="cc-section-label text-neon-cyan mb-0 text-[10px]">Live MCP supplement</span>
-      <span class="pill pill-compact border border-neon-amber/40 text-neon-amber text-[10px]">candidate</span>
-      {% if a.mcp_overlay.fetched_at %}
-      <span class="text-[10px] font-mono text-slate-600">{{ a.mcp_overlay.fetched_at[:19] }}Z</span>
-      {% endif %}
-    </div>
-    {% if a.mcp_overlay.note %}
-    <p class="text-[10px] font-mono text-slate-500">{{ a.mcp_overlay.note }}</p>
-    {% endif %}
-    {% for layer in a.mcp_overlay.layers %}
-    <div class="card card-accent accent-cyan p-3">
-      <div class="flex flex-wrap items-center gap-2 mb-2">
-        <code class="text-[10px] text-neon-cyan font-bold">{{ layer.server }}</code>
-        <span class="text-[10px] text-slate-400">{{ layer.tool }}</span>
-        <span class="pill pill-compact border text-[9px] uppercase
-          {% if layer.status == 'ready' %}border-neon-lime/40 text-neon-lime{% elif layer.status == 'error' %}border-neon-amber/40 text-neon-amber{% else %}border-edge text-slate-500{% endif %}">
-          {{ layer.status }}
-        </span>
-      </div>
-      <p class="text-[11px] text-slate-300 mb-2">{{ layer.label }}</p>
-      {% if layer.error %}
-      <p class="text-[10px] text-neon-amber font-mono">{{ layer.error }}</p>
-      {% elif layer.rows %}
-      <ul class="insights-flow-list">
-        {% for row in layer.rows %}
-        <li class="insights-flow-row">
-          <div class="insights-flow-main min-w-0">
-            <span class="insights-result-title">{{ row.title }}</span>
-            {% if row.subtitle %}<span class="insights-result-sub">{{ row.subtitle }}</span>{% endif %}
-            {% if row.meta %}<span class="insights-result-sub text-slate-600">{{ row.meta }}</span>{% endif %}
-          </div>
-          {% if row.amount %}
-          <span class="insights-trend-val shrink-0">{{ row.amount }}</span>
-          {% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <p class="text-[10px] text-slate-500 font-mono italic">No live rows returned for this slice.</p>
-      {% endif %}
-    </div>
-    {% endfor %}
-    {% if a.mcp_overlay.layers|length == 0 and a.mcp_overlay.status == 'disabled' %}
-    <p class="text-[10px] text-slate-500 font-mono">Enable live MCP in Settings or check <a href="/tools/mcp" class="text-neon-cyan no-underline hover:underline">MCP Servers</a>.</p>
-    {% endif %}
-  </div>
-  {% endif %}
+  {% with mcp_overlay=a.mcp_overlay %}
+  {% include "partials/clew_mcp_overlay.html" %}
+  {% endwith %}
   {% endif %}
 </div>
