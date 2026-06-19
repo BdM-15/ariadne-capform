@@ -832,7 +832,7 @@ Central artifact — not “parallel afterthought.”
 
 **17b ✅ (2026-06-18):** ECharts on `/clew` — Sankey (money flow, teaming), bars (spend trend, landscape); dark ink/neon theme; collapsible data table; optional **Live MCP supplement** checkbox (USAspending + SAM subawards on teaming). Click-to-drill deferred to **17b-interact**.
 
-**17b.1 (next Clew slice):** [DataRepublican](https://github.com/DataRepublican/datarepublican) deep-link pattern — `?path=src,tgt,value;…` on `/clew` so Insights/Clew result rows open graph pre-loaded (encoded edge list; no server round-trip). High value / low effort; ship before **17b-interact**.
+**17b.1 ✅ (2026-06-19):** DR `?path=` deep-link on `/clew` + Insights/Clew row **Path** handoff; saved trace bookmarks (`.thread/clew_traces.json`); Clew form labels/tooltips + full-width results panel.
 
 **17b-interact (future):** DR browse-style — Sankey node click → narrow facet → re-run; focus/remove node in slice.
 
@@ -842,7 +842,9 @@ Central artifact — not “parallel afterthought.”
 
 **17c-graph (future):** BFS subgraph expansion (DR expose-style), force/graph canvas, `intel_relationships` + `edges.jsonl` export.
 
-**17d (future):** Distinct-value facet autocomplete (no vectors required) — quick win before 17c semantic search.
+**17d-agency (deferred — post-MVP Clew UX):** SAM [Federal Hierarchy Public API](https://open.gsa.gov/api/fh-public-api/) (`/orgs`, `/org/hierarchy`) using existing `SAM_GOV_API_KEY`. One-time ingest → PG table `intel_federal_orgs`; Clew/Insights cascading selects (Dept → Sub-tier → Office) so operator never guesses agency strings. Reuse hierarchy labels to improve USAspending facet matching. Not blocking MVP — freeform text + ILIKE until shipped.
+
+**17d (future):** Distinct-value facet autocomplete from PG intel (+ FH table labels) — quick win before 17c semantic search.
 
 ### Phase 15 — Knowledge vault browser + Capture Studio
 
@@ -988,6 +990,8 @@ Alembic migration when **16a** ships.
 | FAB success branch | **16a** | Task dump → EA polish → PG row → flash "Added to Tasks" + link `/tasks` |
 | **`/tasks`** page | **16b** | HTMX list: today / overdue / open; one-click checkoff; filter by opp |
 | **GTD board + accomplish** | **16f** | Board/list views; lane actions (inbox→next→done, waiting, defer, reopen); status transitions |
+| **Task drawer + work notes** | **16g** | Click card → right drawer; append-only `work_log`; deep link `/tasks?task=` |
+| **Checklist toggle** | **16h** | Drawer checklist click-to-toggle (EA ingest + rules fallback) |
 | **Command Center widget** | **16c** | Attention row: "Open tasks (N)" → `/tasks#today` (≤2 clicks) |
 | Opp chip on task row | **16d** | Link to `/capture/{id}` when `opportunity_id` set |
 | **Compound to vault** | **16e** (deferred) | Done task → "Save as checklist" → vault candidate (review-gated) |
@@ -1011,11 +1015,15 @@ FAB knowledge path: title infer (≤12s) + ingest spellfix (≤20s) sequential �
 
 General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault wiki ingest (notes + Grok polish) → opp doc attach. **Not** DataRepublican pdfparser. Optional 19e: solicitation → `ExtractionBundle` candidate fields.
 
-**15g → 19 bridge (2026-06-19):** Quick capture FAB accepts all MinerU catalog types (PDF, Office, images, epub, txt/md). Files stage to `.thread/ingest/inbox/{id}/`; citations carry `ingest:` + `ingest_path:`. Stub markdown until `mineru_parse_document()` docker wire ships; flip `MINERU_ENABLED=true` to queue parse without UX change.
+**15g → 19 bridge (2026-06-19):** Quick capture FAB accepts all MinerU catalog types (PDF, Office, images, epub, txt/md). Files stage to `.thread/ingest/inbox/{id}/`; citations carry `ingest:` + `ingest_path:`.
+
+**19a ✅ (2026-06-19):** `mineru_client.py` POSTs MinerU 3.3 `/file_parse` at `MINERU_LOCAL_ENDPOINT`; parsed markdown saved to `.thread/ingest/parsed/{id}/output.md`; FAB vault candidate gets extracted body when `MINERU_ENABLED=true`. Graceful `mineru_error` fallback when FastAPI unreachable. `app.py` autostarts MinerU FastAPI when `MINERU_ENABLED=true` (skip if port already bound). **19e** ExtractionBundle deferred.
 
 ### Phase 20 — Route-driven fill
 
 `route_kind` → MCP / skill / research / Grok; data-needs panel for unanswered MS-critical fields.
+
+**20a ✅ (2026-06-19):** PG intel inline fill (`POST …/packet/{field}/fill`) for award-linked pursuits; data-needs strip on workspace; Clew/Vault/Insights lane redirects; Grok/CRM stubs remain. **20b** Grok synthesis + SAM MCP execution deferred.
 
 ### Phase 21 — Studio + pWin produce + Theseus
 
@@ -1062,13 +1070,15 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 
 ## Immediate next actions (resume here)
 
-**Current build slice (MVP):** **Phase 17b.1** Clew deep-link (16 ✅ complete).
+**Current build slice (MVP):** Tasks + intel completeness + capture lane — Clew robustness deferred to post-MVP phases below.
 
-1. **Phase 17b.1** ← **you are here** — DR `?path=` deep-link on `/clew` (cheap Clew slice)
-2. **Phase 15 polish backlog** (non-blocking) — faster FAB (parallel title+spellfix); richer title prompts
-3. **Intel migration** — background; verify `Complete: True` + indexes
-5. **Phase 19** — MinerU stub → real parse → vault wiki ingest
-6. **Phase 20** — route-driven fill (`route_kind` → MCP/skill/research/Grok) — stubs from 14f
+1. **Intel migration** ← **priority** — finish FFATA subawards (no `--skip-subawards`); unblocks Clew Teaming + saved traces
+2. ~~**Phase 16h** — Checklist toggle in task drawer~~ ✅
+3. ~~**Phase 19a** — MinerU FastAPI wire + parsed markdown on capture~~ ✅ · **19e** ExtractionBundle deferred
+4. ~~**Phase 20a** — PG intel inline fill + data-needs panel~~ ✅ · **20b** Grok/SAM execution deferred
+5. **Phase 15 polish backlog** (non-blocking) — faster FAB (parallel title+spellfix); richer title prompts
+
+**Clew post-MVP (planned, not now):** 17b-interact → 17d-agency (FH hierarchy PG + cascading selects) → 17d autocomplete → 17c-graph
 
 **Done (2026-06-18):** Phase 14k — Milestone deck alignment (private refs gitignored); reference slides in navigator; workspace tabs retired in favor of utilities bar + action drawer.
 
@@ -1136,12 +1146,15 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 - [x] Phase 16c — Command Center open-tasks Attention widget
 - [x] Phase 16d — Task ↔ opportunity link chip
 - [x] Phase 16f — GTD board/list + accomplish actions (status transitions)
+- [x] Phase 16g — Task drawer + append-only work notes + deep link
+- [x] Phase 16h — Checklist toggle in drawer (EA + manual)
 - [ ] Phase 16e — Completed task → vault checklist candidate (deferred)
 - [x] Phase 12m — Stale vault ingest widget (>72h) on Command Center
 - [x] Phase 12a-nav — Sidebar **Command Center** label (was Dashboard)
 - [ ] Phase 17b-vault — Clew trusted → Karpathy wiki ingest (deferred — vault browser ✅, write ingest TBD)
-- [ ] Phase 17b.1 — DR `?path=` deep-link on `/clew` + Insights row handoff (do before 17b-interact)
-- [ ] Phase 17b-interact — DR browse-style Sankey node expansion (future)
+- [x] Phase 17b.1 — DR `?path=` deep-link on `/clew` + saved traces + Clew form polish
+- [ ] Phase 17b-interact — DR browse-style Sankey node expansion (post-MVP)
+- [ ] Phase 17d-agency — SAM FH API → `intel_federal_orgs` PG + cascading agency pickers on Clew/Insights (post-MVP)
 - [ ] Twenty `packet_field_catalog.py` cross-read — one-time sanity check vs CRM object model (trivial)
 - [ ] Phase 17c — vectorized USAspending + SAM semantic facet search (future)
 - [ ] Phase 17c-graph — BFS expose-style graph + people relations (future)

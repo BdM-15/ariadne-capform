@@ -31,11 +31,11 @@
 
   function setOpen(open) {
     var d = drawer();
+    if (!d) return;
     var b = btn();
-    if (!d || !b) return;
     d.classList.toggle("capture-fab-hidden", !open);
     d.setAttribute("aria-hidden", open ? "false" : "true");
-    b.setAttribute("aria-expanded", open ? "true" : "false");
+    if (b) b.setAttribute("aria-expanded", open ? "true" : "false");
     document.body.classList.toggle("capture-fab-open", open);
     if (open && window.lucide) window.lucide.createIcons();
   }
@@ -63,9 +63,29 @@
       });
   }
 
-  function loadDrawer() {
+  function setHeaderMode(on) {
+    var root = document.getElementById("capture-fab-root");
+    var backdrop = document.getElementById("capture-fab-header-backdrop");
+    if (!root) return;
+    root.classList.toggle("capture-fab-header-mode", !!on);
+    document.body.classList.toggle("capture-fab-header-mode", !!on);
+    if (backdrop) {
+      backdrop.classList.toggle("capture-fab-hidden", !on);
+      backdrop.setAttribute("aria-hidden", on ? "false" : "true");
+    }
+  }
+
+  function loadDrawer(opts) {
     var d = drawer();
-    if (!d) return;
+    if (!d) {
+      window.alert("Capture UI missing — hard refresh (Ctrl+Shift+R) and retry.");
+      return;
+    }
+    var fromHeader = opts && opts.fromHeader;
+    setHeaderMode(fromHeader);
+    d.innerHTML =
+      '<div class="capture-fab-drawer-inner p-4 text-xs text-slate-400 font-mono">Opening capture…</div>';
+    setOpen(true);
     var qs = captureFabQuery();
     var url = "/partials/capture/fab" + (qs ? "?" + qs : "");
     fetch(url, { headers: { Accept: "text/html" } })
@@ -80,9 +100,14 @@
         if (window.lucide) window.lucide.createIcons();
       })
       .catch(function () {
+        setHeaderMode(false);
         window.alert("Could not open quick capture.");
       });
   }
+
+  window.openCaptureFab = function (fromHeader) {
+    loadDrawer({ fromHeader: !!fromHeader });
+  };
 
   function bindFab() {
     var b = btn();
@@ -107,6 +132,12 @@
       }
       if (event.target.closest("[data-capture-fab-close]")) {
         event.preventDefault();
+        setHeaderMode(false);
+        setOpen(false);
+        return;
+      }
+      if (event.target.id === "capture-fab-header-backdrop") {
+        setHeaderMode(false);
         setOpen(false);
         return;
       }
@@ -116,6 +147,9 @@
       var d = drawer();
       if (!d || d.classList.contains("capture-fab-hidden")) return;
       if (root.contains(event.target)) return;
+      if (event.target.closest("[data-capture-fab-open]")) return;
+      if (event.target.closest("#capture-fab-btn")) return;
+      setHeaderMode(false);
       setOpen(false);
     });
   }
@@ -165,8 +199,38 @@
     });
   }
 
+  function bindOpenTriggers() {
+    document.querySelectorAll("[data-capture-fab-open]").forEach(function (el) {
+      if (el.dataset.captureFabOpenBound) return;
+      el.dataset.captureFabOpenBound = "1";
+      el.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        loadDrawer({ fromHeader: true });
+      });
+    });
+  }
+
+  function bindDelegatedOpenTriggers() {
+    if (document.body.dataset.captureFabDelegateBound) return;
+    document.body.dataset.captureFabDelegateBound = "1";
+    document.addEventListener(
+      "click",
+      function (event) {
+        var trigger = event.target.closest("[data-capture-fab-open]");
+        if (!trigger) return;
+        event.preventDefault();
+        event.stopPropagation();
+        loadDrawer({ fromHeader: true });
+      },
+      true,
+    );
+  }
+
   function init() {
     bindFab();
+    bindOpenTriggers();
+    bindDelegatedOpenTriggers();
     bindClose();
     bindCaptureFormEncoding();
   }
@@ -188,6 +252,7 @@
   }
 
   document.body.addEventListener("htmx:afterSwap", function (event) {
+    bindOpenTriggers();
     if (event.detail && event.detail.target && event.detail.target.id === "capture-fab-drawer") {
       if (window.lucide) window.lucide.createIcons();
       if (document.querySelector(".capture-fab-flash-kicker")) {

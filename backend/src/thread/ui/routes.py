@@ -24,6 +24,8 @@ from thread.domain.schemas import OpportunityCreate
 from thread.research.capture_research import run_capture_research
 from thread.research.providers import build_provider_registry
 from thread.services import opportunities as opp_svc
+from thread.domain.packet_answer_sources import PG_INTEL, USASPENDING_MCP
+from thread.services.packet_route_fill import apply_route_fill, run_packet_route_fill
 from thread.services.packet_workspace import build_packet_workspace, enrich_packet_field_card
 from thread.services.capture_display import build_capture_home
 from thread.services.capture_intent import CaptureIntent, classify_capture_intent
@@ -37,13 +39,18 @@ from thread.services.idea_capturer import IdeaCaptureError, capture_idea_to_vaul
 from thread.services.portfolio import build_portfolio_pulse, signal_opportunity_name
 from thread.services.platform_health import build_platform_health_widget
 from thread.services.insights_display import build_insights_page_context
+from thread.services import opportunities as opp_svc
 from thread.services.operator_tasks import (
+    append_task_note,
     build_open_tasks_widget,
     complete_operator_task,
     count_open_tasks,
+    get_task_detail,
     get_task_list_item,
     ingest_fab_task,
+    link_task_to_opportunity,
     list_operator_tasks,
+    toggle_checklist_item,
     update_operator_task_status,
 )
 from thread.services.task_display import build_tasks_page_context, task_actions_for
@@ -59,6 +66,15 @@ from thread.intel.sam_query import (
     save_sam_query,
 )
 from thread.services.insights_explore import explore_radar, explore_sam
+from thread.clew.path_link import clew_path_href
+from thread.clew.saved_traces import (
+    clew_trace_href,
+    delete_clew_trace,
+    describe_trace,
+    load_clew_traces,
+    new_clew_trace_from_form,
+    save_clew_trace,
+)
 from thread.ui.insights_guides import guide_for_clew, guide_for_explore
 from thread.services.insights_drilldown import build_drilldown
 from thread.skills.runner import run_skill
@@ -104,6 +120,7 @@ from thread.services.vault_write import (
 from thread.ui.formatters import format_date, format_money, urgency_label
 from thread.services.pursuits_display import lifecycle_label, milestone_gate_label, phase_band_label
 from thread.ui.knowledge_guides import guide_for_knowledge, guide_for_vault_ops
+from thread.ui.tasks_guides import guide_for_tasks
 from thread.ui.settings_health import build_settings_health_context
 from thread.ui.skill_forms import CLEW_MODES, payload_from_form, skill_is_wired
 from thread.ui.tools_context import build_mcp_tools_context, build_skills_tools_context
@@ -145,8 +162,35 @@ def capture_workspace_href(
 
 templates.env.globals["capture_href"] = capture_workspace_href
 templates.env.globals["task_actions"] = task_actions_for
+templates.env.globals["clew_path_href"] = clew_path_href
 
 router = APIRouter(tags=["ui"])
+
+
+async def _task_drawer_context(
+    db: AsyncSession,
+    task_id: uuid.UUID,
+    *,
+    filter_key: str,
+    view_mode: str,
+    note_flash: str | None = None,
+    opp_flash: str | None = None,
+    checklist_flash: str | None = None,
+):
+    detail = await get_task_detail(db, task_id)
+    if detail is None:
+        return None
+    pursuits = await opp_svc.list_opportunities(db)
+    return {
+        "task": detail,
+        "actions": task_actions_for(detail.status),
+        "filter_key": filter_key,
+        "view_mode": view_mode,
+        "pursuits": pursuits,
+        "note_flash": note_flash,
+        "opp_flash": opp_flash,
+        "checklist_flash": checklist_flash,
+    }
 
 
 async def _tasks_page_context(
@@ -1043,7 +1087,7 @@ async def capture_fab_quick(
         )
         doc_note = ""
         if result.document_name:
-            if result.mineru_status in ("mineru_stub", "mineru", "mineru_queued"):
+            if result.mineru_status in ("mineru_stub", "mineru", "mineru_error", "mineru_parsed"):
                 doc_note = f"Document {result.document_name} staged for MinerU."
             else:
                 doc_note = f"Document {result.document_name} attached."
@@ -1492,6 +1536,7 @@ async def _clew_page_context(
     run: bool = False,
     review_id: str | None = None,
     include_mcp: bool = False,
+    path: str = "",
 ) -> dict:
     ctx = await build_insights_page_context(db, settings)
     clew_form = _clew_form_from_params(
@@ -1515,13 +1560,135 @@ async def _clew_page_context(
         run=run,
         review_id=review_id,
         include_mcp=include_mcp,
+        path=path,
     )
     return {
         "ctx": ctx,
         "clew_form": clew_form,
         "drilldown": drilldown,
         "clew_guide": guide_for_clew(),
+        "clew_path": path,
+        "clew_traces": _clew_traces_for_template(settings),
     }
+
+
+def _clew_traces_for_template(settings: Settings) -> list[dict]:
+    return [
+        {
+            "trace": trace,
+            "summary": describe_trace(trace),
+            "href": clew_trace_href(trace),
+        }
+        for trace in load_clew_traces(settings)
+    ]
+
+
+async def _render_clew_saved_traces_panel(
+    request: Request,
+    db: AsyncSession,
+    settings: Settings,
+    *,
+    flash: str | None = None,
+    agency: str = "",
+    sub_agency: str = "",
+    recipient: str = "",
+    naics_codes: str = "",
+    psc_codes: str = "",
+    mode: str = "money_flow",
+) -> HTMLResponse:
+    page = await _clew_page_context(
+        db,
+        settings,
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        mode=mode,
+        run=False,
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/clew_saved_traces.html",
+        {
+            "clew_traces": _clew_traces_for_template(settings),
+            "clew_flash": flash,
+            "drilldown": page["drilldown"],
+            "ctx": page["ctx"],
+        },
+    )
+
+
+@router.post("/clew/save", response_class=HTMLResponse)
+async def clew_save_trace(
+    request: Request,
+    name: str = Form(...),
+    agency: str = Form(""),
+    sub_agency: str = Form(""),
+    recipient: str = Form(""),
+    naics_codes: str = Form(""),
+    psc_codes: str = Form(""),
+    mode: str = Form("money_flow"),
+    include_mcp: str = Form(""),
+    description: str = Form(""),
+    last_summary: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    mcp_on = include_mcp in ("1", "on", "true", "yes")
+    trace = new_clew_trace_from_form(
+        settings,
+        name=name,
+        mode=mode,
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        include_mcp=mcp_on,
+        description=description,
+        last_summary=last_summary,
+    )
+    if trace is None:
+        return await _render_clew_saved_traces_panel(
+            request,
+            db,
+            settings,
+            flash="Trace needs at least one facet (agency, recipient, NAICS, PSC, etc.).",
+            agency=agency,
+            sub_agency=sub_agency,
+            recipient=recipient,
+            naics_codes=naics_codes,
+            psc_codes=psc_codes,
+            mode=mode,
+        )
+    save_clew_trace(settings, trace)
+    return await _render_clew_saved_traces_panel(
+        request,
+        db,
+        settings,
+        flash=f"Saved trace “{trace.name}”.",
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        mode=mode,
+    )
+
+
+@router.post("/clew/{trace_id}/delete", response_class=HTMLResponse)
+async def clew_delete_trace(
+    request: Request,
+    trace_id: str,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    if not delete_clew_trace(settings, trace_id):
+        return await _render_clew_saved_traces_panel(
+            request, db, settings, flash="Saved trace not found."
+        )
+    return await _render_clew_saved_traces_panel(request, db, settings, flash="Saved trace deleted.")
 
 
 @router.get("/clew", response_class=HTMLResponse)
@@ -1535,6 +1702,7 @@ async def clew_page(
     mode: str = Query("money_flow"),
     run: int = Query(0, ge=0, le=1),
     include_mcp: int = Query(0, ge=0, le=1),
+    path: str = Query(""),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
@@ -1549,6 +1717,7 @@ async def clew_page(
         mode=mode,
         run=bool(run),
         include_mcp=bool(include_mcp),
+        path=path,
     )
     return templates.TemplateResponse(
         request,
@@ -1572,6 +1741,7 @@ async def clew_results_partial(
     mode: str = Query("money_flow"),
     run: int = Query(0, ge=0, le=1),
     include_mcp: int = Query(0, ge=0, le=1),
+    path: str = Query(""),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
@@ -1586,6 +1756,7 @@ async def clew_results_partial(
         mode=mode,
         run=bool(run),
         include_mcp=bool(include_mcp),
+        path=path,
     )
     return templates.TemplateResponse(
         request,
@@ -1838,11 +2009,20 @@ async def tasks_page(
     request: Request,
     filter: str = Query("open", alias="filter"),
     view: str = Query("board"),
+    task: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
     filter_key = filter if filter in ("open", "today", "overdue", "done") else "open"
     page = await _tasks_page_context(db, filter_key=filter_key, view_mode=view)
+    open_task_id: str | None = None
+    if task:
+        try:
+            tid = uuid.UUID(task)
+            if await get_task_detail(db, tid) is not None:
+                open_task_id = str(tid)
+        except ValueError:
+            pass
     return templates.TemplateResponse(
         request,
         "tasks.html",
@@ -1850,11 +2030,117 @@ async def tasks_page(
             "page": page,
             "filter_key": filter_key,
             "view_mode": page.view_mode,
+            "open_task_id": open_task_id,
+            "tasks_guide": guide_for_tasks(),
             "app_name": settings.public_app_name,
             "active_nav": "tasks",
             "flash": None,
         },
     )
+
+
+@router.get("/partials/tasks/{task_id}/drawer", response_class=HTMLResponse)
+async def tasks_drawer_partial(
+    request: Request,
+    task_id: uuid.UUID,
+    filter: str = Query("open", alias="filter"),
+    view: str = Query("board"),
+    db: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    filter_key = filter if filter in ("open", "today", "overdue", "done") else "open"
+    view_mode = view if view in ("board", "list") else "board"
+    ctx = await _task_drawer_context(db, task_id, filter_key=filter_key, view_mode=view_mode)
+    if ctx is None:
+        return HTMLResponse('<p class="text-neon-amber text-xs p-4">Task not found</p>', status_code=404)
+    return templates.TemplateResponse(request, "partials/task_drawer_panel.html", ctx)
+
+
+@router.post("/partials/tasks/{task_id}/notes", response_class=HTMLResponse)
+async def tasks_note_partial(
+    request: Request,
+    task_id: uuid.UUID,
+    body: str = Form(...),
+    filter: str = Form("open"),
+    view: str = Form("board"),
+    db: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    filter_key = filter if filter in ("open", "today", "overdue", "done") else "open"
+    view_mode = view if view in ("board", "list") else "board"
+    try:
+        await append_task_note(db, task_id, body)
+        await db.commit()
+        ctx = await _task_drawer_context(
+            db,
+            task_id,
+            filter_key=filter_key,
+            view_mode=view_mode,
+            note_flash="Note saved",
+        )
+        if ctx is None:
+            return HTMLResponse('<p class="text-neon-amber text-xs p-4">Task not found</p>', status_code=404)
+        return templates.TemplateResponse(request, "partials/task_drawer_panel.html", ctx)
+    except ValueError as exc:
+        return HTMLResponse(f'<p class="text-neon-amber text-xs p-4">{exc}</p>', status_code=400)
+
+
+@router.post("/partials/tasks/{task_id}/checklist", response_class=HTMLResponse)
+async def tasks_checklist_partial(
+    request: Request,
+    task_id: uuid.UUID,
+    index: int = Form(...),
+    filter: str = Form("open"),
+    view: str = Form("board"),
+    db: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    filter_key = filter if filter in ("open", "today", "overdue", "done") else "open"
+    view_mode = view if view in ("board", "list") else "board"
+    try:
+        await toggle_checklist_item(db, task_id, index)
+        await db.commit()
+        ctx = await _task_drawer_context(
+            db,
+            task_id,
+            filter_key=filter_key,
+            view_mode=view_mode,
+            checklist_flash="Checklist updated",
+        )
+        if ctx is None:
+            return HTMLResponse('<p class="text-neon-amber text-xs p-4">Task not found</p>', status_code=404)
+        return templates.TemplateResponse(request, "partials/task_drawer_panel.html", ctx)
+    except ValueError as exc:
+        return HTMLResponse(f'<p class="text-neon-amber text-xs p-4">{exc}</p>', status_code=400)
+
+
+@router.post("/partials/tasks/{task_id}/opportunity", response_class=HTMLResponse)
+async def tasks_opportunity_partial(
+    request: Request,
+    task_id: uuid.UUID,
+    opportunity_id: str = Form(""),
+    filter: str = Form("open"),
+    view: str = Form("board"),
+    db: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    filter_key = filter if filter in ("open", "today", "overdue", "done") else "open"
+    view_mode = view if view in ("board", "list") else "board"
+    try:
+        opp_uuid: uuid.UUID | None = None
+        clean = opportunity_id.strip()
+        if clean:
+            opp_uuid = uuid.UUID(clean)
+        await link_task_to_opportunity(db, task_id, opp_uuid)
+        await db.commit()
+        ctx = await _task_drawer_context(
+            db,
+            task_id,
+            filter_key=filter_key,
+            view_mode=view_mode,
+            opp_flash="Opportunity link saved" if opp_uuid else "Opportunity unlinked",
+        )
+        if ctx is None:
+            return HTMLResponse('<p class="text-neon-amber text-xs p-4">Task not found</p>', status_code=404)
+        return templates.TemplateResponse(request, "partials/task_drawer_panel.html", ctx)
+    except ValueError as exc:
+        return HTMLResponse(f'<p class="text-neon-amber text-xs p-4">{exc}</p>', status_code=400)
 
 
 @router.get("/partials/tasks/body", response_class=HTMLResponse)
@@ -2266,6 +2552,44 @@ async def opportunity_panel(
     if not await opp_svc.get_opportunity(db, opp_id):
         return HTMLResponse("Opportunity not found", status_code=404)
     ctx = await _panel_context(db, settings, opp_id, tab=tab, slide=slide or None)
+    return _render_panel(request, ctx)
+
+
+@router.post("/opportunities/{opp_id}/packet/{field_key}/fill", response_class=HTMLResponse)
+async def fill_packet_field_route(
+    request: Request,
+    opp_id: uuid.UUID,
+    field_key: str,
+    source: str = Form(...),
+    slide: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    if not await opp_svc.get_opportunity(db, opp_id):
+        return HTMLResponse("Opportunity not found", status_code=404)
+
+    if source in (PG_INTEL, USASPENDING_MCP):
+        result = await apply_route_fill(db, settings, opp_id, field_key, source)
+    else:
+        result = await run_packet_route_fill(db, settings, opp_id, field_key, source)
+
+    if result.redirect_url:
+        return _htmx_redirect(result.redirect_url)
+
+    if result.ok and result.value:
+        await db.commit()
+
+    flash = result.message if result.message else None
+    if not result.ok and not flash:
+        flash = "Fill route did not produce a value"
+    ctx = await _panel_context(
+        db,
+        settings,
+        opp_id,
+        tab="packet",
+        flash=flash,
+        slide=slide or None,
+    )
     return _render_panel(request, ctx)
 
 
