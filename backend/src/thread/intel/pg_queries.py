@@ -16,6 +16,7 @@ from thread.intel.sql_expressions import (
     PRIME_TABLE,
     STATE_EXPR,
     naics_filter,
+    round_numeric,
 )
 
 
@@ -81,8 +82,8 @@ async def get_market_summary(
     sql = f"""
         SELECT
             COUNT(*) AS total_actions,
-            ROUND(SUM(federal_action_obligation) / 1000000.0, 2) AS total_millions,
-            ROUND(AVG(federal_action_obligation) / 1000.0, 0) AS avg_thousands,
+            {round_numeric("SUM(federal_action_obligation) / 1000000.0")} AS total_millions,
+            {round_numeric("AVG(federal_action_obligation) / 1000.0", 0)} AS avg_thousands,
             MIN(action_date) AS earliest_date,
             MAX(action_date) AS latest_date
         FROM {PRIME_TABLE}
@@ -120,7 +121,7 @@ async def get_top_agencies(
         SELECT
             parent_award_agency_name AS agency,
             COUNT(*) AS actions,
-            ROUND(SUM(federal_action_obligation) / 1000000.0, 2) AS total_millions
+            {round_numeric("SUM(federal_action_obligation) / 1000000.0")} AS total_millions
         FROM {PRIME_TABLE}
         WHERE 1=1
         {nf_sql}
@@ -176,6 +177,41 @@ async def count_expiring_for_query(
     params = {**facet_params, "months_ahead": str(months_ahead)}
     row = (await session.execute(text(sql), params)).first()
     return int(row.n if row else 0)
+
+
+async def get_award_profile(
+    session: AsyncSession,
+    award_key: str,
+) -> dict[str, Any] | None:
+    """Single award row for packet route-driven fill."""
+    key = (award_key or "").strip()
+    if not key or not await table_exists(session, PRIME_TABLE):
+        return None
+    sql = f"""
+        SELECT
+            contract_award_unique_key AS award_key,
+            recipient_name AS recipient,
+            federal_action_obligation AS obligation,
+            period_of_performance_current_end_date AS end_date,
+            {AGENCY_EXPR} AS agency,
+            COALESCE(NULLIF(type_of_contract_pricing, ''), 'Unknown') AS pricing,
+            naics_code
+        FROM {PRIME_TABLE}
+        WHERE contract_award_unique_key = :award_key
+        LIMIT 1
+    """
+    row = (await session.execute(text(sql), {"award_key": key})).first()
+    if row is None:
+        return None
+    return {
+        "award_key": row.award_key,
+        "recipient": row.recipient,
+        "obligation": float(row.obligation) if row.obligation is not None else None,
+        "end_date": str(row.end_date) if row.end_date else None,
+        "agency": row.agency,
+        "pricing": row.pricing,
+        "naics_code": row.naics_code,
+    }
 
 
 async def get_awards_by_keys(

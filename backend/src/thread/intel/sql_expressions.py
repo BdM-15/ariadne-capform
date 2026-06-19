@@ -32,6 +32,11 @@ MONTHS_TO_END_EXPR = """(
 )::int"""
 
 
+def round_numeric(expr: str, places: int = 2) -> str:
+    """PostgreSQL round() needs numeric — float/double round(n, int) does not exist."""
+    return f"ROUND(({expr})::numeric, {places})"
+
+
 def naics_filter(naics_codes: list[str] | None, *, prefix: str = "AND") -> tuple[str, dict]:
     if not naics_codes:
         return "", {}

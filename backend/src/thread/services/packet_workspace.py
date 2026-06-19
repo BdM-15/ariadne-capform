@@ -27,6 +27,7 @@ from thread.domain.packet_slides import (
 )
 from thread.domain.packet_field_seed import FIELD_SEED_BY_KEY
 from thread.services.opportunities import ensure_packet_definitions, ensure_packet_answers
+from thread.services.packet_route_fill import build_data_needs
 from thread.services.packet_workflows import build_slide_fill_workflows
 
 
@@ -179,7 +180,8 @@ async def build_packet_workspace(
         for row in slide_nav:
             row["active"] = row["id"] == slide_id
 
-    active_fields = [c.as_template_dict() for c in cards if c.reference_slide == slide_id]
+    all_field_dicts = [c.as_template_dict() for c in cards]
+    active_fields = [f for f in all_field_dicts if f["reference_slide"] == slide_id]
     active_title = next((t for sid, t in PACKET_SLIDE_ORDER if sid == slide_id), slide_id)
     active_nav = next((s for s in slide_nav if s["id"] == slide_id), None)
     active_presentation_title = (
@@ -219,6 +221,7 @@ async def build_packet_workspace(
         "slide_count": len(slide_nav),
         "fields": active_fields,
         "fill_workflows": build_slide_fill_workflows(active_fields, opp_id=opp_id),
+        "data_needs": build_data_needs(all_field_dicts),
         "open_field_count": sum(1 for f in active_fields if not (f.get("value") or "").strip()),
         "progress": {
             "filled": ms_critical_filled,

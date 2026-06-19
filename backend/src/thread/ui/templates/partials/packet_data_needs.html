@@ -1,0 +1,36 @@
+{# Phase 20 — MS-critical gaps across active milestone gate #}
+{% if packet.data_needs and packet.data_needs.count > 0 %}
+<section class="packet-data-needs card card-accent accent-amber p-3 mb-3" aria-label="Data needs">
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+    <div>
+      <h3 class="text-[10px] font-mono uppercase tracking-wider text-neon-amber mb-0.5">Data needs</h3>
+      <p class="text-[10px] text-slate-500 leading-snug">
+        {{ packet.data_needs.count }} open MS-critical elements for {{ packet.milestone_gate_label }} — fast fills run inline; synthesis stays review-gated.
+      </p>
+    </div>
+    <span class="pill border border-neon-amber/40 text-neon-amber text-[9px] font-mono tabular-nums">
+      {{ packet.data_needs.count }} gap{{ 's' if packet.data_needs.count != 1 else '' }}
+    </span>
+  </div>
+  <ul class="packet-data-needs-list space-y-1">
+    {% for item in packet.data_needs.gaps %}
+    <li class="flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
+      <a
+        href="{{ capture_href(opp_id, tab='packet', slide=item.slide) }}#workflow-{{ item.field_key }}"
+        class="text-neon-cyan no-underline hover:underline truncate max-w-[14rem]"
+        hx-get="/opportunities/{{ opp_id }}/panel?tab=packet&amp;slide={{ item.slide }}"
+        hx-target="#workspace-panel"
+        hx-swap="innerHTML"
+      >{{ item.label }}</a>
+      {% if item.deterministic %}
+      <span class="pill pill-compact text-[8px] border border-neon-lime/35 text-neon-lime">fast</span>
+      {% endif %}
+      <span class="text-[9px] text-slate-600 font-mono truncate">{{ item.route_kind|replace('_', ' ') }}</span>
+    </li>
+    {% endfor %}
+    {% if packet.data_needs.overflow > 0 %}
+    <li class="text-[10px] text-slate-500">+{{ packet.data_needs.overflow }} more — switch slides in navigator</li>
+    {% endif %}
+  </ul>
+</section>
+{% endif %}

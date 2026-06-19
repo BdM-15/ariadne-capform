@@ -20,6 +20,8 @@ from thread.domain.packet_answer_sources import (
     WEB_RESEARCH,
 )
 
+_EXECUTABLE_FILL_SOURCES = frozenset({PG_INTEL, USASPENDING_MCP})
+
 _SOURCE_META: dict[str, dict[str, str]] = {
     HUMAN: {"label": "Operator entry", "icon": "pen-line"},
     SAM_MCP: {"label": "SAM.gov", "icon": "file-search"},
@@ -60,10 +62,19 @@ def workflow_actions_for_field(
         href = "#"
         enabled = True
         stub = False
+        executable = src in _EXECUTABLE_FILL_SOURCES and bool(field.get("deterministic"))
         if src == SAM_MCP:
             href = "/insights"
         elif src in (PG_INTEL, USASPENDING_MCP):
             href = "/insights"
+            executable = executable or field.get("field_key") in (
+                "prime_name",
+                "customer_name",
+                "total_contract_value",
+                "financial_contract_type",
+                "contract_end_date",
+                "competition_company_1_name",
+            )
         elif src == CLEW:
             href = "/clew"
         elif src == VAULT:
@@ -74,8 +85,8 @@ def workflow_actions_for_field(
             href = "/insights"
             stub = True
         elif src == MINERU:
-            enabled = False
-            stub = True
+            href = "/"
+            stub = not executable
         elif src == CRM:
             enabled = False
             stub = True
@@ -95,6 +106,7 @@ def workflow_actions_for_field(
                 "enabled": enabled,
                 "stub": stub,
                 "anchor": href.startswith("#"),
+                "executable": executable,
             }
         )
 

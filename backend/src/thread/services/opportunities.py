@@ -153,6 +153,7 @@ async def update_packet_field(
     value: str,
     *,
     as_candidate: bool = True,
+    provenance: list | None = None,
 ) -> PacketFieldAnswer:
     result = await session.execute(
         select(PacketFieldAnswer).where(
@@ -171,7 +172,7 @@ async def update_packet_field(
             session,
             entity_type="packet_field_answer",
             entity_id=str(answer.id),
-            provenance=[{"kind": "manual", "ref": "user_edit"}],
+            provenance=provenance or [{"kind": "manual", "ref": "user_edit"}],
         )
     await session.flush()
     return answer
