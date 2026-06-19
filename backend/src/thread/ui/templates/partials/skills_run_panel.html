@@ -59,6 +59,26 @@
       <i data-lucide="play" class="w-3.5 h-3.5"></i>
       Run
     </button>
+    {% elif skill.id == 'idea_capturer' %}
+    <p class="text-[10px] text-slate-500 font-mono">
+      Tier 1 fleeting note → vault candidate →
+      <a href="/knowledge#knowledge-vault-inbox" class="text-neon-cyan no-underline hover:underline">Vault Inbox</a>.
+      Passes <code class="text-neon-cyan">vault_maintainer</code> gate before queue.
+    </p>
+    <textarea
+      class="thread-input text-xs w-full min-h-[5rem]"
+      name="dump"
+      placeholder="Fleeting thought — fragment, bullet, half-formed idea…"
+      required
+    ></textarea>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <input class="thread-input text-xs" name="tags" placeholder="Tags (comma-sep, optional)" />
+      <input class="thread-input text-xs" name="context" placeholder="Why it matters (optional)" />
+    </div>
+    <button type="submit" class="btn btn-hero-magenta text-xs">
+      <i data-lucide="pen-line" class="w-3.5 h-3.5"></i>
+      Capture to vault
+    </button>
     {% endif %}
     <span id="skill-run-spinner-{{ skill.id }}" class="htmx-indicator text-[10px] text-slate-500">Running…</span>
   </form>

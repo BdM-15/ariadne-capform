@@ -7,7 +7,7 @@ from typing import Any
 
 from starlette.datastructures import FormData
 
-WIRED_SKILL_IDS = frozenset({"clew_intel", "mcp_federal_tools", "skill-creator"})
+WIRED_SKILL_IDS = frozenset({"clew_intel", "mcp_federal_tools", "skill-creator", "idea_capturer"})
 
 CLEW_MODES = (
     ("money_flow", "Money flow"),
@@ -53,6 +53,16 @@ def payload_from_form(skill_id: str, form: FormData) -> dict[str, Any]:
                 payload["_parse_error"] = str(exc)
         else:
             payload["arguments"] = {}
+        return payload
+
+    if skill_id == "idea_capturer":
+        payload = {"dump": str(form.get("dump") or "").strip()}
+        tags = str(form.get("tags") or "").strip()
+        context = str(form.get("context") or "").strip()
+        if tags:
+            payload["tags"] = tags
+        if context:
+            payload["context"] = context
         return payload
 
     return {}

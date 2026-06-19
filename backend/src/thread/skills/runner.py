@@ -16,6 +16,7 @@ from thread.clew import ANALYSIS_MODES, facet_from_payload, run_facet_analysis
 from thread.intel.facet_query import describe_query
 from thread.mcp.service import MCPService
 from thread.services.review_gate import create_review_record
+from thread.services.idea_capturer import IdeaCaptureError, capture_idea_to_vault
 from thread.skills.registry import SkillDescriptor, discover_skills
 
 
@@ -51,11 +52,16 @@ async def run_skill(
         output = await _run_mcp_federal_tools(settings, body, errors)
     elif skill_id == "skill-creator":
         output = _run_skill_creator(settings, skills)
+    elif skill_id == "idea_capturer":
+        output = await _run_idea_capturer(settings, session, body, errors)
     else:
         output = {"message": f"Skill {skill_id} registered; handler not wired yet."}
 
     review_id: str | None = None
-    if output and not errors:
+    skip_skill_review = skill_id == "idea_capturer" and bool(output.get("review_id"))
+    if skip_skill_review:
+        review_id = str(output["review_id"])
+    elif output and not errors:
         record = await create_review_record(
             session,
             entity_type="skill_run",
@@ -131,6 +137,41 @@ async def _run_mcp_federal_tools(
     if not result.get("ok"):
         errors.append(result.get("error") or "MCP invoke failed")
     return result
+
+
+async def _run_idea_capturer(
+    settings: Settings,
+    session: AsyncSession,
+    body: dict[str, Any],
+    errors: list[str],
+) -> dict[str, Any]:
+    dump = str(body.get("dump") or "").strip()
+    try:
+        result = await capture_idea_to_vault(
+            settings,
+            session,
+            dump=dump,
+            tags=str(body.get("tags") or ""),
+            context_note=str(body.get("context") or ""),
+        )
+    except IdeaCaptureError as exc:
+        errors.append(str(exc))
+        return {"skill": "idea_capturer"}
+
+    if not result.gate.ok:
+        errors.extend(result.gate.issues)
+
+    return {
+        "skill": "idea_capturer",
+        "candidate_path": result.candidate_path,
+        "title": result.title,
+        "review_id": str(result.review_id) if result.review_id else None,
+        "inbox_href": result.inbox_href,
+        "vault_maintainer_gate": result.gate.ok,
+        "gate_issues": list(result.gate.issues),
+        "title_provider": result.title_provider,
+        "polish_provider": result.polish_provider,
+    }
 
 
 def _run_skill_creator(settings: Settings, skills: dict[str, SkillDescriptor]) -> dict[str, Any]:
