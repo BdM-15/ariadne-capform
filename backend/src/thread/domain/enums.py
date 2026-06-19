@@ -84,3 +84,38 @@ class ResearchLens(StrEnum):
     PRODUCT_POSITIONING = "product_positioning"
     PRICE_TO_WIN = "price_to_win"
     CALL_PLAN_CRO = "call_plan_cro"
+
+
+class OperatorTaskKind(StrEnum):
+    MEETING = "meeting"
+    CALL = "call"
+    EMAIL = "email"
+    FOLLOW_UP = "follow_up"
+    PREP = "prep"
+    ERRAND = "errand"
+    WAITING_FOR = "waiting_for"
+    SOMEDAY = "someday"
+    OTHER = "other"
+
+
+class OperatorTaskStatus(StrEnum):
+    INBOX = "inbox"
+    NEXT = "next"
+    WAITING = "waiting"
+    SCHEDULED = "scheduled"
+    DONE = "done"
+    CANCELLED = "cancelled"
+    DEFERRED = "deferred"
+
+
+class OperatorTaskPriority(StrEnum):
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+
+
+class OperatorTaskSource(StrEnum):
+    FAB = "fab"
+    MANUAL = "manual"
+    IMPORT = "import"

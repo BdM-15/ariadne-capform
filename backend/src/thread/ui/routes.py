@@ -26,6 +26,7 @@ from thread.research.providers import build_provider_registry
 from thread.services import opportunities as opp_svc
 from thread.services.packet_workspace import build_packet_workspace, enrich_packet_field_card
 from thread.services.capture_display import build_capture_home
+from thread.services.capture_intent import CaptureIntent, classify_capture_intent
 from thread.services.capture_fab import (
     CaptureFabError,
     build_capture_context,
@@ -36,6 +37,7 @@ from thread.services.idea_capturer import IdeaCaptureError, capture_idea_to_vaul
 from thread.services.portfolio import build_portfolio_pulse, signal_opportunity_name
 from thread.services.platform_health import build_platform_health_widget
 from thread.services.insights_display import build_insights_page_context
+from thread.services.operator_tasks import ingest_fab_task
 from thread.services.quick_actions import build_quick_actions
 from thread.intel.facet_query import (
     delete_insight_query,
@@ -980,6 +982,31 @@ async def capture_fab_quick(
         attachment_name = attachment.filename
         attachment_bytes = await attachment.read()
     try:
+        has_attachment = bool(attachment_name and attachment_bytes)
+        intent, intent_provider = await classify_capture_intent(settings, dump)
+        if intent == CaptureIntent.ADMIN_TASK and not has_attachment:
+            task_result = await ingest_fab_task(
+                settings,
+                db,
+                raw_dump=dump,
+                context=context,
+                intent_provider=intent_provider,
+            )
+            return templates.TemplateResponse(
+                request,
+                "partials/capture_fab_drawer.html",
+                {
+                    "context": context,
+                    "flash_ok": True,
+                    "capture_lane": "task",
+                    "task_href": "/tasks#today",
+                    "inferred_title": task_result.title,
+                    "dump_snippet": task_result.description[:160] if task_result.description else "",
+                    "polish_provider": task_result.polish_provider,
+                    "title_provider": task_result.intent_provider,
+                },
+            )
+
         result = await ingest_quick_capture(
             settings,
             db,
@@ -1003,6 +1030,7 @@ async def capture_fab_quick(
             {
                 "context": context,
                 "flash_ok": True,
+                "capture_lane": "knowledge",
                 "studio_href": studio_href,
                 "queue_position": result.queue_position,
                 "queue_total": result.queue_total,

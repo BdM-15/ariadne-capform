@@ -98,3 +98,34 @@ class CapabilityRun(Base):
     status: Mapped[str] = mapped_column(String(64), default="pending_review")
     transcript: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class OperatorTask(Base):
+    __tablename__ = "operator_tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_dump: Mapped[str] = mapped_column(Text, nullable=False)
+    task_kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(64), nullable=False)
+    priority: Mapped[str] = mapped_column(String(64), nullable=False)
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    opportunity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("opportunities.id"), nullable=True)
+    project_label: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    context_tags: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    attendees: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    location: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    waiting_on: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    categories: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    checklist: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    provenance: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    llm_polish: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    opportunity: Mapped[Opportunity | None] = relationship()

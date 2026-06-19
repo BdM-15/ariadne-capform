@@ -21,6 +21,15 @@ def settings() -> Settings:
     return Settings()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _ensure_workflow_migrations():
+    """Alembic head before any PG test — operator_tasks etc."""
+    from thread.db.migrate import run_workflow_migrations
+
+    run_workflow_migrations()
+    yield
+
+
 _E2E_SMOKE_ORDER = {
     "test_a_smoke_api_http_path": 0,
     "test_z_smoke_service_path": 1,

@@ -19,7 +19,7 @@
   <div class="capture-fab-success">
     <p class="capture-fab-flash is-ok">
       <span class="capture-fab-flash-kicker">
-        {% if inbox_lane == 'test' %}Added to Test Inbox{% else %}Added to Vault Inbox{% endif %}
+        {% if capture_lane == 'task' %}Added to Tasks{% elif inbox_lane == 'test' %}Added to Test Inbox{% else %}Added to Vault Inbox{% endif %}
       </span>
       {% if queue_position and queue_total %}
       <span class="capture-fab-flash-queue">#{{ queue_position }} of {{ queue_total }}</span>
@@ -32,10 +32,17 @@
     {% if doc_note %}
     <p class="capture-fab-flash-meta">{{ doc_note }}</p>
     {% endif %}
-    <p class="capture-fab-flash-meta" title="Title: keyword or Ollama (≤12s). Body: ingest spellfix at dump (≤20s) or rules fallback. Full structure polish optional in Vault Inbox.">
+    <p class="capture-fab-flash-meta" title="{% if capture_lane == 'task' %}EA polish at ingest — title/description normalized for Tasks list.{% else %}Title: keyword or Ollama (≤12s). Body: ingest spellfix at dump (≤20s) or rules fallback.{% endif %}">
+      {% if capture_lane == 'task' %}
+      Intent ({{ title_provider }}) · polish ({{ polish_provider }}) — check off on Tasks when done.
+      {% else %}
       Title ({{ title_provider }}) · body ({{ polish_provider }}) — Approve publishes to inferred vault path.
+      {% endif %}
     </p>
-    {% if studio_href %}
+    {% if capture_lane == 'task' and task_href %}
+    <a href="{{ task_href }}" class="btn btn-primary btn-compact text-xs no-underline capture-fab-studio-link">Open Tasks</a>
+    <button type="button" class="btn btn-ghost btn-compact text-xs capture-fab-again" data-capture-fab-reload>Dump another</button>
+    {% elif studio_href %}
     <a href="{{ studio_href }}" class="btn btn-primary btn-compact text-xs no-underline capture-fab-studio-link">Open in Vault Inbox</a>
     <button
       type="button"
