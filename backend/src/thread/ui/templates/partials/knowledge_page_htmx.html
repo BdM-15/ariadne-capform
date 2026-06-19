@@ -1,0 +1,5 @@
+{# HTMX-only: refresh tree selection in sidebar without duplicating browse in page panel #}
+<div id="vault-tree-panel" hx-swap-oob="innerHTML">
+  {% include "partials/knowledge_tree_panel.html" %}
+</div>
+{% include "partials/knowledge_page_panel.html" %}

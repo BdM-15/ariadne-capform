@@ -7,12 +7,13 @@ Layer 3 (schema): foundation/capture-llm-wiki.md — contract for how LLM mainta
 
 from __future__ import annotations
 
+import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from thread.config import Settings
-from thread.domain.packet_field_seed import PACKET_FIELD_SEEDS
+from thread.domain.packet_field_seed import PACKET_ANSWERABLE_SEEDS
 
 REQUIRED_DIRS = (
     "foundation",
@@ -42,14 +43,19 @@ REQUIRED_DIRS = (
 # Full capture-insights knowledge port (idempotent merge — skip existing files).
 # domain_intel = bid/no-bid fit, capabilities, UEI past-performance awareness.
 # training = SLM fine-tune scaffold (datasets/examples/prompts fill as Thread runs).
+# Schema (capture-llm-wiki.md) is Thread-owned — see VAULT_REFERENCE_COPIES + _upgrade_vault_schema.
 CAPTURE_INSIGHTS_COPIES: tuple[tuple[str, str], ...] = (
-    ("schema", "foundation"),
     ("global/global_wiki", "global/global_wiki"),
     ("global/domain_intel", "global/domain_intel"),
     ("brain/agencies", "entities/agencies"),
     ("brain/competitors", "entities/competitors"),
     ("training", "training"),
     ("education", "education"),
+)
+
+VAULT_REFERENCE_COPIES: tuple[tuple[str, str], ...] = (
+    ("vault/capture-llm-wiki.md", "foundation/capture-llm-wiki.md"),
+    ("vault/OBSIDIAN_DESKTOP.md", "foundation/reference/obsidian-desktop.md"),
 )
 
 REFERENCE_COPIES: tuple[tuple[str, str], ...] = (
@@ -85,6 +91,7 @@ MILESTONE_PAGES: tuple[tuple[str, str, str], ...] = (
 )
 
 _INDEX_STUB = "Karpathy/Obsidian brain for Thread"
+_SCHEMA_VERSION_RE = re.compile(r"^schema_version:\s*(\d+)\s*$", re.MULTILINE)
 
 
 @dataclass
@@ -100,6 +107,43 @@ class SeedReport:
 
 def _rel(vault: Path, path: Path) -> str:
     return str(path.relative_to(vault))
+
+
+def _schema_version(path: Path) -> int:
+    if not path.is_file():
+        return 0
+    match = _SCHEMA_VERSION_RE.search(path.read_text(encoding="utf-8"))
+    return int(match.group(1)) if match else 0
+
+
+def _upgrade_vault_schema(src: Path, dest: Path, report: SeedReport, vault: Path) -> None:
+    if not src.is_file():
+        return
+    src_ver = _schema_version(src)
+    dest_ver = _schema_version(dest)
+    if dest.exists() and dest_ver >= src_ver:
+        report.skipped.append(_rel(vault, dest))
+        return
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dest)
+    report.created.append(_rel(vault, dest))
+
+
+def _ensure_obsidian_desktop_scaffold(ref_root: Path, vault: Path, report: SeedReport) -> None:
+    template = ref_root / "vault" / "obsidian"
+    if not template.is_dir():
+        return
+    obsidian = vault / ".obsidian"
+    for item in template.rglob("*"):
+        if item.is_dir():
+            continue
+        target = obsidian / item.relative_to(template)
+        if target.exists():
+            report.skipped.append(_rel(vault, target))
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(item, target)
+        report.created.append(_rel(vault, target))
 
 
 def _copy_file_if_missing(src: Path, dest: Path, report: SeedReport, vault: Path) -> None:
@@ -136,6 +180,11 @@ def _write_if_missing(path: Path, content: str, report: SeedReport, vault: Path)
 
 
 def _data_element_page(seed) -> str:
+    route = seed.answer_route
+    sources = ", ".join(route.sources) if route else ""
+    hint = route.hint if route else ""
+    det = "true" if route and route.deterministic else "false"
+    feeds = ", ".join(route.feeds) if route and route.feeds else ""
     return f"""---
 name: "{seed.label}"
 type: "data-element"
@@ -145,6 +194,9 @@ packet_section: "{seed.section.value}"
 value_kind: "{seed.value_kind.value}"
 route_kind: "{seed.route_kind.value}"
 reference_slide: "{seed.reference_slide}"
+answer_sources: "{sources}"
+answer_deterministic: {det}
+answer_feeds: "{feeds}"
 source: "docs/reference/briefing_packet/BRIEFING_PACKET_DATA_DICTIONARY.md"
 tags: ["packet-field", "data-element"]
 ---
@@ -155,6 +207,10 @@ tags: ["packet-field", "data-element"]
 
 ## Question
 {seed.question}
+
+## Answer routes (Phase 20 stub)
+{hint}
+Sources: `{sources or "human_input"}`
 
 ## Layer 1 — raw truth (immutable)
 - PostgreSQL `packet_field_answers` row for this `field_key`
@@ -196,6 +252,8 @@ Karpathy **LLM-wiki** pattern (Obsidian = IDE, LLM = programmer, `.md` = codebas
 - `global/domain_intel/` — **bid fit layer**: capabilities, MS gates, UEI/PP awareness (USAspending + SAM + scrape → fit/no-fit)
 - `training/` — SLM fine-tune exports (`datasets/`, `examples/`, `prompts/`) — grows as platform runs
 - `education/` — onboarding / methodology notes
+- `skills/` (repo) — vendored `obsidian-markdown` + `vault_maintainer` for Grok Build / agents
+- `.obsidian/` — optional Obsidian desktop config (seeded from `docs/reference/vault/obsidian/`)
 - `pursuits/<slug>/` — per-opportunity wiki (created when opportunity tracked)
 - `milestones/` — MS1–MS4 gate context
 - `relationships/` — follow-the-money / graph notes (future `edges.jsonl`)
@@ -289,6 +347,16 @@ def ensure_vault_seed(settings: Settings) -> SeedReport:
 
     _ensure_training_scaffold(vault, seed_root, report)
 
+    for src_rel, dest_rel in VAULT_REFERENCE_COPIES:
+        src = ref_root / src_rel
+        dest = vault / dest_rel
+        if src_rel.endswith("capture-llm-wiki.md"):
+            _upgrade_vault_schema(src, dest, report, vault)
+        elif src.exists():
+            _copy_file_if_missing(src, dest, report, vault)
+
+    _ensure_obsidian_desktop_scaffold(ref_root, vault, report)
+
     for src_rel, dest_rel in REFERENCE_COPIES:
         src = ref_root / src_rel
         if src.exists():
@@ -306,7 +374,7 @@ def ensure_vault_seed(settings: Settings) -> SeedReport:
     if dict_src.exists():
         _copy_file_if_missing(dict_src, vault / "foundation" / "thread-wiki-schema.md", report, vault)
 
-    for seed in PACKET_FIELD_SEEDS:
+    for seed in PACKET_ANSWERABLE_SEEDS:
         dest = vault / "data-elements" / f"{seed.key}.md"
         _write_if_missing(dest, _data_element_page(seed), report, vault)
 

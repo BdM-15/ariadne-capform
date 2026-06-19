@@ -1,0 +1,176 @@
+<article id="knowledge-candidate-editor" class="vault-candidate-editor">
+  <div class="vault-editor-header">
+    <div>
+      <h3 class="vault-editor-title">Override draft</h3>
+      <p class="vault-editor-lead">
+        Platform picked title, type, merge path, and links — change only what you disagree with.
+      </p>
+    </div>
+    <a
+      href="#knowledge-vault-inbox"
+      class="btn btn-ghost btn-compact text-xs no-underline"
+      hx-get="/partials/knowledge/capture-studio"
+      hx-target="#knowledge-capture-studio-mount"
+      hx-swap="innerHTML"
+    >
+      <i data-lucide="arrow-left" class="w-3 h-3"></i>
+      Back to inbox
+    </a>
+  </div>
+
+  <section class="vault-editor-platform-panel" aria-label="Platform defaults">
+    <dl class="vault-editor-summary">
+      <div>
+        <dt>
+          Platform title
+          <span class="settings-label-tip" title="Human label in vault browser and inbox — not the filename slug.">?</span>
+        </dt>
+        <dd>{{ edit_form.name }}</dd>
+      </div>
+      <div>
+        <dt>
+          Page type
+          <span class="settings-label-tip" title="Routes vault folder on approve: synthesis→domain intel, concept→frameworks, agency→entities/agencies, competitor→entities/competitors, opportunity→pursuits. Wrong type = wrong browse folder.">?</span>
+        </dt>
+        <dd><span class="font-mono text-neon-cyan">{{ edit_form.page_type }}</span></dd>
+      </div>
+      <div class="vault-editor-summary-wide">
+        <dt>
+          Merge target on approve
+          <span class="settings-label-tip" title="Trusted .md path where body appends (or new file created). Dedup may suggest a near-duplicate instead.">?</span>
+        </dt>
+        <dd class="font-mono truncate" title="{{ edit_form.promote_target }}">{{ edit_form.promote_target }}</dd>
+      </div>
+      <div class="vault-editor-summary-wide">
+        <dt>
+          Draft file
+          <span class="settings-label-tip" title="Staging note under generated-projections/ — not trusted vault until you Approve.">?</span>
+        </dt>
+        <dd class="font-mono truncate" title="{{ edit_form.candidate_path }}">{{ edit_form.candidate_path }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <form
+    id="candidate-edit-form-{{ edit_form.review_id }}"
+    class="vault-editor-form"
+    hx-post="/partials/knowledge/candidate-save"
+    hx-target="#knowledge-capture-studio-mount"
+    hx-swap="innerHTML"
+  >
+    <input type="hidden" name="review_id" value="{{ edit_form.review_id }}" />
+    <input type="hidden" name="candidate_path" value="{{ edit_form.candidate_path }}" />
+
+    <div class="vault-editor-field-grid">
+      <label class="vault-editor-field">
+        <span class="vault-editor-label">
+          Display title
+          <span class="settings-label-tip" title="Short memorable name — e.g. Proposal Review Comments Repository. Becomes frontmatter name on save.">?</span>
+        </span>
+        <p class="vault-editor-field-hint">Shown in inbox and vault tree — not the file slug.</p>
+        <input
+          class="thread-input text-xs w-full"
+          name="name"
+          value="{{ edit_form.name }}"
+          required
+        />
+      </label>
+
+      <label class="vault-editor-field">
+        <span class="vault-editor-label">
+          Vault page type
+          <span class="settings-label-tip" title="Picks folder + frontmatter template on approve. synthesis=general note, concept=playbook, agency=customer, competitor=rival profile, opportunity=pursuit intel.">?</span>
+        </span>
+        <p class="vault-editor-field-hint">Wrong type → note lands in wrong vault folder.</p>
+        <select class="thread-input text-xs w-full" name="page_type">
+          <option value="synthesis" {% if edit_form.page_type == 'synthesis' %}selected{% endif %}>synthesis — general knowledge</option>
+          <option value="concept" {% if edit_form.page_type == 'concept' %}selected{% endif %}>concept — framework / playbook</option>
+          <option value="agency" {% if edit_form.page_type == 'agency' %}selected{% endif %}>agency — customer profile</option>
+          <option value="competitor" {% if edit_form.page_type == 'competitor' %}selected{% endif %}>competitor — rival profile</option>
+          <option value="opportunity" {% if edit_form.page_type == 'opportunity' %}selected{% endif %}>opportunity — pursuit intel</option>
+        </select>
+      </label>
+
+      <label class="vault-editor-field vault-editor-field-body">
+        <span class="vault-editor-label">
+          Note body
+          <span class="settings-label-tip" title="Markdown content — your dump, optionally polished. Platform strips candidate boilerplate on save.">?</span>
+        </span>
+        <p class="vault-editor-field-hint">Main content published on approve — markdown OK.</p>
+        <textarea
+          class="thread-input text-xs w-full vault-editor-body-input"
+          name="body"
+          required
+        >{{ edit_form.body }}</textarea>
+      </label>
+
+      <section class="vault-editor-related-panel">
+        <div class="vault-editor-related-head">
+          <span class="vault-editor-label">
+            Related wikilinks
+            <span class="settings-label-tip" title="Obsidian [[links]] between notes. Stems = filename without .md. Graph edges let Clew, browse, and semantic passes traverse your vault. LLM guessed these — swap if you want different connections. capture-llm-wiki hub added automatically on save.">?</span>
+          </span>
+          <p class="vault-editor-field-hint">
+            Graph edges to other vault pages. LLM picked stems so search and Clew can traverse — change if you want different links.
+          </p>
+        </div>
+
+        <label class="vault-editor-field vault-editor-field-stems">
+          <span class="vault-editor-sublabel">
+            Vault pages
+            <span class="settings-label-tip" title="Trusted pages in knowledge/thread/. Ctrl+click (⌘ on Mac) to select multiple. Selected stems become [[wikilinks]] in Related on save.">?</span>
+          </span>
+          <select
+            class="thread-input text-xs w-full vault-stem-select"
+            name="related_stems"
+            multiple
+            size="6"
+          >
+            {% for folder, options in edit_form.stem_options|groupby('folder') %}
+            <optgroup label="{{ folder }}">
+              {% for option in options %}
+              <option value="{{ option.stem }}" {% if option.stem in edit_form.related %}selected{% endif %}>
+                {{ option.label }}
+              </option>
+              {% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="vault-editor-field vault-editor-field-custom">
+          <span class="vault-editor-sublabel">
+            Custom stems
+            <span class="settings-label-tip" title="Stems not in vault yet, or LLM used a shorthand. Comma-separated, no [[brackets]]. Example: my-new-topic, lessons-learned-index">?</span>
+          </span>
+          <input
+            class="thread-input text-xs w-full font-mono"
+            name="related_custom"
+            value="{{ edit_form.related_custom }}"
+            placeholder="e.g. my-topic, lessons-learned-index"
+          />
+        </label>
+      </section>
+    </div>
+
+    <div class="vault-editor-actions">
+      <button type="submit" class="btn btn-primary btn-compact text-xs" title="Save overrides — still requires Approve to publish">
+        <i data-lucide="save" class="w-3 h-3"></i>
+        Save overrides
+      </button>
+      <button
+        type="button"
+        class="btn btn-soft btn-compact text-xs"
+        title="Ollama rewrites structure, callouts, and Related — shows diff before apply"
+        hx-post="/partials/knowledge/candidate-polish"
+        hx-target="#knowledge-capture-studio-mount"
+        hx-swap="innerHTML"
+        hx-indicator="#capture-studio-working"
+        hx-include="#candidate-edit-form-{{ edit_form.review_id }}"
+      >
+        <i data-lucide="sparkles" class="w-3 h-3"></i>
+        Re-polish (Ollama)
+      </button>
+    </div>
+  </form>
+</article>

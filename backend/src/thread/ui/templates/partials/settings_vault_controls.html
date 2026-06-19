@@ -1,0 +1,77 @@
+<section id="settings-vault-panel" class="acc-body space-y-4 text-sm">
+  {% if flash %}
+  <p class="text-xs font-mono {% if flash_ok %}text-neon-lime{% else %}text-neon-amber{% endif %}">{{ flash }}</p>
+  {% endif %}
+
+  <p class="text-xs text-slate-500 max-w-2xl">
+    Sandbox mode keeps test ingests and repair jobs out of your production vault.
+    Writes land in <span class="font-mono text-slate-400">generated-projections/sandbox/</span> only.
+    Turn it off when you're ready to work on the real vault again.
+  </p>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div class="card p-4 border border-edge space-y-3">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="font-medium text-slate-200">Vault sandbox</div>
+          <div class="text-[11px] text-slate-500 mt-1 font-mono">THREAD_VAULT_SANDBOX</div>
+        </div>
+        <span class="pill border text-[10px] font-mono uppercase {% if vault_sandbox_mode %}border-neon-amber/40 text-neon-amber{% else %}border-neon-lime/40 text-neon-lime{% endif %}">
+          {% if vault_sandbox_mode %}on{% else %}off{% endif %}
+        </span>
+      </div>
+      <form
+        hx-post="/settings/vault-sandbox"
+        hx-target="#settings-vault-panel"
+        hx-swap="outerHTML"
+        class="flex items-center gap-3"
+      >
+        <label class="flex items-center gap-2 text-[11px] font-mono text-slate-400 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            name="enabled"
+            value="true"
+            class="accent-neon-amber"
+            {% if vault_sandbox_mode %}checked{% endif %}
+            onchange="this.form.requestSubmit()"
+          />
+          Enable sandbox mode
+        </label>
+      </form>
+    </div>
+
+    <div class="card p-4 border border-edge space-y-3">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="font-medium text-slate-200">Allow test promote</div>
+          <div class="text-[11px] text-slate-500 mt-1 font-mono">THREAD_ALLOW_TEST_PROMOTE</div>
+        </div>
+        <span class="pill border text-[10px] font-mono uppercase {% if vault_allow_test_promote %}border-neon-amber/40 text-neon-amber{% else %}border-edge text-slate-500{% endif %}">
+          {% if vault_allow_test_promote %}on{% else %}off{% endif %}
+        </span>
+      </div>
+      <form
+        hx-post="/settings/vault-allow-test-promote"
+        hx-target="#settings-vault-panel"
+        hx-swap="outerHTML"
+        class="flex items-center gap-3"
+      >
+        <label class="flex items-center gap-2 text-[11px] font-mono text-slate-400 cursor-pointer select-none {% if not vault_sandbox_mode %}opacity-50{% endif %}">
+          <input
+            type="checkbox"
+            name="enabled"
+            value="true"
+            class="accent-neon-amber"
+            {% if vault_allow_test_promote %}checked{% endif %}
+            {% if not vault_sandbox_mode %}disabled{% endif %}
+            onchange="this.form.requestSubmit()"
+          />
+          Let test notes promote to trusted
+        </label>
+      </form>
+      {% if not vault_sandbox_mode %}
+      <p class="text-[10px] text-slate-600">Only available while sandbox is on.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>

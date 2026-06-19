@@ -1,0 +1,173 @@
+<section id="knowledge-vault-review" class="capture-studio-queue">
+  {% macro inbox_cards(items) %}
+  <div class="space-y-2">
+    {% for item in items %}
+    <article
+      id="vault-inbox-item-{{ item.review_id }}"
+      class="capture-studio-card vault-inbox-card{% if item.is_highlighted %} vault-inbox-card--highlight{% endif %}"
+      data-vault-inbox-item
+    >
+      <div class="capture-studio-card-head">
+        <div class="min-w-0 flex-1">
+          <div class="vault-inbox-card-meta">
+            <span class="vault-inbox-queue-num">#{{ item.queue_position }}</span>
+            <span class="pill pill-compact border border-neon-cyan/30 text-neon-cyan text-[10px]">{{ item.page_type }}</span>
+            {% if item.is_test %}
+            <span class="pill pill-compact border border-neon-amber/40 text-neon-amber text-[10px]" title="Sandbox / test fixture">test</span>
+            {% endif %}
+            <span class="vault-inbox-destination" title="{{ item.auto_promote_target }}">→ {{ item.destination_label }}</span>
+          </div>
+          <h3 class="vault-inbox-title" title="{{ item.title }}">{{ item.title }}</h3>
+          <p class="vault-inbox-intent">{{ item.intent_line }}</p>
+          <blockquote class="vault-inbox-snippet">“{{ item.snippet }}”</blockquote>
+          {% if item.dedup_hints %}
+          <p class="text-[10px] text-neon-amber/90 mt-1 font-mono">
+            {{ item.dedup_hints|length }} similar page{{ 's' if item.dedup_hints|length != 1 else '' }} — platform picked best merge
+          </p>
+          {% endif %}
+        </div>
+        <div class="capture-studio-actions">
+          <form
+            hx-post="/review/{{ item.review_id }}/approve"
+            hx-target="#knowledge-capture-studio-mount"
+            hx-swap="innerHTML"
+          >
+            <input type="hidden" name="return_scope" value="knowledge_capture_studio" />
+            <input type="hidden" name="promote_target" value="{{ item.auto_promote_target }}" />
+            <button type="submit" class="btn btn-primary btn-compact text-xs" title="Publish — {{ item.auto_promote_summary }}">
+              <i data-lucide="check" class="w-3 h-3"></i>
+              Approve
+            </button>
+          </form>
+          <form
+            hx-post="/review/{{ item.review_id }}/reject"
+            hx-target="#knowledge-capture-studio-mount"
+            hx-swap="innerHTML"
+            hx-confirm="Reject this draft? Moves to generated-projections/rejected/."
+          >
+            <input type="hidden" name="return_scope" value="knowledge_capture_studio" />
+            <button type="submit" class="btn btn-danger btn-compact text-xs" title="Archive draft to rejected/">
+              <i data-lucide="x" class="w-3 h-3"></i>
+              Reject
+            </button>
+          </form>
+        </div>
+      </div>
+      <details class="capture-studio-advanced">
+        <summary>Advanced — path, edit, polish</summary>
+        <div class="capture-studio-advanced-body">
+          <p class="capture-studio-plan-path truncate" title="{{ item.auto_promote_target }}">
+            Lands at: {{ item.auto_promote_target }}
+          </p>
+          <div class="capture-studio-advanced-toolbar" role="toolbar" aria-label="Candidate tools">
+            <button
+              type="button"
+              class="btn btn-soft btn-compact text-xs"
+              title="Override title, body, or type — platform defaults usually fine"
+              hx-get="/partials/knowledge/candidate-edit?review_id={{ item.review_id }}"
+              hx-target="#knowledge-capture-studio-mount"
+              hx-swap="innerHTML"
+            >
+              <i data-lucide="pen-line" class="w-3 h-3"></i>
+              Override
+            </button>
+            <button
+              type="button"
+              class="btn btn-soft btn-compact text-xs"
+              title="Rules/Ollama polish with diff"
+              hx-post="/partials/knowledge/candidate-polish"
+              hx-target="#knowledge-capture-studio-mount"
+              hx-swap="innerHTML"
+              hx-indicator="#capture-studio-working"
+              hx-vals='{"review_id": "{{ item.review_id }}", "candidate_path": "{{ item.candidate_path }}"}'
+            >
+              <i data-lucide="sparkles" class="w-3 h-3"></i>
+              Polish
+            </button>
+            {% if item.auto_enrich %}
+            <form
+              class="capture-studio-toolbar-form"
+              hx-post="/partials/knowledge/candidate-enrich"
+              hx-target="#knowledge-capture-studio-mount"
+              hx-swap="innerHTML"
+              hx-indicator="#capture-studio-working"
+            >
+              <input type="hidden" name="review_id" value="{{ item.review_id }}" />
+              <input type="hidden" name="candidate_path" value="{{ item.candidate_path }}" />
+              <input type="hidden" name="enrich_source" value="{{ item.auto_enrich.source }}" />
+              <input type="hidden" name="clew_mode" value="{{ item.auto_enrich.clew_mode }}" />
+              <input type="hidden" name="research_query" value="{{ item.auto_enrich.research_query }}" />
+              <button
+                type="submit"
+                class="btn btn-soft btn-compact text-xs"
+                title="Append {{ item.auto_enrich.source }} context"
+              >
+                <i data-lucide="layers" class="w-3 h-3"></i>
+                Add context
+              </button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        <form
+          class="capture-studio-override-panel"
+          hx-post="/review/{{ item.review_id }}/approve"
+          hx-target="#knowledge-capture-studio-mount"
+          hx-swap="innerHTML"
+        >
+          <input type="hidden" name="return_scope" value="knowledge_capture_studio" />
+          {% set merge_targets = item.merge_targets %}
+          {% set review_id = item.review_id %}
+          {% set selected_target = item.auto_promote_target %}
+          {% include "partials/knowledge_merge_target_picker.html" %}
+          <div class="capture-studio-override-actions">
+            <button type="submit" class="btn btn-soft btn-compact text-xs" title="Approve with custom merge target">
+              <i data-lucide="git-merge" class="w-3 h-3"></i>
+              Approve with override
+            </button>
+          </div>
+        </form>
+      </details>
+    </article>
+    {% endfor %}
+  </div>
+  {% endmacro %}
+
+  {% if not widget.needs_attention %}
+  <p class="capture-studio-doctrine">
+    Nothing waiting. Dump thoughts from the magenta button — they land here for a one-click approve.
+    Packet and research capture stays on
+    <a href="/review" class="text-neon-cyan no-underline hover:underline">Review Queue</a>.
+  </p>
+  {% else %}
+
+  {% if widget.production_count %}
+  <div class="vault-inbox-lane">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <h2 class="text-sm font-semibold text-slate-100">Vault Inbox</h2>
+        <span class="pill pill-compact border border-neon-lime/45 text-neon-lime text-[10px] font-mono">{{ widget.production_count }} waiting</span>
+      </div>
+      <span class="text-[10px] font-mono text-slate-600 shrink-0">Real captures · #1 = newest</span>
+    </div>
+    <p class="capture-studio-doctrine">Your dumps and ingests — approve to publish to the trusted vault.</p>
+    {{ inbox_cards(widget.production_items) }}
+  </div>
+  {% endif %}
+
+  {% if widget.test_count %}
+  <div class="vault-inbox-lane vault-inbox-lane--test{% if widget.production_count %} mt-4 pt-4 border-t border-edge/60{% endif %}">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <h2 class="text-sm font-semibold text-slate-100">Test Inbox</h2>
+        <span class="pill pill-compact border border-neon-amber/45 text-neon-amber text-[10px] font-mono">{{ widget.test_count }} sandbox</span>
+      </div>
+      <span class="text-[10px] font-mono text-slate-600 shrink-0">Fixtures &amp; dev captures only</span>
+    </div>
+    <p class="capture-studio-doctrine">Sandbox notes while we build — safe to reject in bulk. Not production vault.</p>
+    {{ inbox_cards(widget.test_items) }}
+  </div>
+  {% endif %}
+
+  {% endif %}
+</section>

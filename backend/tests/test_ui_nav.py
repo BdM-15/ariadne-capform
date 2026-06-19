@@ -23,6 +23,7 @@ STUB_NAV_ROUTES = (
 
 DB_NAV_ROUTES = (
     ("/", "Command Center"),
+    ("/capture", "Filament"),
     ("/review", "Review Queue"),
     ("/pulse", "Portfolio Pulse"),
 )
@@ -81,6 +82,7 @@ def test_theseus_sidebar_shell_not_topbar_app_nav():
     assert 'href="/tools/mcp"' in html
     assert 'href="/tools/skills"' in html
     assert 'href="/pulse"' in html
+    assert 'href="/capture"' in html
     assert "data-lucide" in html
     assert 'data-lucide="layout-dashboard"' in html
     assert "Portfolio Pulse" in html
@@ -97,12 +99,77 @@ def test_settings_page_read_only_health():
     res = client.get("/settings")
     html = res.text
     assert res.status_code == 200
-    assert "Platform health" in html or "read-only" in html
+    assert "Platform health" in html or "vault controls" in html
     assert 'class="acc ' in html
     assert "Intel migration" in html
     assert "Research providers" in html
     assert "Grok" in html or "xAI" in html
     assert "default_naics" in html
+    assert "Knowledge vault" in html
+    assert "THREAD_VAULT_SANDBOX" in html
+    assert "thread-restart-btn" in html
+
+
+def test_shell_sidebar_fixed_viewport_layout():
+    """App shell pins below topbar — sidebar scrolls independently of page canvas."""
+    client = TestClient(create_app())
+    res = client.get("/")
+    html = res.text
+    assert res.status_code == 200
+    css = open("src/thread/ui/static/styles/thread.css", encoding="utf-8").read()
+    assert "position: fixed" in css
+    assert ".app-shell" in css
+    assert "sidebar-edge-toggle" in css
+    assert 'class="sidebar-edge-toggle"' in html
+    assert "overscroll-contain" in html
+
+
+def test_sidebar_restart_button():
+    client = TestClient(create_app())
+    res = client.get("/")
+    html = res.text
+    assert res.status_code == 200
+    assert "thread-restart-btn" in html
+    assert "Restart server" in html
+    assert "thread_restart.js" in html
+    assert "thread_sidebar.js" in html
+    assert 'id="app-sidebar"' in html
+    assert 'id="sidebar-collapse-toggle"' in html
+    assert "thread-restart-overlay" in html
+
+
+def test_system_restart_endpoint(monkeypatch):
+    scheduled: list[float] = []
+    monkeypatch.setattr(
+        "thread.ui.routes.schedule_restart",
+        lambda delay: scheduled.append(delay),
+    )
+    client = TestClient(create_app())
+    res = client.post("/system/restart")
+    assert res.status_code == 200
+    assert res.json()["status"] == "restarting"
+    assert scheduled == [0.75]
+
+
+def test_settings_vault_sandbox_toggle(monkeypatch):
+    saved: list[tuple[str, str]] = []
+
+    def _fake_upsert(_path, key: str, value: str) -> None:
+        saved.append((key, value))
+
+    monkeypatch.setattr("thread.ui.routes.upsert_env_var", _fake_upsert)
+    monkeypatch.setattr("thread.ui.routes.apply_env_to_process", lambda _k, _v: None)
+    monkeypatch.setattr("thread.ui.routes.reload_settings", lambda: __import__("thread.config", fromlist=["get_settings"]).get_settings())
+
+    client = TestClient(create_app())
+    res = client.post("/settings/vault-sandbox", data={"enabled": "true"})
+    assert res.status_code == 200
+    assert ("THREAD_VAULT_SANDBOX", "true") in saved
+    assert "settings-vault-panel" in res.text
+
+    res = client.post("/settings/vault-sandbox", data={})
+    assert res.status_code == 200
+    assert ("THREAD_VAULT_SANDBOX", "false") in saved
 
 
 def test_tools_mcp_page_has_guides():
@@ -164,6 +231,26 @@ def test_dashboard_platform_health_widget():
     assert "cc-stat-tile" not in html
 
 
+def test_sidebar_command_center_label_not_dashboard():
+    client = TestClient(create_app())
+    res = client.get("/")
+    html = res.text
+    assert res.status_code == 200
+    assert "Command Center" in html
+    assert ">Dashboard</span>" not in html
+
+
+def test_dashboard_vault_stale_widget():
+    """Phase 12m — stale vault ingest attention widget on Command Center."""
+    client = TestClient(create_app())
+    res = client.get("/")
+    html = res.text
+    assert res.status_code == 200
+    assert "cc-widget-vault-stale" in html
+    assert "/knowledge#knowledge-vault-inbox" in html or "Vault Inbox" in html
+    assert "cc-widget-grid-4" in html
+
+
 def test_dashboard_hot_signals_widget():
     """Phase 12f — hot recompete widget on Command Center."""
     client = TestClient(create_app())
@@ -173,7 +260,7 @@ def test_dashboard_hot_signals_widget():
     assert "cc-widget-hot-signals" in html
     assert "Hot potential" in html
     assert "/pulse#potential-watchlist" in html
-    assert "cc-widget-grid-3" in html
+    assert "cc-widget-grid-4" in html
 
 
 def test_dashboard_quick_actions_strip():
@@ -196,6 +283,7 @@ def test_dashboard_compact_layout_and_phase_band_widget():
     html = res.text
     assert res.status_code == 200
     assert "cc-widget-grid" in html
+    assert "cc-widget-grid-4" in html
     assert "cc-widget-phase-band" in html
     assert "cc-widget-platform-health" in html
     assert "cc-lane-grid" in html
@@ -221,7 +309,7 @@ def test_pulse_intel_inbox_region():
     html = res.text
     assert res.status_code == 200
     assert "pulse-doctrine" in html
-    assert "Living Briefing Packet" in html
+    assert "Filament" in html
     assert "Potential" in html
     assert "Tracked" in html
     assert 'id="intel-inbox"' in html
@@ -233,6 +321,7 @@ def test_pulse_intel_inbox_region():
     assert 'href="/review"' in html
     assert "Data Insights" in html
     assert "Identify funnel" in html
+    assert 'href="/capture"' in html
     watch_idx = html.index("potential-watchlist")
     inbox_idx = html.index("intel-inbox")
     digest_idx = html.index("knowledge-digest")

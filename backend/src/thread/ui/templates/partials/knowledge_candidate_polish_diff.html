@@ -1,0 +1,47 @@
+<article id="knowledge-candidate-polish-diff" class="card border border-neon-amber/35 p-4 space-y-3">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <h3 class="text-sm font-semibold text-neon-amber">Polish preview</h3>
+      <p class="text-[10px] font-mono text-slate-500">
+        {{ polish_result.provider }}{% if polish_result.model %} · {{ polish_result.model }}{% endif %}
+        — accept writes candidate only
+      </p>
+    </div>
+    <button
+      type="button"
+      class="btn btn-ghost btn-compact text-xs"
+      hx-get="/partials/knowledge/candidate-edit?review_id={{ edit_form.review_id }}"
+      hx-target="#knowledge-capture-studio-mount"
+      hx-swap="innerHTML"
+    >Discard</button>
+  </div>
+
+  <div class="polish-diff-table space-y-2">
+    {% for line in polish_diff %}
+    <div class="polish-diff-row rounded-lg border border-edge/60 p-2 {% if line.changed %}polish-diff-changed{% endif %}">
+      <div class="text-[10px] font-mono uppercase text-slate-600 mb-1">{{ line.field }}</div>
+      {% if line.changed %}
+      <pre class="text-[11px] font-mono text-slate-500 whitespace-pre-wrap max-h-24 overflow-y-auto">{{ line.before }}</pre>
+      <div class="text-[10px] text-slate-600 my-1">↓</div>
+      <pre class="text-[11px] font-mono text-slate-200 whitespace-pre-wrap max-h-32 overflow-y-auto">{{ line.after }}</pre>
+      {% else %}
+      <pre class="text-[11px] font-mono text-slate-400 whitespace-pre-wrap max-h-20 overflow-y-auto">{{ line.after }}</pre>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <form
+    hx-post="/partials/knowledge/candidate-polish-accept"
+    hx-target="#knowledge-capture-studio-mount"
+    hx-swap="innerHTML"
+  >
+    <input type="hidden" name="review_id" value="{{ edit_form.review_id }}" />
+    <input type="hidden" name="candidate_path" value="{{ polish_result.candidate_path }}" />
+    <input type="hidden" name="name" value="{{ polish_result.after.name }}" />
+    <input type="hidden" name="page_type" value="{{ polish_result.after.page_type }}" />
+    <input type="hidden" name="body" value="{{ polish_result.after.body }}" />
+    <input type="hidden" name="related" value="{{ polish_result.after.related | join('\n') }}" />
+    <button type="submit" class="btn btn-primary btn-compact text-xs">Accept polish</button>
+  </form>
+</article>

@@ -1,0 +1,74 @@
+<section id="knowledge-vault-inbox" class="capture-studio-drawer card card-accent accent-magenta overflow-hidden"{% if highlight_review_id %} data-inbox-highlight="{{ highlight_review_id }}"{% endif %}>
+  <details class="capture-studio-collapse" {% if studio_open %}open{% endif %}>
+    <summary class="capture-studio-summary px-4 py-3 cursor-pointer select-none flex items-center justify-between gap-2">
+      <span class="flex items-center gap-2 min-w-0">
+        <i data-lucide="inbox" class="w-4 h-4 text-neon-magenta shrink-0"></i>
+        <span class="font-semibold text-sm text-slate-100">Vault Inbox</span>
+        <span class="text-[10px] font-mono text-slate-500 truncate hidden sm:inline">dump → glance → approve</span>
+      </span>
+      <span class="flex items-center gap-2 shrink-0">
+        {% if widget.needs_attention %}
+        {% if widget.production_count %}
+        <span class="pill pill-compact border border-neon-lime/45 text-neon-lime text-[10px] font-mono">{{ widget.production_count }} real</span>
+        {% endif %}
+        {% if widget.test_count %}
+        <span class="pill pill-compact border border-neon-amber/45 text-neon-amber text-[10px] font-mono">{{ widget.test_count }} test</span>
+        {% endif %}
+        {% endif %}
+        {% if edit_form %}
+        <span class="pill pill-compact border border-neon-cyan/40 text-neon-cyan text-[10px] font-mono">editing</span>
+        {% endif %}
+      </span>
+    </summary>
+    <div class="capture-studio-body border-t border-edge p-4 space-y-3">
+      <p class="capture-studio-doctrine m-0">
+        Your brain dumps land here. Platform infers title, type, and merge target — you approve or reject.
+        Not the LangGraph Studio; this is vault ingest only.
+      </p>
+      <details class="capture-studio-advanced">
+        <summary>Structured idea capture (idea_capturer)</summary>
+        <form
+          class="capture-studio-idea-form space-y-2 mt-2"
+          hx-post="/partials/knowledge/idea-capture"
+          hx-target="#knowledge-capture-studio-mount"
+          hx-swap="innerHTML"
+          hx-indicator="#capture-studio-working"
+        >
+          <p class="text-[10px] text-slate-500 leading-snug m-0">
+            Tier 1 fleeting note — spellfix at ingest, <span class="font-mono text-slate-400">vault_maintainer</span> gate, then Vault Inbox queue.
+          </p>
+          <textarea
+            class="thread-input text-xs w-full min-h-[4rem]"
+            name="dump"
+            placeholder="Half-formed idea, observation, question…"
+            required
+          ></textarea>
+          <div class="flex flex-wrap gap-2">
+            <input class="thread-input text-xs flex-1 min-w-[8rem]" name="tags" placeholder="Tags (optional)" />
+            <input class="thread-input text-xs flex-1 min-w-[8rem]" name="context" placeholder="Why it matters (optional)" />
+            <button type="submit" class="btn btn-soft btn-compact text-xs shrink-0">
+              <i data-lucide="pen-line" class="w-3 h-3"></i>
+              Capture idea
+            </button>
+          </div>
+        </form>
+      </details>
+      <p id="capture-studio-working" class="platform-working htmx-indicator text-[10px] font-mono text-neon-cyan m-0">
+        Platform working — polish, enrich, or queue update…
+      </p>
+      {% if flash %}
+      <p class="text-xs font-mono {% if flash_ok %}text-neon-lime{% else %}text-neon-amber{% endif %}">{{ flash }}</p>
+      {% endif %}
+
+      {% if edit_form %}
+      {% if polish_result %}
+      {% include "partials/knowledge_candidate_polish_diff.html" %}
+      {% else %}
+      {% include "partials/knowledge_candidate_editor.html" %}
+      {% endif %}
+      {% endif %}
+
+      {% include "partials/knowledge_vault_review.html" %}
+    </div>
+  </details>
+</section>

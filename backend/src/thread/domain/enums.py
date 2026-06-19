@@ -75,6 +75,7 @@ class PacketFieldRouteKind(StrEnum):
     SOURCE_PROFILE_LOOKUP = "source_profile_lookup"
     MODEL_SYNTHESIS = "model_synthesis"
     CUSTOMER_CALL_PLAN = "customer_call_plan"
+    COMPUTED = "computed"
 
 
 class ResearchLens(StrEnum):

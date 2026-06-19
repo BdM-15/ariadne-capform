@@ -1,9 +1,51 @@
 <div id="knowledge-body" class="page-content space-y-4">
-  <p class="text-sm text-slate-400">
-    Karpathy-style synthesis layer — <span class="font-mono text-slate-500">entities/</span>,
-    <span class="font-mono text-slate-500">global/domain_intel/</span>, pursuits, training.
-    Trusted writes land here after review; MinerU ingest arrives in Phase 19.
-  </p>
+  <div class="settings-tip-box knowledge-page-tip">
+    <strong class="text-slate-300">Knowledge</strong> —
+    long-term capture memory in <span class="font-mono text-slate-500">knowledge/thread/</span>.
+    <strong class="text-slate-300">Browse</strong> the tree (read-only) ·
+    <strong class="text-slate-300">Vault operations</strong> lint and repair ·
+    <strong class="text-slate-300">Test ingest</strong> queues
+    <a href="#knowledge-vault-inbox" class="text-neon-cyan no-underline hover:underline">Vault Inbox</a>
+    below (not Pulse inbox).
+    <span class="settings-label-tip" title="Open the page Guide (header) for folder layout, review flow, and sandbox.">?</span>
+  </div>
+
+  <div class="flex flex-wrap gap-2 text-[10px] font-mono">
+    <span class="pill pill-compact border {% if vault.vault_ready %}border-neon-lime/40 text-neon-lime{% else %}border-neon-amber/40 text-neon-amber{% endif %}">
+      Vault {% if vault.vault_ready %}ready{% else %}missing{% endif %}
+    </span>
+    <span class="pill pill-compact border {% if vault.sandbox_mode %}border-neon-amber/40 text-neon-amber{% else %}border-edge text-slate-500{% endif %}">
+      Sandbox {% if vault.sandbox_mode %}on{% else %}off{% endif %}
+    </span>
+    <a href="/settings" class="pill pill-compact border border-edge text-slate-500 no-underline hover:text-neon-cyan" title="Toggle sandbox and allow-test-promote">
+      Settings
+    </a>
+  </div>
+
+  {% if vault.sandbox_mode %}
+  <section class="card card-accent accent-amber p-4">
+    <h2 class="font-semibold text-sm text-neon-amber mb-1 flex items-center gap-2">
+      Vault sandbox mode
+      <span class="settings-label-tip" title="Test writes stay in generated-projections/sandbox/. Batch apply to production vault is blocked.">?</span>
+    </h2>
+    <p class="text-sm text-slate-400">
+      Test writes → <span class="font-mono text-slate-500">generated-projections/sandbox/</span> only.
+      Batch repair/semantic blocked on production vault.
+      Turn off in <a href="/settings" class="text-neon-cyan no-underline hover:underline">Settings → Knowledge vault</a> when done testing.
+    </p>
+  </section>
+  {% endif %}
+
+  {% if vault.vault_ready %}
+  <div
+    id="knowledge-vault-ops-mount"
+    hx-get="/partials/knowledge/vault-ops"
+    hx-trigger="load"
+    hx-swap="innerHTML"
+  >
+    <p class="text-xs text-slate-600 font-mono">Loading vault operations…</p>
+  </div>
+  {% endif %}
 
   {% if not vault.vault_ready %}
   <section class="card card-accent accent-amber p-5">
@@ -12,11 +54,33 @@
     <p class="text-[11px] font-mono text-slate-500 mt-2 truncate" title="{{ vault.vault_path }}">{{ vault.vault_path }}</p>
   </section>
   {% else %}
-  <div class="vault-browser-layout">
+  <div id="vault-browser-layout" class="vault-browser-layout">
+    <button
+      type="button"
+      id="vault-tree-expand-btn"
+      class="vault-tree-expand-btn"
+      hidden
+      title="Expand vault browse tree"
+    >
+      <i data-lucide="panel-left-open" class="w-3.5 h-3.5"></i>
+      Browse
+    </button>
     <aside
       id="vault-tree-panel"
       class="vault-tree-panel card card-accent accent-magenta p-3 shrink-0"
+      aria-hidden="false"
     >
+      <div class="vault-tree-panel-head">
+        <span class="cc-section-label text-neon-magenta mb-0 text-[10px]">Browse tree</span>
+        <button
+          type="button"
+          id="vault-tree-collapse-btn"
+          class="vault-tree-collapse-btn"
+          title="Collapse browse tree (horizontal)"
+        >
+          <i data-lucide="panel-left-close" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
       {% include "partials/knowledge_tree_panel.html" %}
     </aside>
     <section
@@ -25,6 +89,15 @@
     >
       {% include "partials/knowledge_page_panel.html" %}
     </section>
+  </div>
+  <div
+    id="knowledge-capture-studio-mount"
+    hx-get="/partials/knowledge/capture-studio{% if inbox_highlight %}?inbox={{ inbox_highlight }}{% endif %}"
+    hx-trigger="load"
+    hx-swap="innerHTML"
+    data-inbox-highlight="{{ inbox_highlight or '' }}"
+  >
+    <p class="text-xs text-slate-600 font-mono">Loading Vault Inbox…</p>
   </div>
   {% endif %}
 </div>

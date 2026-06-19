@@ -30,6 +30,8 @@ class VaultBrowserContext:
     page_title: str | None
     breadcrumbs: tuple[VaultBreadcrumb, ...]
     error: str | None
+    sandbox_mode: bool = False
+    allow_test_promote: bool = False
 
 
 def _vault_root(settings: Settings) -> Path:
@@ -103,6 +105,8 @@ def build_vault_browser_context(
             page_title=None,
             breadcrumbs=build_breadcrumbs(browse_path),
             error="Knowledge vault not found — run app bootstrap or check knowledge/thread.",
+            sandbox_mode=settings.vault_sandbox_mode,
+            allow_test_promote=settings.vault_allow_test_promote,
         )
 
     dirs: tuple[str, ...] = ()
@@ -162,6 +166,8 @@ def build_vault_browser_context(
         page_title=page_title,
         breadcrumbs=build_breadcrumbs(browse_path),
         error=error,
+        sandbox_mode=settings.vault_sandbox_mode,
+        allow_test_promote=settings.vault_allow_test_promote,
     )
 
 

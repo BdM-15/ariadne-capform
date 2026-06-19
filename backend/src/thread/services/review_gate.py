@@ -63,6 +63,24 @@ async def approve_review(
     return record
 
 
+async def reject_review(
+    session: AsyncSession,
+    review_id: uuid.UUID,
+    *,
+    note: str | None = None,
+) -> ReviewRecord:
+    record = await session.get(ReviewRecord, review_id)
+    if record is None:
+        raise ReviewGateError("Review record not found")
+    if record.review_state != ReviewState.PENDING_REVIEW.value:
+        raise ReviewGateError("Review is not pending")
+
+    record.review_state = ReviewState.REJECTED.value
+    record.reviewer_note = note
+    await session.flush()
+    return record
+
+
 async def list_pending_reviews(session: AsyncSession) -> list[ReviewRecord]:
     result = await session.execute(
         select(ReviewRecord).where(ReviewRecord.review_state == ReviewState.PENDING_REVIEW.value)

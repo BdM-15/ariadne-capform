@@ -1,0 +1,161 @@
+<div id="knowledge-vault-ops" class="card card-accent accent-cyan p-4 space-y-4">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-2 min-w-0">
+      <h2 class="text-sm font-semibold text-slate-100">Vault operations</h2>
+      <span
+        class="settings-label-tip"
+        title="Lint, dry-run preview, apply repairs, and test ingest. Open Guide for full walkthrough."
+      >?</span>
+    </div>
+    <div class="flex items-center gap-2 shrink-0 ml-auto">
+      {% if result %}
+      <span class="pill border text-[10px] font-mono uppercase {% if result.ok %}border-neon-lime/40 text-neon-lime{% else %}border-neon-amber/40 text-neon-amber{% endif %}">
+        {{ result.action }}{% if result.applied %} · applied{% else %} · dry{% endif %}
+      </span>
+      {% endif %}
+      <button
+        type="button"
+        class="btn btn-ghost btn-compact text-xs"
+        onclick="openGuideDialog('guide-vault-ops')"
+        title="Vault operations guide"
+      >
+        <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+        Guide
+      </button>
+    </div>
+  </div>
+  <p class="text-[11px] text-slate-500 max-w-2xl">
+    {{ vault_ops_guide.purpose }}
+    {% if sandbox_mode %}
+    <span class="text-neon-amber">Sandbox on — batch apply blocked; use dry runs and test ingest.</span>
+    {% endif %}
+  </p>
+
+  {% if flash %}
+  <div class="text-sm {% if flash_ok %}text-neon-lime{% else %}text-neon-amber{% endif %}">{{ flash }}</div>
+  {% endif %}
+
+  {% if result %}
+  <p class="text-sm text-slate-300 font-mono">{{ result.summary }}</p>
+  {% elif lint_summary %}
+  <p class="text-sm text-slate-400">
+    Lint
+    <span class="settings-label-tip" title="Issue count from last vault scan — run Lint again after fixes.">?</span>:
+    <span class="font-mono text-slate-300">{{ lint_summary }}</span>
+  </p>
+  {% endif %}
+
+  <div class="space-y-2">
+    <div class="text-[10px] font-mono uppercase text-slate-600 tracking-wider">Inspect (safe)</div>
+    <div class="flex flex-wrap gap-2">
+      <button
+        type="button"
+        class="btn btn-ghost text-xs"
+        title="Scan for broken wikilinks, orphans, test notes in trusted folders, and packet-field mesh."
+        hx-post="/partials/knowledge/vault-op"
+        hx-vals='{"action":"lint","apply":"false"}'
+        hx-target="#knowledge-vault-ops"
+        hx-swap="outerHTML"
+      >Lint</button>
+      <button
+        type="button"
+        class="btn btn-ghost text-xs"
+        title="Preview frontmatter fixes and Related-section cleanup — no files written."
+        hx-post="/partials/knowledge/vault-op"
+        hx-vals='{"action":"normalize","apply":"false"}'
+        hx-target="#knowledge-vault-ops"
+        hx-swap="outerHTML"
+      >Normalize (dry)</button>
+      <button
+        type="button"
+        class="btn btn-ghost text-xs"
+        title="Preview semantic cross-links from doctrine — no files written."
+        hx-post="/partials/knowledge/vault-op"
+        hx-vals='{"action":"semantic","apply":"false"}'
+        hx-target="#knowledge-vault-ops"
+        hx-swap="outerHTML"
+      >Semantic (dry)</button>
+    </div>
+  </div>
+
+  {% if not sandbox_mode %}
+  <div class="space-y-2">
+    <div class="text-[10px] font-mono uppercase text-slate-600 tracking-wider">
+      Apply (writes vault)
+      <span class="settings-label-tip" title="Blocked while sandbox is on — toggle in Settings → Knowledge vault.">?</span>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <button
+        type="button"
+        class="btn btn-primary text-xs"
+        title="Full repair: fix hubs and links, run semantic pass, normalize — writes to live vault."
+        hx-post="/partials/knowledge/vault-op"
+        hx-vals='{"action":"repair","apply":"true"}'
+        hx-target="#knowledge-vault-ops"
+        hx-swap="outerHTML"
+        hx-confirm="Repair hubs, links, semantic pass, and normalize on the live vault?"
+      >Repair + link</button>
+      <button
+        type="button"
+        class="btn btn-primary text-xs"
+        title="Append semantic Related links across the vault and rebuild the link index."
+        hx-post="/partials/knowledge/vault-op"
+        hx-vals='{"action":"semantic","apply":"true"}'
+        hx-target="#knowledge-vault-ops"
+        hx-swap="outerHTML"
+        hx-confirm="Append semantic Related links across the vault?"
+      >Semantic (apply)</button>
+    </div>
+  </div>
+  {% else %}
+  <p class="text-[11px] text-slate-500">
+    Apply actions hidden while sandbox is on.
+    <a href="/settings" class="text-neon-cyan no-underline hover:underline">Settings → Knowledge vault</a>
+    to disable sandbox for production repairs.
+  </p>
+  {% endif %}
+
+  <details class="text-[11px] text-slate-500 border border-edge/60 rounded-lg p-3">
+    <summary class="cursor-pointer text-slate-400 hover:text-slate-300 flex items-center gap-2">
+      <span>Test ingest (→ Vault review)</span>
+      <span
+        class="settings-label-tip"
+        title="Writes to generated-projections/sandbox/ with test markers. Queues /review — not trusted until you approve."
+      >?</span>
+    </summary>
+    <form
+      class="mt-3 space-y-2"
+      hx-post="/partials/knowledge/candidate"
+      hx-target="#knowledge-vault-ops"
+      hx-swap="outerHTML"
+    >
+      <input type="hidden" name="test_mode" value="true" />
+      <input type="hidden" name="queue_review" value="true" />
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <input class="thread-input text-xs" name="name" placeholder="Note title" required title="Display title for the candidate note" />
+        <select class="thread-input text-xs" name="page_type" title="Vault page type — affects folder routing and frontmatter">
+          <option value="synthesis">synthesis</option>
+          <option value="concept">concept</option>
+          <option value="agency">agency</option>
+          <option value="competitor">competitor</option>
+        </select>
+      </div>
+      <textarea
+        class="thread-input text-xs w-full min-h-[4rem]"
+        name="body"
+        placeholder="Candidate body (markdown)"
+        required
+        title="Markdown body — wikilinks and frontmatter supported"
+      ></textarea>
+      <p class="text-[10px] font-mono text-slate-600">
+        Writes to <span class="text-slate-400">generated-projections/sandbox/</span> with test markers ·
+        queues <a href="#knowledge-vault-inbox" class="text-neon-cyan no-underline hover:underline">Vault Inbox</a> ·
+        promote blocked unless
+        <a href="/settings" class="text-neon-cyan no-underline hover:underline">Allow test promote</a> is on
+      </p>
+      <button type="submit" class="btn btn-primary text-xs" title="Create sandbox candidate and queue review">
+        Write candidate + queue review
+      </button>
+    </form>
+  </details>
+</div>

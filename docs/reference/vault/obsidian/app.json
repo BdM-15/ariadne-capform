@@ -1,0 +1,14 @@
+{
+  "legacyEditor": false,
+  "livePreview": true,
+  "defaultViewMode": "source",
+  "readableLineLength": true,
+  "strictLineBreaks": false,
+  "showFrontmatter": true,
+  "useMarkdownLinks": false,
+  "newFileLocation": "folder",
+  "newFileFolderPath": "generated-projections",
+  "attachmentFolderPath": "generated-projections/attachments",
+  "alwaysUpdateLinks": true,
+  "showUnsupportedFiles": true
+}

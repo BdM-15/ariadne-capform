@@ -1,0 +1,18 @@
+<div class="space-y-1.5">
+  <label class="text-[10px] font-mono uppercase text-slate-600 tracking-wider" for="merge-target-{{ review_id }}">
+    Merge target
+    <span class="settings-label-tip" title="Append candidate into an existing trusted page or the default new path. Dedup hints surface near-duplicates.">?</span>
+  </label>
+  <select
+    id="merge-target-{{ review_id }}"
+    class="thread-input text-xs w-full font-mono"
+    name="promote_target"
+    title="Trusted vault path for promote — append merge"
+  >
+    {% for option in merge_targets %}
+    <option value="{{ option.rel_path }}" {% if selected_target is defined and option.rel_path == selected_target %}selected{% elif selected_target is not defined and option.is_default %}selected{% endif %}>
+      {{ option.label }}
+    </option>
+    {% endfor %}
+  </select>
+</div>

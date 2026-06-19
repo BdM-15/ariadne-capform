@@ -30,6 +30,10 @@ SOURCE_LANE_LABELS: dict[str, str] = {
 
 INSIGHTS_SKILLS = frozenset({"clew_intel"})
 
+# Pulse intel inbox = capture triage only — not vault maintenance or meta skills.
+PULSE_INBOX_EXCLUDED_ENTITY_TYPES = frozenset({"vault_candidate"})
+PULSE_INBOX_EXCLUDED_SKILLS = frozenset({"skill-creator"})
+
 
 @dataclass(frozen=True)
 class IntelInboxItem:
@@ -204,6 +208,18 @@ async def _skill_context(
     return skill_id, mcp_server
 
 
+def _include_in_pulse_inbox(
+    item: ReviewQueueItem,
+    *,
+    skill_id: str | None,
+) -> bool:
+    if item.entity_type in PULSE_INBOX_EXCLUDED_ENTITY_TYPES:
+        return False
+    if item.entity_type == "skill_run" and skill_id in PULSE_INBOX_EXCLUDED_SKILLS:
+        return False
+    return True
+
+
 async def build_intel_inbox_widget(
     session: AsyncSession,
     settings: Settings,
@@ -211,16 +227,22 @@ async def build_intel_inbox_widget(
     preview_limit: int = INBOX_PREVIEW_LIMIT,
 ) -> IntelInboxWidget:
     queue = await build_global_review_queue(session, settings)
+    capture_queue: list[ReviewQueueItem] = []
+    for raw in queue:
+        skill_id, mcp_server = await _skill_context(session, raw)
+        if _include_in_pulse_inbox(raw, skill_id=skill_id):
+            capture_queue.append(raw)
+
     items: list[IntelInboxItem] = []
     lane_counts: dict[str, int] = {}
 
-    for raw in queue[:preview_limit]:
+    for raw in capture_queue[:preview_limit]:
         skill_id, mcp_server = await _skill_context(session, raw)
         inbox_item = _to_inbox_item(raw, skill_id=skill_id, mcp_server=mcp_server)
         items.append(inbox_item)
         lane_counts[inbox_item.source_lane] = lane_counts.get(inbox_item.source_lane, 0) + 1
 
-    count = len(queue)
+    count = len(capture_queue)
     summary_parts = [
         f"{SOURCE_LANE_LABELS.get(lane, lane)} ×{n}"
         for lane, n in sorted(lane_counts.items(), key=lambda x: (-x[1], x[0]))

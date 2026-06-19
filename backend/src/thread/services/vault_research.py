@@ -32,18 +32,25 @@ def _write_stub(path: Path, content: str) -> bool:
 
 def _stub_note(
     *,
-    entity_type: str,
+    page_type: str,
     name: str,
+    page_id: str,
     context_lines: list[str],
 ) -> str:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     ctx = "\n".join(f"- {line}" for line in context_lines if line.strip())
+    citations = " • ".join(line for line in context_lines if line.strip())[:240]
     return f"""---
-entity_type: {entity_type}
 name: "{name.replace('"', "'")}"
-status: candidate
-created: {now}
+type: "{page_type}"
+id: "{page_id}"
+trust: candidate
+added: "{now}"
+last_updated: "{today}"
+citations: "{citations}"
 source: thread_watchlist_research
+tags: watchlist, stub
 ---
 
 # {name}
@@ -54,7 +61,7 @@ source: thread_watchlist_research
 {ctx}
 
 ## Next steps
-- [[SAM MCP]] entity lookup if UEI unknown
+- [[capture-llm-wiki]]
 - USAspending incumbent spend patterns
 - Web research (review-gated)
 """
@@ -84,7 +91,12 @@ def ensure_watchlist_research_stubs(
         rel_agency = Path("entities/agencies") / f"{_slug(agency)}.md"
         if _write_stub(
             vault / rel_agency,
-            _stub_note(entity_type="agency", name=agency.strip(), context_lines=context),
+            _stub_note(
+                page_type="agency",
+                name=agency.strip(),
+                page_id=f"entity-agency-{_slug(agency)}",
+                context_lines=context,
+            ),
         ):
             created.append(str(rel_agency).replace("\\", "/"))
         agency_path = str(rel_agency).replace("\\", "/")
@@ -93,7 +105,12 @@ def ensure_watchlist_research_stubs(
         rel_comp = Path("entities/competitors") / f"{_slug(title)}.md"
         if _write_stub(
             vault / rel_comp,
-            _stub_note(entity_type="competitor", name=title.strip(), context_lines=context),
+            _stub_note(
+                page_type="competitor",
+                name=title.strip(),
+                page_id=f"entity-competitor-{_slug(title)}",
+                context_lines=context,
+            ),
         ):
             created.append(str(rel_comp).replace("\\", "/"))
         competitor_path = str(rel_comp).replace("\\", "/")

@@ -1,13 +1,10 @@
 {% if vault.active_page and vault.page_content is not none %}
-<div id="vault-tree-panel" hx-swap-oob="innerHTML" class="vault-tree-panel card card-accent accent-magenta p-3 shrink-0">
-  {% include "partials/knowledge_tree_panel.html" %}
-</div>
 <div class="vault-page-inner">
   <div class="flex flex-wrap items-center gap-2 mb-3 pb-2 border-b border-edge">
     <h2 class="text-sm font-semibold text-slate-100 min-w-0 truncate">{{ vault.page_title or vault.active_page }}</h2>
     <span class="pill pill-compact border border-edge text-slate-500 text-[9px] font-mono truncate max-w-full" title="{{ vault.active_page }}">{{ vault.active_page }}</span>
     {% if vault.page_kind == 'markdown' %}
-    <span class="pill pill-compact border border-neon-cyan/35 text-neon-cyan text-[9px]">markdown</span>
+    <span class="pill pill-compact border border-neon-cyan/35 text-neon-cyan text-[9px]" title="Rendered with marked.js — wikilinks shown as plain text until Obsidian export">markdown</span>
     {% elif vault.page_kind == 'json' %}
     <span class="pill pill-compact border border-neon-amber/35 text-neon-amber text-[9px]">json</span>
     {% endif %}
@@ -37,6 +34,14 @@
       Start with <span class="font-mono">global/domain_intel/</span> for bid-fit capabilities
       or <span class="font-mono">entities/</span> for agency and competitor notes.
     </p>
+    <button
+      type="button"
+      class="btn btn-ghost btn-compact text-xs mt-4"
+      onclick="openGuideDialog('guide-knowledge')"
+    >
+      <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+      Vault guide
+    </button>
   </div>
 </div>
 {% endif %}
