@@ -22,6 +22,8 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
+    import asyncio
+
     from thread.db.migrate import run_workflow_migrations
 
-    await engine.run_sync(lambda _conn: run_workflow_migrations(_settings))
+    await asyncio.to_thread(run_workflow_migrations, _settings)
