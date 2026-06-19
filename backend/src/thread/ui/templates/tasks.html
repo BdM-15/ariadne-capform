@@ -4,18 +4,22 @@
 <header class="page-nav-bar glass-section-bar h-12 shrink-0 flex items-center px-6 justify-between gap-4">
   <div class="flex items-center gap-3 min-w-0">
     <h1 class="text-base font-semibold tracking-tight h1-gradient shrink-0">Tasks</h1>
-    <span class="text-[11px] font-mono text-slate-500 truncate">EA lane · GTD execution truth</span>
+    <span class="text-[11px] font-mono text-slate-500 truncate">Accomplish · GTD lanes</span>
   </div>
-  <span class="pill border border-neon-cyan/40 text-neon-cyan text-[10px] font-mono tabular-nums">
-    {{ open_count }} open
-  </span>
+  <div class="flex items-center gap-2 shrink-0">
+    <span class="pill border border-neon-cyan/40 text-neon-cyan text-[10px] font-mono tabular-nums">{{ page.open_count }} open</span>
+    <button type="button" class="btn btn-primary btn-compact text-xs" data-capture-fab-open title="Dump admin task">
+      <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+      Capture task
+    </button>
+  </div>
 </header>
 {% endblock %}
 {% block content %}
-<div id="tasks-page" class="page-content space-y-4">
-  <div class="settings-tip-box">
-    Admin tasks from the global FAB — meetings, reminders, follow-ups. Knowledge dumps still route to Vault Inbox.
-    <span class="settings-label-tip" title="Completed tasks may seed vault checklists later (Phase 16e).">?</span>
+<div id="tasks-page" class="page-content">
+  <div class="tasks-doctrine settings-tip-box">
+    <strong>Accomplish, not archive.</strong> Move inbox → next → done. Knowledge dumps still go Vault Inbox via FAB.
+    <span class="settings-label-tip" title="GTD: inbox clarify, next = do now, waiting = blocked on someone, scheduled = time-bound.">?</span>
   </div>
   {% include "partials/tasks_body.html" %}
 </div>

@@ -225,16 +225,68 @@ async def get_task_list_item(session: AsyncSession, task_id: uuid.UUID) -> TaskL
     return _task_to_item(row) if row else None
 
 
-async def complete_operator_task(session: AsyncSession, task_id: uuid.UUID) -> OperatorTask:
+_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
+    OperatorTaskStatus.INBOX.value: {
+        OperatorTaskStatus.NEXT.value,
+        OperatorTaskStatus.SCHEDULED.value,
+        OperatorTaskStatus.WAITING.value,
+        OperatorTaskStatus.DONE.value,
+        OperatorTaskStatus.DEFERRED.value,
+    },
+    OperatorTaskStatus.NEXT.value: {
+        OperatorTaskStatus.SCHEDULED.value,
+        OperatorTaskStatus.WAITING.value,
+        OperatorTaskStatus.DONE.value,
+        OperatorTaskStatus.DEFERRED.value,
+    },
+    OperatorTaskStatus.SCHEDULED.value: {
+        OperatorTaskStatus.NEXT.value,
+        OperatorTaskStatus.DONE.value,
+        OperatorTaskStatus.DEFERRED.value,
+    },
+    OperatorTaskStatus.WAITING.value: {
+        OperatorTaskStatus.NEXT.value,
+        OperatorTaskStatus.DONE.value,
+    },
+    OperatorTaskStatus.DEFERRED.value: {
+        OperatorTaskStatus.NEXT.value,
+        OperatorTaskStatus.INBOX.value,
+    },
+    OperatorTaskStatus.DONE.value: {OperatorTaskStatus.INBOX.value},
+}
+
+
+async def update_operator_task_status(
+    session: AsyncSession,
+    task_id: uuid.UUID,
+    new_status: str,
+) -> OperatorTask:
+    clean = new_status.strip().lower()
+    allowed = {s.value for s in OperatorTaskStatus}
+    if clean not in allowed:
+        raise ValueError(f"Invalid status: {new_status}")
+
     row = await session.get(OperatorTask, task_id)
     if row is None:
         raise ValueError("Task not found")
+
+    transitions = _ALLOWED_TRANSITIONS.get(row.status, set())
+    if clean != row.status and clean not in transitions:
+        raise ValueError(f"Cannot move {row.status} → {clean}")
+
     now = datetime.now(timezone.utc)
-    row.status = OperatorTaskStatus.DONE.value
-    row.completed_at = now
+    row.status = clean
     row.updated_at = now
+    if clean == OperatorTaskStatus.DONE.value:
+        row.completed_at = now
+    elif row.completed_at is not None:
+        row.completed_at = None
     await session.flush()
     return row
+
+
+async def complete_operator_task(session: AsyncSession, task_id: uuid.UUID) -> OperatorTask:
+    return await update_operator_task_status(session, task_id, OperatorTaskStatus.DONE.value)
 
 
 async def build_open_tasks_widget(

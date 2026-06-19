@@ -1,4 +1,4 @@
-"""Phase 16b–16d — /tasks page, C&C widget, opp chip."""
+"""Phase 16b–16f — /tasks page, GTD board, C&C widget, opp chip."""
 
 import uuid
 
@@ -9,11 +9,13 @@ from thread.domain.schemas import OpportunityCreate
 from thread.main import create_app
 from thread.services import opportunities as opp_svc
 from thread.services.ingest_task_assistant import rules_polish_task
+from thread.domain.enums import OperatorTaskStatus
 from thread.services.operator_tasks import (
     complete_operator_task,
     create_operator_task,
     get_task_list_item,
     list_operator_tasks,
+    update_operator_task_status,
 )
 
 
@@ -32,7 +34,9 @@ def test_tasks_page_shell():
     assert res.status_code == 200
     assert "Tasks" in res.text
     assert "tasks-body" in res.text
-    assert "tasks-checkoff" in res.text or "No tasks" in res.text
+    assert "tasks-board" in res.text or "tasks-list-view" in res.text
+    assert "task-card-actions" in res.text or "No tasks here" in res.text
+    assert "Accomplish" in res.text
 
 
 def test_command_center_shows_open_tasks_widget():
@@ -84,3 +88,26 @@ async def test_task_item_includes_opportunity_link(db_session):
     items = await list_operator_tasks(db_session, filter_key="open")
     match = next(i for i in items if i.opportunity_id == opp.id)
     assert match.opportunity_name == f"Army Cyber {tag}"
+
+
+@pytest.mark.asyncio
+async def test_status_transition_via_service(db_session):
+    polished = rules_polish_task("follow up with Molly on SECREP")
+    task = await create_operator_task(db_session, raw_dump="follow up Molly", polished=polished)
+    await update_operator_task_status(db_session, task.id, OperatorTaskStatus.WAITING.value)
+    await db_session.commit()
+
+    item = await get_task_list_item(db_session, task.id)
+    assert item is not None
+    assert item.status == OperatorTaskStatus.WAITING.value
+
+
+def test_tasks_page_has_gtd_filters_and_view_toggle():
+    client = TestClient(create_app())
+    res = client.get("/tasks?view=board")
+    assert res.status_code == 200
+    for label in ("Open", "Today", "Overdue", "Done"):
+        assert label in res.text
+    assert "tasks-view-toggle" in res.text
+    assert 'view=board' in res.text
+    assert 'view=list' in res.text

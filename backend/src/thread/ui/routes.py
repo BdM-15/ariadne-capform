@@ -44,7 +44,9 @@ from thread.services.operator_tasks import (
     get_task_list_item,
     ingest_fab_task,
     list_operator_tasks,
+    update_operator_task_status,
 )
+from thread.services.task_display import build_tasks_page_context, task_actions_for
 from thread.services.quick_actions import build_quick_actions
 from thread.intel.facet_query import (
     delete_insight_query,
@@ -142,8 +144,25 @@ def capture_workspace_href(
 
 
 templates.env.globals["capture_href"] = capture_workspace_href
+templates.env.globals["task_actions"] = task_actions_for
 
 router = APIRouter(tags=["ui"])
+
+
+async def _tasks_page_context(
+    db: AsyncSession,
+    *,
+    filter_key: str,
+    view_mode: str,
+):
+    items = await list_operator_tasks(db, filter_key=filter_key)
+    open_count = await count_open_tasks(db)
+    return build_tasks_page_context(
+        items,
+        filter_key=filter_key,
+        view_mode=view_mode,
+        open_count=open_count,
+    )
 
 SHELL_STUB_PAGES: dict[str, dict[str, str]] = {
     "settings": {
@@ -1818,19 +1837,19 @@ async def dashboard_page(
 async def tasks_page(
     request: Request,
     filter: str = Query("open", alias="filter"),
+    view: str = Query("board"),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
     filter_key = filter if filter in ("open", "today", "overdue", "done") else "open"
-    items = await list_operator_tasks(db, filter_key=filter_key)
-    open_count = await count_open_tasks(db)
+    page = await _tasks_page_context(db, filter_key=filter_key, view_mode=view)
     return templates.TemplateResponse(
         request,
         "tasks.html",
         {
-            "items": items,
+            "page": page,
             "filter_key": filter_key,
-            "open_count": open_count,
+            "view_mode": page.view_mode,
             "app_name": settings.public_app_name,
             "active_nav": "tasks",
             "flash": None,
@@ -1838,25 +1857,61 @@ async def tasks_page(
     )
 
 
+@router.get("/partials/tasks/body", response_class=HTMLResponse)
+async def tasks_body_partial(
+    request: Request,
+    filter: str = Query("open", alias="filter"),
+    view: str = Query("board"),
+    db: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    filter_key = filter if filter in ("open", "today", "overdue", "done") else "open"
+    page = await _tasks_page_context(db, filter_key=filter_key, view_mode=view)
+    return templates.TemplateResponse(
+        request,
+        "partials/tasks_body.html",
+        {"page": page, "filter_key": filter_key, "view_mode": page.view_mode},
+    )
+
+
+@router.post("/partials/tasks/{task_id}/status", response_class=HTMLResponse)
+async def tasks_status_partial(
+    request: Request,
+    task_id: uuid.UUID,
+    status: str = Form(...),
+    filter: str = Form("open"),
+    view: str = Form("board"),
+    db: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    filter_key = filter if filter in ("open", "today", "overdue", "done") else "open"
+    try:
+        await update_operator_task_status(db, task_id, status)
+        await db.commit()
+        page = await _tasks_page_context(db, filter_key=filter_key, view_mode=view)
+        return templates.TemplateResponse(
+            request,
+            "partials/tasks_body.html",
+            {"page": page, "filter_key": filter_key, "view_mode": page.view_mode},
+        )
+    except ValueError as exc:
+        return HTMLResponse(f'<p class="text-neon-amber text-xs p-4">{exc}</p>', status_code=400)
+
+
 @router.post("/partials/tasks/{task_id}/complete", response_class=HTMLResponse)
 async def tasks_complete_partial(
     request: Request,
     task_id: uuid.UUID,
+    filter: str = Form("open"),
+    view: str = Form("board"),
     db: AsyncSession = Depends(get_db),
 ) -> HTMLResponse:
-    try:
-        await complete_operator_task(db, task_id)
-        await db.commit()
-        item = await get_task_list_item(db, task_id)
-        if item is None:
-            raise ValueError("Task not found")
-        return templates.TemplateResponse(
-            request,
-            "partials/task_row.html",
-            {"item": item},
-        )
-    except ValueError as exc:
-        return HTMLResponse(f'<p class="text-neon-amber text-xs">{exc}</p>', status_code=404)
+    return await tasks_status_partial(
+        request,
+        task_id,
+        status="done",
+        filter=filter,
+        view=view,
+        db=db,
+    )
 
 
 @router.get("/pulse", response_class=HTMLResponse)

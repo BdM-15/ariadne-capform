@@ -987,6 +987,7 @@ Alembic migration when **16a** ships.
 |---------|-------|-----------|
 | FAB success branch | **16a** | Task dump → EA polish → PG row → flash "Added to Tasks" + link `/tasks` |
 | **`/tasks`** page | **16b** | HTMX list: today / overdue / open; one-click checkoff; filter by opp |
+| **GTD board + accomplish** | **16f** | Board/list views; lane actions (inbox→next→done, waiting, defer, reopen); status transitions |
 | **Command Center widget** | **16c** | Attention row: "Open tasks (N)" → `/tasks#today` (≤2 clicks) |
 | Opp chip on task row | **16d** | Link to `/capture/{id}` when `opportunity_id` set |
 | **Compound to vault** | **16e** (deferred) | Done task → "Save as checklist" → vault candidate (review-gated) |
@@ -1134,6 +1135,7 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 - [x] Phase 16b — `/tasks` page + HTMX checkoff + today/overdue filters
 - [x] Phase 16c — Command Center open-tasks Attention widget
 - [x] Phase 16d — Task ↔ opportunity link chip
+- [x] Phase 16f — GTD board/list + accomplish actions (status transitions)
 - [ ] Phase 16e — Completed task → vault checklist candidate (deferred)
 - [x] Phase 12m — Stale vault ingest widget (>72h) on Command Center
 - [x] Phase 12a-nav — Sidebar **Command Center** label (was Dashboard)
