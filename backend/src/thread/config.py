@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     database_echo: bool = False
 
     intel_migration_source: Path = Path("../capture-insights/data/capture.duckdb")
+    intel_bulk_prime_dir: Path = Path("../capture-insights/data/raw/10year_bulk/prime")
+    intel_bulk_sub_dir: Path = Path("../capture-insights/data/raw/10year_bulk/sub")
     intel_auto_migrate_on_start: bool = True
 
     knowledge_vault_path: Path = Path("knowledge/thread")

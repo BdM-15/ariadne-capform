@@ -66,11 +66,14 @@ async def intel_migration_status() -> dict:
 async def intel_health(db: AsyncSession = Depends(get_db)) -> dict:
     stats = await pg_queries.get_intel_stats(db)
     settings = get_settings()
-    source = settings.resolve(settings.intel_migration_source)
+    from thread.intel.bulk_migration import bulk_prime_dir, bulk_sub_dir
+
+    prime_dir = bulk_prime_dir(settings)
+    sub_dir = bulk_sub_dir(settings)
     return {
         **stats,
-        "migration_source": str(source),
-        "migration_source_exists": source.exists(),
+        "migration_source": f"{prime_dir} + {sub_dir}",
+        "migration_source_exists": prime_dir.is_dir() and sub_dir.is_dir(),
         "auto_migrate_on_start": settings.intel_auto_migrate_on_start,
     }
 
@@ -90,7 +93,7 @@ async def intel_expiring(
     if not stats["prime_awards_ready"] or stats["prime_award_count"] == 0:
         raise HTTPException(
             503,
-            "Intel tables empty — run migration: python backend/scripts/migrate_intel_from_duckdb.py",
+            "Intel tables empty — run migration: python backend/scripts/migrate_intel_from_bulk.py",
         )
     query = _facet_query_from_params(
         naics=naics,
