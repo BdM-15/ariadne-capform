@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-19 (Phase 16 EA lane complete + external tooling assessment)
+**Last updated:** 2026-06-20 (Phase 20b complete + packet routing matrix doctrine)
 
 ---
 
@@ -602,7 +602,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 | Portfolio Pulse (`/pulse`) | Morning briefing: **watchlist** + inbox + digest + capture snapshot | Identify-only; Track → `/capture/{id}`; not packet home |
 | Data Insights (`/insights`) | ✅ Live explore + bookmarks + Watch; **Connect the dots** (17b, DR-inspired) | PG18 vectors + MinerU search (17c) |
 | **Filament** (`/capture`) | ✅ Post-identify pursuit list; nav **Filament** (connected packets, not hand-jammed decks) | CRM pipeline board (deferred) |
-| Filament workspace (`/capture/{id}`) | ✅ Slide canvas + **connected fill routes** (14j) + evidence inspector; MS pills | Phase 20 executes route chips |
+| Filament workspace (`/capture/{id}`) | ✅ Slide canvas + **connected fill routes** (14j/20a/20b) + evidence inspector; MS pills | Phase 20c ranked routing matrix + optional Grok advisor |
 | Sidebar nav | Command / Identify / **Filament** (home first) / **Tools** / Win / System | Studio route (Phase 21) |
 | Settings (`/settings`) | ✅ Read-only platform health | Editable keys deferred to Tools/MCP (12k) |
 | MCP Servers (`/tools/mcp`) | ✅ Catalog + guides + test handshake + .env key save | — |
@@ -1027,6 +1027,51 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 
 **20b ✅ (2026-06-20):** Grok synthesis + SAM MCP inline execution on packet fill routes. SAM notice-linked pursuits fill deterministic fields (title, dates, agency, set-aside, scope description) via `search_opportunities` + `get_opportunity_description`. Grok fills synthesis fields from packet context + intel provenance — all outputs stay candidate until review gate.
 
+### Phase 20c — Packet routing matrix (hybrid decision routing)
+
+**Living packet = decision gate.** Command & control sets attention; the packet holds MS-critical truth. The routing matrix is the **map** from each data element → how to fill it efficiently → what decision it unlocks — so the operator clears routine Shipley processing first and reserves brain + Grok for what matters.
+
+**Operator model (approved — hybrid C):**
+
+| Speed | Who / what | Examples |
+|-------|------------|----------|
+| **Routine checklist** | Deterministic fills — no LLM | SAM dates/agency, PG prime/obligation, Clew/Vault lane redirects |
+| **Strategic judgment** | Human (`human_input`) | Customer access, teaming bets, political read, proceed/hold/no-bid |
+| **Evidence-heavy prose** | Grok synthesis → **candidate** → review | BLUF, landscape, SWOT, recommendation |
+
+Machine **tags** rank open gaps (instant, no tokens). Vault **prose** on each element explains *why* and *when*. Optional Grok reads prose to narrate the top 3–5 suggestions — not to replace human judgment on hard calls.
+
+**Three-layer SSOT (partial today — extend, do not fork):**
+
+| Layer | Location | Role |
+|-------|----------|--------|
+| **Code (execution)** | `packet_field_catalog.py`, `packet_answer_sources.py`, `packet_route_fill.py` | What routes **run today**; drives DB, fill chips, workflows |
+| **Reference (human)** | `docs/reference/briefing_packet/BRIEFING_PACKET_DATA_DICTIONARY.md` (+ risk/call-plan siblings) | Deck-facing definitions, provenance intent |
+| **Vault (LLM + operator)** | `data-elements/{field_key}.md` (seeded ✅) + `foundation/packet-routing-matrix.md` (generated) | Per-element detail + bird's-eye matrix with wikilinks |
+
+**Per-element matrix columns (target):**
+
+```text
+field_key, label, question, value_kind, MS gates, slide
+route_kind, answer_sources[], deterministic, prerequisites (award_key | notice_id | …)
+decision_impact[]   — structured tags for ranking
+decision_prose      — 2–3 sentences in vault (why / what good looks like / do not automate)
+primary_artifacts   — packet slide, review gate, downstream feeds (Grok, Clew, action plan)
+```
+
+**Tag vocabulary (start small — do not over-tag 141 fields):** `qualify` · `fund` · `team` · `price` · `compliance` · `recommend` · `relationship`
+
+**Slices (timing vs MVP):**
+
+| Slice | Scope | When |
+|-------|--------|------|
+| **20c-a** | `decision_impact` + `prerequisites` on catalog seeds; **ranked data-needs strip** (rules only — deterministic-first, tag priority, prerequisite gating) | **MVP-adjacent** — after intel migration smoke; **not blocking** current sprint |
+| **20c-b** | Bootstrap generates `foundation/packet-routing-matrix.md`; refresh `data-elements/` frontmatter; vault lint catalog ↔ wiki field_key sync | **Post-MVP** (or parallel doc-only if migration still running) |
+| **20c-c** | Optional Grok “why these next” blurb on top 3–5 open gaps (reads vault prose + packet context) | **Post-MVP** — requires 20c-a tags + stable vault matrix |
+| **20c-d** | Sibling matrices for `RISK_REGISTER_DATA_DICTIONARY` + `CALL_PLAN_DATA_DICTIONARY` (same pattern, artifact-scoped indexes) | **Post-MVP** |
+
+**MVP boundary:** Phases 20a/20b already **execute** fills. 20c improves **prioritization and guidance** — valuable for solo-operator efficiency but not required to call MVP done. Ship **20c-a** before MVP sign-off if time allows; defer 20c-b/c to immediately post-MVP.
+
 ### Phase 21 — Studio + pWin produce + Theseus
 
 **Studio** (`/studio`, Win lane): eval ↔ win-theme map, outline, PTW, compliance shred candidates — artifacts for external humans. **Theseus** solicitation merge after MinerU stable (activation produce, not CRM).
@@ -1078,7 +1123,10 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 2. ~~**Phase 16h** — Checklist toggle in task drawer~~ ✅
 3. ~~**Phase 19a** — MinerU FastAPI wire + parsed markdown on capture~~ ✅ · **19e** ExtractionBundle deferred
 4. ~~**Phase 20a** — PG intel inline fill + data-needs panel~~ ✅ · ~~**20b** Grok/SAM execution~~ ✅
-5. **Phase 15 polish backlog** (non-blocking) — faster FAB (parallel title+spellfix); richer title prompts
+5. **Phase 20c-a** (MVP-adjacent, after intel smoke) — catalog `decision_impact` tags + ranked data-needs strip (rules only)
+6. **Phase 15 polish backlog** (non-blocking) — faster FAB (parallel title+spellfix); richer title prompts
+
+**Post-MVP (first capture-lane polish):** 20c-b vault routing matrix · 20c-c Grok routing advisor · 20c-d risk/call-plan sibling matrices
 
 **Clew post-MVP (planned, not now):** 17b-interact → 17d-agency (FH hierarchy PG + cascading selects) → 17d autocomplete → 17c-graph
 
@@ -1129,6 +1177,11 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 - [x] Phase 14d — Approval criteria slides 17–18 (starter fields)
 - [x] Phase 14e — Packet progression (MS-critical %, pending review)
 - [x] Phase 14f — Full data dictionary catalog + answer-route stubs (Phase 20 prep)
+- [x] Phase 20a — PG intel inline packet fill + data-needs strip
+- [x] Phase 20b — Grok synthesis + SAM MCP inline packet fill
+- [ ] Phase 20c-a — Routing matrix tags + ranked data-needs (MVP-adjacent)
+- [ ] Phase 20c-b — Vault `packet-routing-matrix.md` + catalog↔wiki lint (post-MVP)
+- [ ] Phase 20c-c — Optional Grok routing advisor on open gaps (post-MVP)
 - [x] Phase 14g — MS gate selector (opportunity header → packet filter)
 - [x] Phase 14h — Capture lane IA (`/capture`, `/capture/{id}`, sidebar, lifecycle filter, deep links)
 - [x] Phase 14i — Deck UX (slide canvas preview, MS pills, evidence inspector)
