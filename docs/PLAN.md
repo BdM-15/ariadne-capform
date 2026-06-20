@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-20 (Phase 22 education lane + DOX assessment)
+**Last updated:** 2026-06-20 (Phase 22 education lane; DOX agent dev docs)
 
 ---
 
@@ -1111,18 +1111,20 @@ primary_artifacts   — packet slide, review gate, downstream feeds (Grok, Clew,
 
 **MVP boundary:** Tiers 1–2 suffice for product MVP. Phase 22 is **operator mastery**, not blocking migration or packet execution.
 
-### Agent dev docs — DOX ([agent0ai/dox](https://github.com/agent0ai/dox))
+### DOX — agent codebase documentation ([agent0ai/dox](https://github.com/agent0ai/dox))
 
-**What it is:** Zero-dependency **hierarchical `AGENTS.md` tree** — agents read root → child docs along the edit path before touching code; update owning `AGENTS.md` after meaningful changes. Self-documenting **dev contracts**, not operator UX.
+**Sole purpose:** Inform coding agents/LLMs about the repo and keep that documentation current. Unrelated to Phase 22 operator education, in-app guides, or vault capture knowledge.
 
-**Verdict: adopt lightly post-MVP — inspiration for AI editors, not product surface.**
+**Mechanism:** Zero-dependency hierarchical `AGENTS.md` tree. Before edits, agent walks root → child docs along the target path. After meaningful changes, agent updates the owning `AGENTS.md` (purpose, contracts, child index). Traverse → edit → sync docs.
 
-| Question | Answer |
-|----------|--------|
-| Replace in-app guides / `/teach`? | **No** — different audience (coders vs capture operator) |
-| Replace `PLAN.md`? | **No** — PLAN owns product phases & routes; `AGENTS.md` owns *how to edit this folder* |
-| Replace vault `capture-llm-wiki.md`? | **No** — vault = capture knowledge; DOX = repo edit boundaries |
-| Useful for Thread? | **Yes** — reduces agent drift across `backend/src/thread/{intel,services,ui,clew}` |
+**Verdict: adopt lightly post-MVP** — reduces agent drift; no runtime, no dependencies.
+
+| Doc | Role |
+|-----|------|
+| `PLAN.md` | Product phases, routes, MVP scope (human + agent roadmap) |
+| Root + child `AGENTS.md` (DOX) | Per-subtree **edit contracts** for agents |
+| `capture-llm-wiki.md` / vault | Capture **domain** knowledge (operator + LLM wiki) |
+| `*_guides.py` | In-app **operator** help at point of use |
 
 **Adopt:** Copy [DOX `AGENTS.md`](https://github.com/agent0ai/dox/blob/main/AGENTS.md) into repo root; initialize **sparse** child tree (not full recursive scan yet):
 
@@ -1130,13 +1132,13 @@ primary_artifacts   — packet slide, review gate, downstream feeds (Grok, Clew,
 - `backend/src/thread/intel/AGENTS.md` — PG migration, bulk COPY, facet queries
 - `backend/src/thread/services/AGENTS.md` — domain services, review gate, packet fill routes
 - `backend/src/thread/ui/AGENTS.md` — HTMX/Jinja, `*_guides.py` pattern, Theseus CSS
-- `docs/AGENTS.md` — PLAN.md is SSOT; update PLAN when phases change
+- `docs/AGENTS.md` — points to PLAN.md as product SSOT; DOX closeout updates local scope only
 
-**Reject / defer:** Full DOX tree before MVP; DOX as runtime; duplicating PLAN content into every child doc.
+**Defer:** Full recursive DOX tree before MVP; duplicating PLAN phase checklists into every child doc.
 
-**Stacking with Matt Pocock skills:** `setup-matt-pocock-skills` → `docs/agents/` (issue tracker, triage labels). DOX complements that — per-folder edit contracts vs issue workflow. No conflict if roles stay separate.
+**Complements** `docs/agents/` (Matt Pocock issue-tracker setup) — DOX = folder edit rules; `docs/agents/` = triage/issue workflow.
 
-**Timing:** One agent session `Initialize DOX tree` after MVP sign-off (or during migration idle time — docs only, no code dependency).
+**Timing:** One agent session (`Initialize DOX tree`) after MVP sign-off, or idle doc-only pass during migration.
 
 **Rules (anti–scope-creep):** One slice per PR. No new backend unless UI needs it. pytest before commit. **Update `PLAN.md` in the same commit** when status, routes, or phase checklist changes. Prior repos = reference only — no UI tree ports.
 
@@ -1188,7 +1190,7 @@ primary_artifacts   — packet slide, review gate, downstream feeds (Grok, Clew,
 5. **Phase 20c-a** (MVP-adjacent, after intel smoke) — catalog `decision_impact` tags + ranked data-needs strip (rules only)
 6. **Phase 15 polish backlog** (non-blocking) — faster FAB (parallel title+spellfix); richer title prompts
 
-**Post-MVP (first capture-lane polish):** 20c-b vault routing matrix · 20c-c Grok routing advisor · 20c-d risk/call-plan sibling matrices · 22a education reference · light DOX `AGENTS.md` tree
+**Post-MVP (capture-lane polish):** 20c-b/c/d routing matrix · 22a–d operator education · DOX sparse `AGENTS.md` tree (agent codebase docs only)
 
 **Clew post-MVP (planned, not now):** 17b-interact → 17d-agency (FH hierarchy PG + cascading selects) → 17d autocomplete → 17c-graph
 
