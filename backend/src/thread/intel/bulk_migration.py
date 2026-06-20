@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import os
 import re
 import shutil
 import tempfile
@@ -89,10 +90,43 @@ def _load_state(path: Path) -> dict[str, Any]:
 
 
 def _save_state(path: Path, state: dict[str, Any]) -> None:
+    """Persist resumable migration state (atomic replace with Windows-safe retry)."""
     path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(state, indent=2)
     tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
-    tmp.replace(path)
+
+    def _access_denied(exc: BaseException) -> bool:
+        if isinstance(exc, PermissionError):
+            return True
+        return isinstance(exc, OSError) and getattr(exc, "winerror", None) == 5
+
+    for attempt in range(8):
+        try:
+            tmp.write_text(payload, encoding="utf-8")
+            os.replace(tmp, path)
+            return
+        except OSError as exc:
+            if not _access_denied(exc) or attempt == 7:
+                if attempt == 7 and _access_denied(exc):
+                    break
+                raise
+            delay = min(0.1 * (2**attempt), 2.0)
+            logger.warning(
+                "[intel] state save retry %s/%s for %s (%s)",
+                attempt + 1,
+                8,
+                path.name,
+                exc,
+            )
+            time.sleep(delay)
+
+    # Windows AV/sync sometimes blocks atomic replace even when reads are fine.
+    path.write_text(payload, encoding="utf-8")
+    try:
+        tmp.unlink(missing_ok=True)
+    except OSError:
+        pass
+    logger.warning("[intel] state save used direct overwrite for %s", path.name)
 
 
 def _append_log(settings: Settings, message: str) -> None:

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import csv
+import json
+import os
 import zipfile
 from pathlib import Path
 
@@ -14,7 +16,7 @@ from thread.intel.bulk_fields import (
     prime_table_ddl,
     sanitize_sub_column,
 )
-from thread.intel.bulk_migration import discover_bulk_files, open_bulk_csv
+from thread.intel.bulk_migration import _save_state, discover_bulk_files, open_bulk_csv
 
 
 def test_sanitize_sub_column_normalizes_headers():
@@ -30,6 +32,28 @@ def test_prime_ddl_and_insert_sql_cover_all_target_fields():
     assert "INSERT INTO intel_usaspending_prime_awards" in insert_sql
     assert "fy" in insert_sql
     assert "quarter" in insert_sql
+
+
+def test_save_state_retries_windows_access_denied(tmp_path: Path, monkeypatch):
+    target = tmp_path / "intel_migration_state.json"
+    target.write_text('{"phase": "prime"}', encoding="utf-8")
+    calls = {"replace": 0}
+
+    real_replace = os.replace
+
+    def flaky_replace(src, dst):
+        calls["replace"] += 1
+        if calls["replace"] < 3:
+            raise PermissionError(5, "Access is denied", str(dst))
+        return real_replace(src, dst)
+
+    monkeypatch.setattr("thread.intel.bulk_migration.os.replace", flaky_replace)
+    monkeypatch.setattr("thread.intel.bulk_migration.time.sleep", lambda _s: None)
+
+    _save_state(target, {"phase": "sub", "sub_files_done": 581})
+    saved = json.loads(target.read_text(encoding="utf-8"))
+    assert saved["sub_files_done"] == 581
+    assert calls["replace"] == 3
 
 
 def test_discover_bulk_files_sorted(tmp_path: Path):
