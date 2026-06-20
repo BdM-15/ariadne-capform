@@ -1023,7 +1023,9 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 
 `route_kind` → MCP / skill / research / Grok; data-needs panel for unanswered MS-critical fields.
 
-**20a ✅ (2026-06-19):** PG intel inline fill (`POST …/packet/{field}/fill`) for award-linked pursuits; data-needs strip on workspace; Clew/Vault/Insights lane redirects; Grok/CRM stubs remain. **20b** Grok synthesis + SAM MCP execution deferred.
+**20a ✅ (2026-06-19):** PG intel inline fill (`POST …/packet/{field}/fill`) for award-linked pursuits; data-needs strip on workspace; Clew/Vault/Insights lane redirects.
+
+**20b ✅ (2026-06-20):** Grok synthesis + SAM MCP inline execution on packet fill routes. SAM notice-linked pursuits fill deterministic fields (title, dates, agency, set-aside, scope description) via `search_opportunities` + `get_opportunity_description`. Grok fills synthesis fields from packet context + intel provenance — all outputs stay candidate until review gate.
 
 ### Phase 21 — Studio + pWin produce + Theseus
 
@@ -1075,7 +1077,7 @@ General parser — **not** solicitation-only. **MinerU 3.3** (Theseus) → vault
 1. **Intel migration** ← **priority** — finish FFATA subawards (no `--skip-subawards`); unblocks Clew Teaming + saved traces
 2. ~~**Phase 16h** — Checklist toggle in task drawer~~ ✅
 3. ~~**Phase 19a** — MinerU FastAPI wire + parsed markdown on capture~~ ✅ · **19e** ExtractionBundle deferred
-4. ~~**Phase 20a** — PG intel inline fill + data-needs panel~~ ✅ · **20b** Grok/SAM execution deferred
+4. ~~**Phase 20a** — PG intel inline fill + data-needs panel~~ ✅ · ~~**20b** Grok/SAM execution~~ ✅
 5. **Phase 15 polish backlog** (non-blocking) — faster FAB (parallel title+spellfix); richer title prompts
 
 **Clew post-MVP (planned, not now):** 17b-interact → 17d-agency (FH hierarchy PG + cascading selects) → 17d autocomplete → 17c-graph

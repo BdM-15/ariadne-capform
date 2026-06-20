@@ -23,6 +23,34 @@ async def test_fill_workflows_include_open_fields_only(db_session):
         assert any(a["id"] == "inspector" for a in wf["actions"])
 
 
+def test_workflow_grok_executable():
+    actions = workflow_actions_for_field(
+        {
+            "field_key": "opportunity_context",
+            "answer_sources": ["grok_synthesis", "vault_knowledge"],
+            "route_kind": "model_synthesis",
+        },
+        opp_id="abc",
+    )
+    grok = next(a for a in actions if a["id"] == "grok_synthesis")
+    assert grok["executable"] is True
+    assert grok["stub"] is False
+
+
+def test_workflow_sam_executable_for_proposal_due_date():
+    actions = workflow_actions_for_field(
+        {
+            "field_key": "proposal_due_date",
+            "answer_sources": ["sam_mcp", "human_input"],
+            "route_kind": "source_backed_answer",
+            "deterministic": True,
+        },
+        opp_id="abc",
+    )
+    sam = next(a for a in actions if a["id"] == "sam_mcp")
+    assert sam["executable"] is True
+
+
 def test_workflow_actions_map_intel_sources():
     actions = workflow_actions_for_field(
         {

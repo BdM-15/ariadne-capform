@@ -24,7 +24,7 @@ from thread.domain.schemas import OpportunityCreate
 from thread.research.capture_research import run_capture_research
 from thread.research.providers import build_provider_registry
 from thread.services import opportunities as opp_svc
-from thread.domain.packet_answer_sources import PG_INTEL, USASPENDING_MCP
+from thread.domain.packet_answer_sources import GROK, PG_INTEL, SAM_MCP, USASPENDING_MCP
 from thread.services.packet_route_fill import apply_route_fill, run_packet_route_fill
 from thread.services.packet_workspace import build_packet_workspace, enrich_packet_field_card
 from thread.services.capture_display import build_capture_home
@@ -2568,7 +2568,7 @@ async def fill_packet_field_route(
     if not await opp_svc.get_opportunity(db, opp_id):
         return HTMLResponse("Opportunity not found", status_code=404)
 
-    if source in (PG_INTEL, USASPENDING_MCP):
+    if source in (PG_INTEL, USASPENDING_MCP, SAM_MCP, GROK):
         result = await apply_route_fill(db, settings, opp_id, field_key, source)
     else:
         result = await run_packet_route_fill(db, settings, opp_id, field_key, source)

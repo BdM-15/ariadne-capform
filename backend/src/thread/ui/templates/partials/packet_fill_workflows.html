@@ -67,7 +67,7 @@
         <a
           href="{{ action.href }}"
           class="packet-fill-action {% if action.stub %}packet-fill-action-stub{% endif %} no-underline"
-          {% if action.stub %}title="Lane navigation — full execution in Phase 20b"{% else %}title="Open {{ action.label }} lane"{% endif %}
+          {% if action.stub %}title="Lane navigation — execution not wired yet"{% else %}title="Open {{ action.label }} lane"{% endif %}
         >
           <i data-lucide="{{ action.icon }}" class="w-3 h-3 shrink-0"></i>
           <span>{{ action.label }}</span>

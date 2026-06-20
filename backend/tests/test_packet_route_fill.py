@@ -9,7 +9,9 @@ import pytest
 from sqlalchemy import select
 
 from thread.db.models import PacketFieldAnswer
-from thread.domain.packet_answer_sources import CLEW, PG_INTEL
+from thread.domain.packet_answer_sources import CLEW, GROK, PG_INTEL, SAM_MCP
+from thread.llm.router import CompletionResult, LlmProvider
+from thread.services.sam_monitor import SamNoticeLead
 from thread.domain.schemas import OpportunityCreate
 from thread.services import opportunities as opp_svc
 from thread.services.packet_route_fill import apply_route_fill, build_data_needs, run_packet_route_fill
@@ -85,6 +87,79 @@ async def test_apply_route_fill_from_pg_intel(db_session, settings):
         )
     ).scalar_one()
     assert "Amentum" in (row.value or "")
+
+
+@pytest.mark.asyncio
+async def test_apply_route_fill_from_sam_mcp(db_session, settings, monkeypatch):
+    opp = await opp_svc.create_opportunity(
+        db_session,
+        OpportunityCreate(
+            name=f"SAM {uuid.uuid4().hex[:6]}",
+            lifecycle_state="pursuing",
+            sam_notice_id="abc123def456",
+            solicitation_number="W912HQ-26-R-0001",
+        ),
+    )
+    notice = SamNoticeLead(
+        notice_id="abc123def456",
+        title="Enterprise IT Support Services",
+        agency="DEPT OF DEFENSE · DEPT OF THE ARMY",
+        solicitation_number="W912HQ-26-R-0001",
+        response_deadline="07/01/2026",
+        posted_date="06/15/2026",
+        notice_type="o",
+        set_aside="SBA",
+        naics_code="541512",
+    )
+
+    async def fake_notice(_settings, notice_id):
+        assert notice_id == "abc123def456"
+        return notice
+
+    monkeypatch.setattr("thread.services.packet_route_fill._sam_configured", lambda _s: True)
+    monkeypatch.setattr("thread.services.packet_route_fill._fetch_sam_notice", fake_notice)
+
+    result = await apply_route_fill(db_session, settings, opp.id, "opportunity_name", SAM_MCP)
+    assert result.ok is True
+    assert "IT Support" in result.value
+    await db_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_apply_route_fill_from_grok(db_session, settings, monkeypatch):
+    opp = await opp_svc.create_opportunity(
+        db_session,
+        OpportunityCreate(name=f"Grok {uuid.uuid4().hex[:6]}", lifecycle_state="pursuing"),
+    )
+
+    async def fake_complete(_settings, **kwargs):
+        return CompletionResult(
+            text="Strong BLUF: pursue with teaming focus on set-aside compliance.",
+            provider=LlmProvider.XAI,
+            model="grok-test",
+        )
+
+    monkeypatch.setattr("thread.services.packet_route_fill.complete", fake_complete)
+    monkeypatch.setattr(
+        "thread.services.packet_route_fill._grok_context_bundle",
+        AsyncMock(return_value={"field_label": "Opportunity Context", "field_key": "opportunity_context", "question": "Q?", "value_kind": "prose", "route_hint": ""}),
+    )
+
+    result = await apply_route_fill(db_session, settings, opp.id, "opportunity_context", GROK)
+    assert result.ok is True
+    assert "BLUF" in result.value
+    await db_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_apply_route_fill_sam_without_notice_id(db_session, settings):
+    opp = await opp_svc.create_opportunity(
+        db_session,
+        OpportunityCreate(name=f"NoSAM {uuid.uuid4().hex[:6]}"),
+    )
+    result = await apply_route_fill(db_session, settings, opp.id, "opportunity_name", SAM_MCP)
+    assert result.ok is False
+    assert "notice_id" in result.message
 
 
 @pytest.mark.asyncio

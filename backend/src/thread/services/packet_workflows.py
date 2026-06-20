@@ -20,7 +20,21 @@ from thread.domain.packet_answer_sources import (
     WEB_RESEARCH,
 )
 
-_EXECUTABLE_FILL_SOURCES = frozenset({PG_INTEL, USASPENDING_MCP})
+_EXECUTABLE_FILL_SOURCES = frozenset({PG_INTEL, USASPENDING_MCP, SAM_MCP, GROK})
+
+_SAM_EXECUTABLE_FIELDS = frozenset(
+    {
+        "opportunity_name",
+        "draft_rfp_date",
+        "rfp_release_date",
+        "proposal_due_date",
+        "customer_name",
+        "small_business_goal",
+        "kbr_role",
+        "primary_scope_description",
+        "special_considerations",
+    }
+)
 
 _SOURCE_META: dict[str, dict[str, str]] = {
     HUMAN: {"label": "Operator entry", "icon": "pen-line"},
@@ -65,6 +79,9 @@ def workflow_actions_for_field(
         executable = src in _EXECUTABLE_FILL_SOURCES and bool(field.get("deterministic"))
         if src == SAM_MCP:
             href = "/insights"
+            executable = field.get("field_key") in _SAM_EXECUTABLE_FIELDS or (
+                bool(field.get("deterministic")) and SAM_MCP in (field.get("answer_sources") or ())
+            )
         elif src in (PG_INTEL, USASPENDING_MCP):
             href = "/insights"
             executable = executable or field.get("field_key") in (
@@ -83,7 +100,7 @@ def workflow_actions_for_field(
             href = "/insights"
         elif src == GROK:
             href = "/insights"
-            stub = True
+            executable = True
         elif src == MINERU:
             href = "/"
             stub = not executable
