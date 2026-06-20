@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-20 (Phase 20b complete + packet routing matrix doctrine)
+**Last updated:** 2026-06-20 (Phase 22 education lane + DOX assessment)
 
 ---
 
@@ -1076,6 +1076,68 @@ primary_artifacts   — packet slide, review gate, downstream feeds (Grok, Clew,
 
 **Studio** (`/studio`, Win lane): eval ↔ win-theme map, outline, PTW, compliance shred candidates — artifacts for external humans. **Theseus** solicitation merge after MinerU stable (activation produce, not CRM).
 
+### Phase 22 — Operator education lane (Matt Pocock `/teach` patterns)
+
+**Not in-app tooltips.** `/teach` is an agent-driven, multi-session **learning workspace** — complementary to existing modal guides (`mcp_guides.py`, `insights_guides.py`, `tasks_guides.py`, `knowledge_guides.py`). Guides answer *what this button does now*; education answers *how to get good at capture on Thread over weeks*.
+
+**Approved model — hybrid C (same as packet routing):**
+
+| Tier | What | Where | When |
+|------|------|-------|------|
+| **1 Tooltips** | One-line `title` / `ACTION_HINTS` | UI templates | ✅ Now |
+| **2 Guide modals** | Purpose · when · output · tips | `*_guides.py` + `tuning-guide-*` dialogs | ✅ Now |
+| **3 Reference cards** | Printable HTML cheat sheets per lane | `knowledge/education/reference/` or `docs/education/` | Post-MVP |
+| **4 Curriculum** | Numbered lessons (one thing each) | `knowledge/education/lessons/` (vault) | Post-MVP |
+| **5 Learning state** | What operator already knows — skip re-teaching | `.thread/operator_learning/` or vault `learning-records/` | Post-MVP |
+
+**Borrow from `/teach` (agent skill — content factory, not runtime):**
+
+- `MISSION.md` → operator mission: *why* using Thread (solo Shipley capture) — steers lesson order
+- `GLOSSARY.md` → unified Thread glossary (Filament, candidate, Watch vs Track, route_kind) — aligns with Phase 20c vault matrix
+- `learning-records/*.md` → ADR-style prior knowledge ("knows MS gates", "knows SAM quotas") — tunes agent + 20c-c advisor depth
+- `reference/*.html` → compressed lane cheat sheets generated from existing `*_guides.py`
+- `RESOURCES.md` → curated high-trust capture sources per lane
+
+**Do not:** bolt `/teach` into `app.py`; replace `packet_field_catalog.py`; or add in-UI quizzes before MVP sign-off.
+
+**Slices:**
+
+| Slice | Scope | When |
+|-------|--------|------|
+| **22a** | Agent-authored reference HTML + `THREAD_GLOSSARY.md` in vault `foundation/` (from existing guides) | Parallel / post-MVP doc-only |
+| **22b** | Operator `MISSION.md` + first lesson (*Watch vs Track vs packet fill*) | Post-MVP |
+| **22c** | Optional `/education` route serving reference + lessons (read-only HTMX) | Post-MVP |
+| **22d** | Learning records wired to guide depth + Grok routing advisor (with 20c-c) | Post-MVP |
+
+**MVP boundary:** Tiers 1–2 suffice for product MVP. Phase 22 is **operator mastery**, not blocking migration or packet execution.
+
+### Agent dev docs — DOX ([agent0ai/dox](https://github.com/agent0ai/dox))
+
+**What it is:** Zero-dependency **hierarchical `AGENTS.md` tree** — agents read root → child docs along the edit path before touching code; update owning `AGENTS.md` after meaningful changes. Self-documenting **dev contracts**, not operator UX.
+
+**Verdict: adopt lightly post-MVP — inspiration for AI editors, not product surface.**
+
+| Question | Answer |
+|----------|--------|
+| Replace in-app guides / `/teach`? | **No** — different audience (coders vs capture operator) |
+| Replace `PLAN.md`? | **No** — PLAN owns product phases & routes; `AGENTS.md` owns *how to edit this folder* |
+| Replace vault `capture-llm-wiki.md`? | **No** — vault = capture knowledge; DOX = repo edit boundaries |
+| Useful for Thread? | **Yes** — reduces agent drift across `backend/src/thread/{intel,services,ui,clew}` |
+
+**Adopt:** Copy [DOX `AGENTS.md`](https://github.com/agent0ai/dox/blob/main/AGENTS.md) into repo root; initialize **sparse** child tree (not full recursive scan yet):
+
+- `backend/AGENTS.md` — Python package, pytest, no server restart without asking
+- `backend/src/thread/intel/AGENTS.md` — PG migration, bulk COPY, facet queries
+- `backend/src/thread/services/AGENTS.md` — domain services, review gate, packet fill routes
+- `backend/src/thread/ui/AGENTS.md` — HTMX/Jinja, `*_guides.py` pattern, Theseus CSS
+- `docs/AGENTS.md` — PLAN.md is SSOT; update PLAN when phases change
+
+**Reject / defer:** Full DOX tree before MVP; DOX as runtime; duplicating PLAN content into every child doc.
+
+**Stacking with Matt Pocock skills:** `setup-matt-pocock-skills` → `docs/agents/` (issue tracker, triage labels). DOX complements that — per-folder edit contracts vs issue workflow. No conflict if roles stay separate.
+
+**Timing:** One agent session `Initialize DOX tree` after MVP sign-off (or during migration idle time — docs only, no code dependency).
+
 **Rules (anti–scope-creep):** One slice per PR. No new backend unless UI needs it. pytest before commit. **Update `PLAN.md` in the same commit** when status, routes, or phase checklist changes. Prior repos = reference only — no UI tree ports.
 
 ### Deferred — knowledge & intelligence runtime (after MVP)
@@ -1126,7 +1188,7 @@ primary_artifacts   — packet slide, review gate, downstream feeds (Grok, Clew,
 5. **Phase 20c-a** (MVP-adjacent, after intel smoke) — catalog `decision_impact` tags + ranked data-needs strip (rules only)
 6. **Phase 15 polish backlog** (non-blocking) — faster FAB (parallel title+spellfix); richer title prompts
 
-**Post-MVP (first capture-lane polish):** 20c-b vault routing matrix · 20c-c Grok routing advisor · 20c-d risk/call-plan sibling matrices
+**Post-MVP (first capture-lane polish):** 20c-b vault routing matrix · 20c-c Grok routing advisor · 20c-d risk/call-plan sibling matrices · 22a education reference · light DOX `AGENTS.md` tree
 
 **Clew post-MVP (planned, not now):** 17b-interact → 17d-agency (FH hierarchy PG + cascading selects) → 17d autocomplete → 17c-graph
 
@@ -1182,6 +1244,9 @@ primary_artifacts   — packet slide, review gate, downstream feeds (Grok, Clew,
 - [ ] Phase 20c-a — Routing matrix tags + ranked data-needs (MVP-adjacent)
 - [ ] Phase 20c-b — Vault `packet-routing-matrix.md` + catalog↔wiki lint (post-MVP)
 - [ ] Phase 20c-c — Optional Grok routing advisor on open gaps (post-MVP)
+- [ ] Phase 22a — Operator reference HTML + THREAD_GLOSSARY from guides (post-MVP, agent `/teach`)
+- [ ] Phase 22b–d — Curriculum, `/education` route, learning records (post-MVP)
+- [ ] DOX — sparse `AGENTS.md` tree for backend/docs (post-MVP; [agent0ai/dox](https://github.com/agent0ai/dox))
 - [x] Phase 14g — MS gate selector (opportunity header → packet filter)
 - [x] Phase 14h — Capture lane IA (`/capture`, `/capture/{id}`, sidebar, lifecycle filter, deep links)
 - [x] Phase 14i — Deck UX (slide canvas preview, MS pills, evidence inspector)
