@@ -50,7 +50,14 @@
   document.body.addEventListener("htmx:afterSwap", function (e) {
     var target = e.detail && e.detail.target;
     if (!target) return;
-    if (target.id === "vault-page-panel" || target.closest("#vault-page-panel")) {
+    if (
+      target.id === "vault-page-panel" ||
+      target.closest("#vault-page-panel") ||
+      target.id === "education-lesson-panel" ||
+      target.closest("#education-lesson-panel") ||
+      target.id === "education-studio-mount" ||
+      target.closest("#education-studio-mount")
+    ) {
       renderAll(target);
     }
   });

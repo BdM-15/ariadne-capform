@@ -1,0 +1,7 @@
+{% include "partials/education_lesson_panel.html" %}
+<div hx-swap-oob="innerHTML:#education-lesson-list">
+  {% include "partials/education_lesson_list.html" %}
+</div>
+<div hx-swap-oob="innerHTML:#education-progress-pill">
+  {{ edu.completed_count }}/{{ edu.total_count }} done
+</div>

@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-20 (Phase 22 education lane; DOX agent dev docs)
+**Last updated:** 2026-06-20 (Phase 22b MISSION + Lesson 01 in vault; DOX agent dev docs)
 
 ---
 
@@ -1088,7 +1088,8 @@ primary_artifacts   — packet slide, review gate, downstream feeds (Grok, Clew,
 | **2 Guide modals** | Purpose · when · output · tips | `*_guides.py` + `tuning-guide-*` dialogs | ✅ Now |
 | **3 Reference cards** | Printable HTML cheat sheets per lane | `knowledge/education/reference/` or `docs/education/` | Post-MVP |
 | **4 Curriculum** | Numbered lessons (one thing each) | `knowledge/education/lessons/` (vault) | Post-MVP |
-| **5 Learning state** | What operator already knows — skip re-teaching | `.thread/operator_learning/` or vault `learning-records/` | Post-MVP |
+| **5 Learning state** | What operator already knows — skip re-teaching | `.thread/operator_learning.json` + vault `learning-records/` | ✅ 22c |
+| **6 Education Studio** | Suggest topic → Grok converse → optional lesson draft → review gate | `/education` panel + `.thread/education_sessions.json` | Planned 22e |
 
 **Borrow from `/teach` (agent skill — content factory, not runtime):**
 
@@ -1098,22 +1099,52 @@ primary_artifacts   — packet slide, review gate, downstream feeds (Grok, Clew,
 - `reference/*.html` → compressed lane cheat sheets generated from existing `*_guides.py`
 - `RESOURCES.md` → curated high-trust capture sources per lane
 
-**Do not:** bolt `/teach` into `app.py`; replace `packet_field_catalog.py`; or add in-UI quizzes before MVP sign-off.
+**Do not:** replace `packet_field_catalog.py`; auto-publish lessons without review; or add in-UI quizzes before MVP sign-off.
+
+**Dual channel (both stay):**
+
+| Channel | Tool | Best for |
+|---------|------|----------|
+| **In-app Education Studio** | `REASONING_LLM_MODEL` via LLM router (`grok-4.3` in `.env`) | Explain a concept, converse, queue lesson **draft** → Review |
+| **Grok Build / Cursor `/teach`** | Full repo + DOX `AGENTS.md` tree + skills | Multi-file lesson authoring, code changes, curriculum refactors |
+
+In-app Studio is **not** a full `/teach` port — it reuses vault + review gate. Grok Build remains primary when a lesson needs repo edits or agent skills.
+
+**Education Studio context stack (22e):**
+
+| Layer | Source | When |
+|-------|--------|------|
+| 1 | `learning-records/*.md` + `operator_learning.json` | Always — skip known basics |
+| 2 | Existing `education/lessons/` titles + `docs/PLAN.md` excerpt + `*_guides.py` | Always — Thread-native *why* |
+| 3 | Vault capture doctrine (`foundation/`, routing matrix) | When topic is capture/product |
+| 4 | DOX `AGENTS.md` subtree | **After DOX init** — when topic is *how the code implements* a feature (e.g. packet fill routes, intel migration). Optional retrieval, not full tree dump |
+| 5 | Full codebase | **Grok Build only** — too heavy for default in-app calls |
+
+**DOX + Education:** Yes — complementary once sparse DOX exists. DOX answers *how this module works*; vault/PLAN answer *why the operator should care*. Studio pulls DOX only for implementation-heavy questions; capture pedagogy stays vault-first.
+
+**Runtime model:** All in-app reasoning (packet Grok fill, Education Studio, research synthesis) uses `Settings.reasoning_llm_model` ← `REASONING_LLM_MODEL` env (currently `grok-4.3`).
 
 **Slices:**
 
 | Slice | Scope | When |
 |-------|--------|------|
 | **22a** | Agent-authored reference HTML + `THREAD_GLOSSARY.md` in vault `foundation/` (from existing guides) | Parallel / post-MVP doc-only |
-| **22b** | Operator `MISSION.md` + first lesson (*Watch vs Track vs packet fill*) | Post-MVP |
-| **22c** | Optional `/education` route serving reference + lessons (read-only HTMX) | Post-MVP |
+| **22b** | Operator `MISSION.md` + curriculum lessons + learning records | **In progress** — see vault `education/` |
+| **22b-1 ✅** | `knowledge/thread/education/MISSION.md` + `lessons/01-living-packet-not-folder.md` + `learning-records/ben.md` | 2026-06-20 (doc-only, while prime reload) |
+| **22b-2** | Lesson 02 (*Watch vs Track vs packet fill*) | Next education content slice |
+| **22c ✅** | `/education` route — lesson list, markdown render, mark complete → `.thread/operator_learning.json` + learning record sync | 2026-06-21 |
 | **22d** | Learning records wired to guide depth + Grok routing advisor (with 20c-c) | Post-MVP |
+| **22e-1 ✅** | Education Studio — suggestion box, one-shot Grok explain, “queue lesson draft” → Review (`education/lessons/` promote on approve) | 2026-06-21 |
+| **22e-2** | Multi-turn sessions (`.thread/education_sessions.json`) + resume | After 22e-1 |
+| **22e-3** | Session notes → `learning-records/ben.md`; optional DOX context retrieval after DOX tree | After DOX + 22e-2 |
 
 **MVP boundary:** Tiers 1–2 suffice for product MVP. Phase 22 is **operator mastery**, not blocking migration or packet execution.
 
 ### DOX — agent codebase documentation ([agent0ai/dox](https://github.com/agent0ai/dox))
 
-**Sole purpose:** Inform coding agents/LLMs about the repo and keep that documentation current. Unrelated to Phase 22 operator education, in-app guides, or vault capture knowledge.
+**Sole purpose:** Inform coding agents/LLMs about the repo and keep that documentation current. **Complements** Phase 22 — not a substitute for vault capture knowledge or in-app guides.
+
+**Used by:** Grok Build / Cursor agents (primary); Education Studio **22e-3** optional layer when operator asks *how the code works*; unrelated to in-app tooltip guides.
 
 **Mechanism:** Zero-dependency hierarchical `AGENTS.md` tree. Before edits, agent walks root → child docs along the target path. After meaningful changes, agent updates the owning `AGENTS.md` (purpose, contracts, child index). Traverse → edit → sync docs.
 
@@ -1247,8 +1278,14 @@ primary_artifacts   — packet slide, review gate, downstream feeds (Grok, Clew,
 - [ ] Phase 20c-b — Vault `packet-routing-matrix.md` + catalog↔wiki lint (post-MVP)
 - [ ] Phase 20c-c — Optional Grok routing advisor on open gaps (post-MVP)
 - [ ] Phase 22a — Operator reference HTML + THREAD_GLOSSARY from guides (post-MVP, agent `/teach`)
-- [ ] Phase 22b–d — Curriculum, `/education` route, learning records (post-MVP)
-- [ ] DOX — sparse `AGENTS.md` tree for backend/docs (post-MVP; [agent0ai/dox](https://github.com/agent0ai/dox))
+- [x] Phase 22b-1 — `education/MISSION.md` + Lesson 01 living packet + `learning-records/ben.md` (vault)
+- [ ] Phase 22b-2 — Lesson 02 Watch vs Track vs packet fill
+- [x] Phase 22c — `/education` route + operator_learning.json + mark complete (HTMX)
+- [ ] Phase 22d — learning records wired to guide depth + Grok routing advisor (post-MVP)
+- [x] Phase 22e-1 — Education Studio: suggestion box + Grok explain + queue lesson draft (`REASONING_LLM_MODEL=grok-4.3`)
+- [ ] Phase 22e-2 — Education Studio multi-turn sessions
+- [ ] Phase 22e-3 — Session notes sync + optional DOX context (after DOX tree)
+- [ ] DOX — sparse `AGENTS.md` tree for backend/docs (post-MVP; [agent0ai/dox](https://github.com/agent0ai/dox); feeds 22e-3 + Grok Build)
 - [x] Phase 14g — MS gate selector (opportunity header → packet filter)
 - [x] Phase 14h — Capture lane IA (`/capture`, `/capture/{id}`, sidebar, lifecycle filter, deep links)
 - [x] Phase 14i — Deck UX (slide canvas preview, MS pills, evidence inspector)

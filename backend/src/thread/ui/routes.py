@@ -84,6 +84,19 @@ from thread.services.knowledge_browser import (
     child_file_href,
     vault_href,
 )
+from thread.services.education_studio import (
+    EducationStudioError,
+    EducationStudioWidget,
+    education_vault_review_href,
+    explain_education_topic,
+    queue_education_lesson_draft,
+    save_education_studio_snapshot,
+)
+from thread.services.operator_learning import (
+    build_education_page_context,
+    education_href,
+    set_lesson_completed,
+)
 from thread.services.vault_research import ensure_watchlist_research_stubs
 from thread.services.watchlist import (
     add_watchlist_item,
@@ -163,6 +176,7 @@ def capture_workspace_href(
 templates.env.globals["capture_href"] = capture_workspace_href
 templates.env.globals["task_actions"] = task_actions_for
 templates.env.globals["clew_path_href"] = clew_path_href
+templates.env.globals["education_href"] = education_href
 
 router = APIRouter(tags=["ui"])
 
@@ -761,6 +775,147 @@ async def knowledge_page_partial(
         request,
         "partials/knowledge_page_htmx.html",
         ctx,
+    )
+
+
+def _education_template_context(
+    settings: Settings,
+    *,
+    lesson: str = "",
+    studio: EducationStudioWidget | None = None,
+) -> dict:
+    edu = build_education_page_context(settings, lesson=lesson)
+    return {
+        "app_name": settings.public_app_name,
+        "active_nav": "education",
+        "edu": edu,
+        "studio": studio or EducationStudioWidget.idle(settings),
+    }
+
+
+@router.get("/education", response_class=HTMLResponse)
+async def education_page(
+    request: Request,
+    lesson: str = Query(""),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "education.html",
+        _education_template_context(settings, lesson=lesson),
+    )
+
+
+@router.get("/partials/education/panel", response_class=HTMLResponse)
+async def education_panel_partial(
+    request: Request,
+    lesson: str = Query(""),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "partials/education_panel_htmx.html",
+        _education_template_context(settings, lesson=lesson),
+    )
+
+
+@router.post("/partials/education/lesson/{lesson_id}/complete", response_class=HTMLResponse)
+async def education_lesson_complete(
+    request: Request,
+    lesson_id: str,
+    completed: str = Form(""),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    raw = completed.strip().lower()
+    target: bool | None
+    if raw in ("true", "1", "yes"):
+        target = True
+    elif raw in ("false", "0", "no"):
+        target = False
+    else:
+        target = None
+    set_lesson_completed(settings, lesson_id, completed=target)
+    return templates.TemplateResponse(
+        request,
+        "partials/education_panel_htmx.html",
+        _education_template_context(settings, lesson=lesson_id),
+    )
+
+
+@router.post("/partials/education/studio/ask", response_class=HTMLResponse)
+async def education_studio_ask(
+    request: Request,
+    suggestion: str = Form(""),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    clean = suggestion.strip()
+    try:
+        result = await explain_education_topic(settings, suggestion=clean)
+        studio = EducationStudioWidget(
+            grok_configured=bool(settings.xai_api_key),
+            reasoning_model=settings.reasoning_llm_model,
+            suggestion=clean,
+            response=result.text,
+            response_kind="explain",
+            provider=result.provider,
+            model_used=result.model,
+        )
+        save_education_studio_snapshot(settings, studio)
+    except EducationStudioError as exc:
+        studio = EducationStudioWidget(
+            grok_configured=bool(settings.xai_api_key),
+            reasoning_model=settings.reasoning_llm_model,
+            suggestion=clean,
+            error=str(exc),
+            flash_ok=False,
+        )
+    return templates.TemplateResponse(
+        request,
+        "partials/education_studio.html",
+        _education_template_context(settings, studio=studio),
+    )
+
+
+@router.post("/partials/education/studio/draft", response_class=HTMLResponse)
+async def education_studio_draft(
+    request: Request,
+    suggestion: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    clean = suggestion.strip()
+    try:
+        result = await queue_education_lesson_draft(settings, db, suggestion=clean)
+        await db.commit()
+        studio = EducationStudioWidget(
+            grok_configured=bool(settings.xai_api_key),
+            reasoning_model=settings.reasoning_llm_model,
+            suggestion=clean,
+            response=result.body,
+            response_kind="draft",
+            provider=result.provider,
+            model_used=result.model,
+            draft_title=result.title,
+            draft_target=result.target_rel,
+            review_id=str(result.review_id),
+            review_href=education_vault_review_href(result.review_id),
+            flash=f"Lesson draft queued — approve on Knowledge → Vault Inbox to publish as {result.target_rel}",
+            flash_ok=True,
+        )
+        save_education_studio_snapshot(settings, studio)
+    except EducationStudioError as exc:
+        studio = EducationStudioWidget(
+            grok_configured=bool(settings.xai_api_key),
+            reasoning_model=settings.reasoning_llm_model,
+            suggestion=clean,
+            error=str(exc),
+            flash=str(exc),
+            flash_ok=False,
+        )
+    return templates.TemplateResponse(
+        request,
+        "partials/education_studio.html",
+        _education_template_context(settings, studio=studio),
     )
 
 

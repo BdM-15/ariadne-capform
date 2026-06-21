@@ -1,0 +1,36 @@
+{% if edu.panel.lesson_id %}
+<div class="education-complete-control flex flex-wrap items-center gap-3 p-3 rounded-lg border border-edge bg-slate-900/40">
+  {% if edu.panel.completed %}
+  <span class="pill border border-neon-lime/40 text-neon-lime text-[10px] font-mono uppercase">Complete</span>
+  {% if edu.panel.completed_at %}
+  <span class="text-[10px] font-mono text-slate-500">Marked {{ edu.panel.completed_at[:10] }}</span>
+  {% endif %}
+  <form
+    class="ml-auto"
+    hx-post="/partials/education/lesson/{{ edu.panel.lesson_id }}/complete"
+    hx-target="#education-lesson-panel"
+    hx-swap="innerHTML"
+  >
+    <input type="hidden" name="completed" value="false" />
+    <button type="submit" class="btn btn-ghost btn-compact text-xs text-slate-400">
+      <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+      Mark incomplete
+    </button>
+  </form>
+  {% else %}
+  <span class="text-[11px] text-slate-400">Finished reading? Mark complete to track progress.</span>
+  <form
+    class="ml-auto"
+    hx-post="/partials/education/lesson/{{ edu.panel.lesson_id }}/complete"
+    hx-target="#education-lesson-panel"
+    hx-swap="innerHTML"
+  >
+    <input type="hidden" name="completed" value="true" />
+    <button type="submit" class="btn btn-primary btn-compact text-xs">
+      <i data-lucide="circle-check" class="w-3.5 h-3.5"></i>
+      Mark complete
+    </button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}

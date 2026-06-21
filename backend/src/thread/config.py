@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     xai_api_key: str | None = None
     xai_base_url: str = "https://api.x.ai/v1"
     default_llm_provider: str = "xai"
-    reasoning_llm_model: str = "grok-4"
+    reasoning_llm_model: str = "grok-4.3"
     llm_fallback_enabled: bool = True
     llm_model_temperature: float = 0.3
     llm_max_output_tokens: int = 8192

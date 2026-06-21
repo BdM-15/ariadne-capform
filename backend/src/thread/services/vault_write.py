@@ -128,10 +128,17 @@ def _render_frontmatter(meta: dict[str, str]) -> str:
     return "\n".join(lines) + "\n\n"
 
 
+def _is_education_lesson_path(rel_path: str) -> bool:
+    normalized = rel_path.replace("\\", "/").lstrip("/")
+    return normalized.startswith("education/lessons/") and normalized.endswith(".md")
+
+
 def _assert_write_zone(rel_path: str) -> None:
     normalized = rel_path.replace("\\", "/").lstrip("/")
     if normalized.endswith("index.md") or normalized.endswith("log.md"):
         raise VaultWriteError("index.md and log.md are updated via helpers only")
+    if _is_education_lesson_path(normalized):
+        return
     if any(normalized.startswith(p) for p in PROTECTED_PREFIXES):
         raise VaultWriteError(f"Protected vault path: {normalized}")
     if not any(normalized.startswith(z) for z in WRITE_ZONES):
@@ -538,6 +545,15 @@ async def queue_vault_candidate_review(
 
 def _infer_promote_target(candidate_rel: str, meta: dict[str, str]) -> str:
     page_type = meta.get("type", "synthesis")
+    promote_target = (meta.get("promote_target") or "").strip().replace("\\", "/")
+    if promote_target and _is_education_lesson_path(promote_target):
+        return promote_target
+    if page_type == "education":
+        lesson_raw = (meta.get("lesson_number") or "").strip()
+        stem = Path(candidate_rel).stem.removeprefix("edu-")
+        if lesson_raw.isdigit():
+            return f"education/lessons/{int(lesson_raw):02d}-{stem.split('-', 1)[-1] if '-' in stem else stem}.md"
+        return f"education/lessons/{stem}.md"
     stem = Path(candidate_rel).stem
     if page_type == "agency":
         return f"entities/agencies/{stem}.md"
@@ -546,6 +562,118 @@ def _infer_promote_target(candidate_rel: str, meta: dict[str, str]) -> str:
     if page_type == "opportunity":
         return f"global/domain_intel/synthesis/{stem}.md"
     return f"global/domain_intel/synthesis/{stem}.md"
+
+
+def _looks_like_education_ingest_slug(value: str) -> bool:
+    clean = value.strip().lower()
+    return clean.startswith("edu-") or (
+        bool(re.search(r"-\d{4}-\d{2}-\d{2}$", clean)) and "lesson" in clean
+    )
+
+
+def _extract_education_lesson_body(body: str) -> str:
+    lines = body.splitlines()
+    out: list[str] = []
+    skipping = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("> Candidate"):
+            continue
+        if stripped.startswith("## Added/Updated"):
+            skipping = True
+            continue
+        if skipping:
+            if stripped.startswith("# ") and not _looks_like_education_ingest_slug(stripped[2:]):
+                skipping = False
+            else:
+                continue
+        if stripped.startswith("# ") and _looks_like_education_ingest_slug(stripped[2:]):
+            continue
+        if stripped.startswith("**Review:**"):
+            continue
+        if stripped == "### Related":
+            break
+        out.append(line)
+    return "\n".join(out).strip()
+
+
+def _education_lesson_title(meta: dict[str, str], body: str, *, fallback: str) -> str:
+    title = (meta.get("title") or "").strip().strip('"')
+    if title:
+        return title
+    name = (meta.get("name") or "").strip()
+    if name and not _looks_like_education_ingest_slug(name):
+        return name
+    for line in body.splitlines():
+        if not line.startswith("# "):
+            continue
+        h1 = line[2:].strip()
+        if h1 and not _looks_like_education_ingest_slug(h1):
+            return h1
+    return fallback
+
+
+def _promote_education_lesson(
+    settings: Settings,
+    record: ReviewRecord,
+    *,
+    candidate_rel: str,
+    meta: dict[str, str],
+    body: str,
+    target_rel: str,
+) -> VaultIngestResult:
+    vault = _vault_root(settings)
+    target = _safe_path(vault, target_rel)
+    lesson_body = _extract_education_lesson_body(body)
+    title = _education_lesson_title(
+        meta,
+        lesson_body,
+        fallback=Path(target_rel).stem.replace("-", " ").title(),
+    )
+    lesson_number = (meta.get("lesson_number") or "").strip() or "1"
+    lesson_id = (meta.get("id") or "").strip() or f"education-lesson-{lesson_number.zfill(2)}"
+    tags = (meta.get("tags") or "[education, lesson]").strip()
+    if tags.startswith("["):
+        tags = tags
+    else:
+        tags = "[education, lesson]"
+    prerequisites = (meta.get("prerequisites") or "[]").strip() or "[]"
+    estimated = (meta.get("estimated_minutes") or "12").strip() or "12"
+    fm = {
+        "title": title,
+        "type": "education",
+        "id": lesson_id,
+        "tags": tags.replace(", draft]", "]") if ", draft]" in tags else tags,
+        "lesson_number": lesson_number,
+        "prerequisites": prerequisites,
+        "estimated_minutes": estimated,
+    }
+    if lesson_body.startswith(f"# {title}"):
+        lesson_body = lesson_body[len(f"# {title}") :].lstrip("\n")
+    content = _render_frontmatter(fm) + lesson_body.rstrip() + "\n"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    created = not target.is_file()
+    target.write_text(content, encoding="utf-8")
+    index_updated = update_index_entry(settings, target_rel, title, "education lesson")
+    log_appended = append_log(settings, "promote", title, f"education:{target_rel}")
+
+    archive_dir = vault / "generated-projections" / "archived"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    candidate_path = _safe_path(vault, candidate_rel)
+    if candidate_path.is_file():
+        archive_path = archive_dir / Path(candidate_rel).name
+        if archive_path.exists():
+            archive_path = archive_dir / f"{Path(candidate_rel).stem}-{_today()}{Path(candidate_rel).suffix}"
+        shutil.move(str(candidate_path), str(archive_path))
+
+    write = VaultWriteResult(
+        path=target_rel.replace("\\", "/"),
+        created=created,
+        appended=not created,
+        index_updated=index_updated,
+        log_appended=log_appended,
+    )
+    return VaultIngestResult(review_id=str(record.id), writes=[write])
 
 
 def promote_vault_candidate(settings: Settings, record: ReviewRecord) -> VaultIngestResult | None:
@@ -577,6 +705,17 @@ def promote_vault_candidate(settings: Settings, record: ReviewRecord) -> VaultIn
         citations=meta.get("citations", ""),
     )
     review_id = str(record.id)
+
+    page_type = (meta.get("type") or "").strip()
+    if page_type == "education" or _is_education_lesson_path(target_rel):
+        return _promote_education_lesson(
+            settings,
+            record,
+            candidate_rel=candidate_rel,
+            meta=meta,
+            body=body,
+            target_rel=target_rel,
+        )
 
     body_lines = []
     for line in body.splitlines():

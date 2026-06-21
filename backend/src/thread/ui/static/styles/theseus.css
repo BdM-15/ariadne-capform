@@ -3505,3 +3505,38 @@ details.acc .summary-actions {
 .vault-wikilink {
   color: var(--neon-cyan);
 }
+
+/* === Education lane (Phase 22c) === */
+.education-lesson-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  color: var(--text-muted, #94a3b8);
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.education-lesson-link:hover {
+  border-color: var(--edge);
+  background: rgba(15, 23, 42, 0.45);
+  color: #e2e8f0;
+}
+.education-lesson-link-active {
+  border-color: rgba(236, 72, 153, 0.35);
+  background: rgba(236, 72, 153, 0.08);
+  color: #f8fafc;
+}
+.education-lesson-link-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.education-lesson-link-meta {
+  font-size: 0.62rem;
+  font-family: ui-monospace, monospace;
+  color: #64748b;
+}
+.education-complete-control .btn {
+  white-space: nowrap;
+}

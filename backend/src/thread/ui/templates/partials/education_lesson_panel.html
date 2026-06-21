@@ -1,0 +1,42 @@
+{% if edu.panel.error and not edu.panel.content %}
+<div class="vault-page-inner">
+  <p class="text-sm text-neon-amber">{{ edu.panel.error }}</p>
+  {% if edu.panel.rel_path %}
+  <p class="text-[11px] font-mono text-slate-500 mt-2">{{ edu.panel.rel_path }}</p>
+  {% endif %}
+</div>
+{% elif edu.panel.content is not none %}
+<div class="vault-page-inner">
+  <div class="flex flex-wrap items-center gap-2 mb-3 pb-2 border-b border-edge">
+    <h2 class="text-sm font-semibold text-slate-100 min-w-0 truncate">{{ edu.panel.title }}</h2>
+    {% if edu.panel.kind == 'lesson' %}
+    <span class="pill pill-compact border border-neon-cyan/35 text-neon-cyan text-[9px]">lesson</span>
+    {% if edu.panel.estimated_minutes %}
+    <span class="pill pill-compact border border-edge text-slate-500 text-[9px] font-mono">{{ edu.panel.estimated_minutes }} min</span>
+    {% endif %}
+    {% elif edu.panel.kind == 'mission' %}
+    <span class="pill pill-compact border border-neon-magenta/35 text-neon-magenta text-[9px]">mission</span>
+    {% endif %}
+  </div>
+
+  {% if edu.panel.kind == 'lesson' %}
+  <div id="education-complete-mount" class="mb-4">
+    {% include "partials/education_complete_control.html" %}
+  </div>
+  {% endif %}
+
+  <div
+    class="vault-markdown-host markdown text-sm text-slate-300"
+    data-vault-markdown
+    data-page-path="{{ edu.panel.rel_path or '' }}"
+  >{{ edu.panel.content }}</div>
+</div>
+{% else %}
+<div class="vault-page-inner vault-page-empty">
+  <div class="text-center py-10 px-4">
+    <i data-lucide="graduation-cap" class="w-10 h-10 text-slate-600 mx-auto mb-3"></i>
+    <p class="text-sm text-slate-400">Select a lesson from the curriculum.</p>
+    <p class="text-[11px] text-slate-600 mt-2">Start with <strong class="text-slate-500">Mission</strong> if you are new.</p>
+  </div>
+</div>
+{% endif %}

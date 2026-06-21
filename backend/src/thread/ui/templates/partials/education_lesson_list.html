@@ -1,0 +1,46 @@
+<div class="education-lesson-list-inner">
+  <span class="cc-section-label text-neon-magenta mb-2 text-[10px] block">Curriculum</span>
+
+  <a
+    href="{{ education_href(lesson='mission') }}"
+    class="education-lesson-link no-underline {% if edu.active_key == 'mission' %}education-lesson-link-active{% endif %}"
+    hx-get="/partials/education/panel?lesson=mission"
+    hx-target="#education-lesson-panel"
+    hx-swap="innerHTML"
+    hx-push-url="{{ education_href(lesson='mission') }}"
+  >
+    <span class="education-lesson-link-title">Mission</span>
+    <span class="education-lesson-link-meta">Start here</span>
+  </a>
+
+  {% if edu.lessons|length == 0 %}
+  <p class="text-[11px] text-slate-500 mt-3 px-1">No lessons in <span class="font-mono">education/lessons/</span> yet.</p>
+  {% else %}
+  <div class="education-lesson-items mt-2 space-y-1">
+    {% for lesson in edu.lessons %}
+    <a
+      href="{{ education_href(lesson=lesson.id) }}"
+      class="education-lesson-link no-underline {% if edu.active_key == lesson.id %}education-lesson-link-active{% endif %}"
+      hx-get="/partials/education/panel?lesson={{ lesson.id }}"
+      hx-target="#education-lesson-panel"
+      hx-swap="innerHTML"
+      hx-push-url="{{ education_href(lesson=lesson.id) }}"
+    >
+      <span class="flex items-center gap-2 min-w-0">
+        {% if lesson.completed %}
+        <i data-lucide="circle-check" class="w-3.5 h-3.5 text-neon-lime shrink-0"></i>
+        {% else %}
+        <i data-lucide="circle" class="w-3.5 h-3.5 text-slate-600 shrink-0"></i>
+        {% endif %}
+        <span class="education-lesson-link-title truncate">
+          {% if lesson.lesson_number < 100 %}{{ '%02d'|format(lesson.lesson_number) }}{% else %}{{ lesson.lesson_number }}{% endif %} — {{ lesson.title }}
+        </span>
+      </span>
+      {% if lesson.estimated_minutes %}
+      <span class="education-lesson-link-meta">{{ lesson.estimated_minutes }} min</span>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>

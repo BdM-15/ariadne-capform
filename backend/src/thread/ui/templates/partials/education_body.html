@@ -1,0 +1,39 @@
+<div id="education-body" class="page-content space-y-4">
+  <div class="settings-tip-box">
+    <strong class="text-slate-300">Education</strong> —
+    why Thread works this way, tied to Shipley capture.
+    Read a lesson, then <strong class="text-slate-300">mark complete</strong> — progress syncs to
+    <span class="font-mono text-slate-500">.thread/operator_learning.json</span>
+    and your vault learning record.
+    In-app guides still answer <em>what this button does</em>.
+  </div>
+
+  {% if not edu.vault_ready %}
+  <section class="card card-accent accent-amber p-5">
+    <h2 class="font-semibold text-sm text-neon-amber mb-2">Vault not ready</h2>
+    <p class="text-sm text-slate-400">Education lessons live in <span class="font-mono">knowledge/thread/education/</span>.</p>
+  </section>
+  {% else %}
+  <div
+    id="education-studio-mount"
+    class="education-studio-mount"
+  >
+    {% include "partials/education_studio.html" %}
+  </div>
+  <div class="vault-browser-layout education-layout">
+    <aside
+      id="education-lesson-list"
+      class="vault-tree-panel card card-accent accent-magenta p-3 shrink-0"
+      aria-label="Lesson list"
+    >
+      {% include "partials/education_lesson_list.html" %}
+    </aside>
+    <section
+      id="education-lesson-panel"
+      class="vault-page-panel card card-accent accent-cyan p-4 min-w-0 flex-1"
+    >
+      {% include "partials/education_lesson_panel.html" %}
+    </section>
+  </div>
+  {% endif %}
+</div>

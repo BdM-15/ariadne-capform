@@ -73,6 +73,12 @@
           {% endwith %}
           <span class="sidebar-nav-text">Knowledge</span>
         </a>
+        <a href="/education" class="nav-item w-full no-underline {% if active_nav == 'education' %}nav-item-active{% endif %}">
+          {% with icon="graduation-cap", tile_class="tile-magenta" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
+          <span class="sidebar-nav-text">Education</span>
+        </a>
         <a href="/review" class="nav-item w-full no-underline {% if active_nav == 'review' %}nav-item-active{% endif %}">
           {% with icon="list-checks", tile_class="tile-magenta" %}
           {% include "partials/nav_icon.html" %}
