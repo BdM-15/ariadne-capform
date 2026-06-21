@@ -27,13 +27,21 @@ def mineru_base_url(settings: Settings) -> str:
     return raw.rstrip("/")
 
 
+def _mineru_lang_list(settings: Settings) -> tuple[str, ...]:
+    """MinerU 3.4 routes English through the ch OCR pack."""
+    raw = (settings.mineru_language or "ch").strip().lower()
+    if raw in {"en", "english"}:
+        return ("ch",)
+    return (raw,)
+
+
 def probe_mineru_health(settings: Settings, *, timeout_sec: float = 3.0) -> bool:
     base = mineru_base_url(settings)
     try:
         with httpx.Client(timeout=timeout_sec) as client:
             for path in ("/health", "/docs"):
                 response = client.get(f"{base}{path}")
-                if response.status_code < 500:
+                if response.status_code == 200:
                     return True
     except (httpx.HTTPError, OSError):
         return False
@@ -72,8 +80,8 @@ def call_mineru_file_parse(settings: Settings, staged_path: Path, *, filename: s
     timeout = float(settings.mineru_parse_timeout_seconds)
     file_bytes = staged_path.read_bytes()
 
+    lang = _mineru_lang_list(settings)[0]
     form: dict[str, Any] = {
-        "lang_list": settings.mineru_language,
         "backend": settings.mineru_backend,
         "parse_method": settings.mineru_parse_method,
         "formula_enable": "true",
@@ -84,6 +92,7 @@ def call_mineru_file_parse(settings: Settings, staged_path: Path, *, filename: s
         "return_content_list": "false",
         "return_images": "false",
         "response_format_zip": "false",
+        "lang_list": lang,
     }
 
     with httpx.Client(timeout=timeout) as client:

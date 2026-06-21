@@ -13,4 +13,11 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
 uv venv .venv
 uv pip install --python .venv\Scripts\python.exe -e backend
 
+$MineruInstall = Join-Path $Root "scripts\install-mineru.ps1"
+$MineruPython = Join-Path $Root ".venv-mineru\Scripts\python.exe"
+if ((Test-Path $MineruInstall) -and -not (Test-Path $MineruPython)) {
+    Write-Host "[bootstrap] Installing MinerU GPU parser sidecar (one-time, CUDA)..."
+    & powershell -ExecutionPolicy Bypass -File $MineruInstall
+}
+
 Write-Host "[bootstrap] Done. Run: python app.py"

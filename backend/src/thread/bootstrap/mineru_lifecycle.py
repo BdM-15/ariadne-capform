@@ -1,8 +1,9 @@
-"""MinerU FastAPI subprocess lifecycle — autostart from app.py when enabled."""
+"""MinerU FastAPI subprocess lifecycle — GPU sidecar from .venv-mineru."""
 
 from __future__ import annotations
 
 import logging
+import os
 import socket
 import subprocess
 import sys
@@ -13,6 +14,7 @@ from dataclasses import dataclass
 from typing import Callable
 from urllib.parse import urlparse
 
+from thread.bootstrap.mineru_paths import mineru_api_executable, mineru_install_hint, mineru_installed
 from thread.config import Settings
 
 logger = logging.getLogger(__name__)
@@ -89,11 +91,24 @@ def wait_for_mineru(
     return False
 
 
+def _mineru_child_env(settings: Settings) -> dict[str, str]:
+    env = os.environ.copy()
+    if settings.mineru_device_mode:
+        env["MINERU_DEVICE_MODE"] = settings.mineru_device_mode
+    if settings.mineru_cuda_visible_devices:
+        env["CUDA_VISIBLE_DEVICES"] = settings.mineru_cuda_visible_devices
+    if settings.mineru_hybrid_batch_ratio > 0:
+        env["MINERU_HYBRID_BATCH_RATIO"] = str(settings.mineru_hybrid_batch_ratio)
+    return env
+
+
 @dataclass
 class MineruController:
+    settings: Settings
     endpoint: MineruEndpoint
     process: subprocess.Popen | None = None
     _started_by_us: bool = False
+    last_error: str = ""
 
     @property
     def started_by_us(self) -> bool:
@@ -102,31 +117,76 @@ class MineruController:
     def start(
         self,
         *,
-        python_executable: str | None = None,
         popen: Callable[..., subprocess.Popen] = subprocess.Popen,
         port_check: Callable[[str, int], bool] = is_port_listening,
-        wait: Callable[[MineruEndpoint], bool] = wait_for_mineru,
+        wait: Callable[[MineruEndpoint], bool] | None = None,
     ) -> bool:
+        self.last_error = ""
         if port_check(self.endpoint.host, self.endpoint.port):
             self._started_by_us = False
             return True
 
-        executable = python_executable or sys.executable
+        api_exe = mineru_api_executable(self.settings)
+        if api_exe is None or not mineru_installed(self.settings):
+            self.last_error = (
+                "MinerU GPU environment missing — "
+                + mineru_install_hint(self.settings)
+            )
+            logger.error(self.last_error)
+            return False
+
         cmd = [
-            executable,
-            "-m",
-            "mineru.cli.fast_api",
+            str(api_exe),
             "--host",
             self.endpoint.host,
             "--port",
             str(self.endpoint.port),
+            "--enable-vlm-preload",
+            "true" if self.settings.mineru_vlm_preload else "false",
         ]
         logger.debug("Starting MinerU FastAPI: %s", " ".join(cmd))
-        self.process = popen(cmd)
+        try:
+            self.process = popen(
+                cmd,
+                env=_mineru_child_env(self.settings),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
+        except OSError as exc:
+            self.last_error = f"MinerU spawn failed: {exc}"
+            logger.error(self.last_error)
+            return False
+
         self._started_by_us = True
-        ready = wait(self.endpoint)
+        fail_window = float(self.settings.mineru_spawn_fail_seconds)
+        deadline = time.monotonic() + fail_window
+        while time.monotonic() < deadline:
+            if self.process.poll() is not None:
+                err = ""
+                if self.process.stderr:
+                    try:
+                        err = self.process.stderr.read().decode("utf-8", errors="replace")[:500]
+                    except OSError:
+                        pass
+                self.last_error = err.strip() or f"MinerU exited with code {self.process.returncode}"
+                logger.error("MinerU failed to start: %s", self.last_error)
+                self.stop()
+                return False
+            time.sleep(0.25)
+
+        wait_fn = wait or (
+            lambda ep: wait_for_mineru(
+                ep,
+                timeout=float(self.settings.mineru_startup_timeout_seconds),
+            )
+        )
+        ready = wait_fn(self.endpoint)
         if not ready:
-            logger.error("MinerU did not become ready at %s", self.endpoint.docs_url)
+            self.last_error = (
+                f"MinerU did not become ready at {self.endpoint.docs_url} "
+                f"within {self.settings.mineru_startup_timeout_seconds}s"
+            )
+            logger.error(self.last_error)
             self.stop()
             return False
         logger.debug("MinerU ready at %s", self.endpoint.docs_url)
@@ -153,7 +213,7 @@ class MineruController:
 
 
 def build_controller_from_settings(settings: Settings) -> MineruController | None:
-    if not settings.mineru_enabled:
+    if not settings.mineru_enabled or not settings.mineru_autostart:
         return None
     endpoint = parse_mineru_endpoint(settings.mineru_local_endpoint)
-    return MineruController(endpoint=endpoint)
+    return MineruController(settings=settings, endpoint=endpoint)

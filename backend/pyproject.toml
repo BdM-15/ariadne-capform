@@ -27,6 +27,7 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "ruff>=0.8.0",
 ]
+# MinerU runs in isolated .venv-mineru (Python 3.13 + CUDA torch) — see scripts/install-mineru.ps1
 
 [build-system]
 requires = ["hatchling"]

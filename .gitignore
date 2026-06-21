@@ -2,6 +2,7 @@
 .env.local
 frontend/.env.local
 .venv/
+.venv-mineru/
 backend/.venv/
 __pycache__/
 *.pyc

@@ -217,17 +217,31 @@ def main() -> int:
     from thread.main import create_app
 
     mineru_controller = build_controller_from_settings(settings)
-    if mineru_controller is not None:
-        ep = mineru_controller.endpoint
-        if mineru_controller.start():
-            mode = "spawned" if mineru_controller.started_by_us else "already running"
-            print(f"[thread] MinerU: {mode} @ {ep.base_url} (docs {ep.docs_url})")
+    if settings.mineru_enabled:
+        from thread.bootstrap.mineru_paths import mineru_install_hint, mineru_installed
+        from thread.services.mineru_client import probe_mineru_health
+
+        ep_url = settings.mineru_local_endpoint
+        if mineru_controller is not None:
+            ep = mineru_controller.endpoint
+            if mineru_controller.start():
+                mode = "spawned" if mineru_controller.started_by_us else "already running"
+                print(
+                    f"[thread] MinerU: {mode} @ {ep.base_url} "
+                    f"({settings.mineru_backend}, {settings.mineru_device_mode})"
+                )
+            else:
+                detail = mineru_controller.last_error or "startup failed"
+                print(f"[thread] MinerU: not ready @ {ep.base_url} — {detail}")
+                print("[thread] MinerU: capture will stage files; parse retries when API is up")
+        elif not mineru_installed(settings):
+            print(f"[thread] MinerU: not installed — {mineru_install_hint(settings)}")
+        elif probe_mineru_health(settings):
+            print(f"[thread] MinerU: ready @ {ep_url} (external process)")
+        elif not settings.mineru_autostart:
+            print(f"[thread] MinerU: enabled, autostart off — expect API @ {ep_url}")
         else:
-            print(
-                f"[thread] MinerU: failed @ {ep.base_url} — capture falls back to mineru_error"
-            )
-    elif settings.mineru_enabled:
-        print("[thread] MinerU: enabled but controller missing — check MINERU_LOCAL_ENDPOINT")
+            print("[thread] MinerU: enabled — waiting for parser service")
     else:
         print("[thread] MinerU: off (MINERU_ENABLED=false)")
 

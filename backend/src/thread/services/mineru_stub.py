@@ -11,6 +11,7 @@ from typing import Any
 import httpx
 
 from thread.config import Settings
+from thread.bootstrap.mineru_paths import mineru_install_hint, mineru_installed
 from thread.services.mineru_client import (
     mineru_base_url,
     parse_staged_document,
@@ -73,32 +74,40 @@ class DocumentExtract:
 
 
 def mineru_ingest_status(settings: Settings) -> dict[str, Any]:
-    """MinerU 3.3 FastAPI status for Insights/Clew panels."""
+    """MinerU FastAPI status for Insights/Clew/Settings panels."""
     enabled = bool(settings.mineru_enabled)
-    reachable = probe_mineru_health(settings) if enabled else False
+    installed = mineru_installed(settings) if enabled else False
+    reachable = probe_mineru_health(settings) if enabled and installed else False
     if not enabled:
-        status = "stub"
+        status = "disabled"
+    elif not installed:
+        status = "not_installed"
     elif reachable:
         status = "ready"
     else:
-        status = "unreachable"
+        status = "starting" if settings.mineru_autostart else "unreachable"
     base = mineru_base_url(settings)
     return {
         "product": "MinerU",
-        "version": "3.3",
+        "version": "3.4",
         "enabled": enabled,
+        "installed": installed,
         "reachable": reachable,
         "endpoint": base,
         "docs_url": f"{base}/docs",
         "status": status,
-        "role": "Background parse API — Thread calls it from capture; no operator web UI.",
-        "operator_path": "Use the floating capture FAB in Thread to upload documents.",
-        "browser_note": "Opening the API root in a browser returns 404 — expected. /docs is dev API playground only.",
+        "backend": settings.mineru_backend,
+        "device_mode": settings.mineru_device_mode,
+        "role": "Default document parser — Thread calls it when you upload via capture FAB.",
+        "operator_path": "Upload PDFs and Office files with the floating capture FAB.",
+        "browser_note": "API /docs is a developer playground — normal use is upload-only.",
         "capture_extensions": sorted(ALL_CAPTURE_EXTENSIONS),
         "not_used": "Legacy third-party pdfparser forks — Thread uses MinerU only.",
+        "install_hint": mineru_install_hint(settings) if not installed else "",
         "start_hint": (
-            "Autostarts with python app.py when MINERU_ENABLED=true; "
-            "manual fallback: python -m mineru.cli.fast_api --host 127.0.0.1 --port 8888"
+            "Autostarts with python app.py when MINERU_ENABLED=true and MINERU_AUTOSTART=true."
+            if settings.mineru_autostart
+            else f"Start parser service at {base} (MINERU_AUTOSTART=false)."
         ),
     }
 

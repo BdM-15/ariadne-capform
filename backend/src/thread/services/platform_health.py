@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from thread.config import Settings
 from thread.intel import pg_queries as intel_queries
 from thread.intel.migration import get_migration_status
+from thread.bootstrap.mineru_paths import mineru_installed
 from thread.services.mineru_client import probe_mineru_health
 
 
@@ -59,7 +60,9 @@ async def build_platform_health_widget(
     vault_healthy = vault_root.is_dir() and any(vault_root.iterdir())
     grok_configured = bool(settings.xai_api_key)
     mineru_enabled = bool(settings.mineru_enabled)
-    mineru_reachable = probe_mineru_health(settings) if mineru_enabled else False
+    mineru_reachable = (
+        probe_mineru_health(settings) if mineru_enabled and mineru_installed(settings) else False
+    )
 
     blockers: list[str] = []
     if not postgres_ready:
@@ -72,8 +75,10 @@ async def build_platform_health_widget(
         blockers.append("Vault empty or missing")
     if not grok_configured:
         blockers.append("Grok API key not set")
-    if mineru_enabled and not mineru_reachable:
-        blockers.append("MinerU enabled but FastAPI unreachable")
+    if mineru_enabled and not mineru_installed(settings):
+        blockers.append("MinerU not installed — run scripts/install-mineru.ps1")
+    elif mineru_enabled and not mineru_reachable:
+        blockers.append("MinerU parser starting or unreachable")
 
     needs_attention = bool(blockers) and (
         not postgres_ready or (not mig.complete and not intel_live) or not grok_configured

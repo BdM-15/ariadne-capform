@@ -114,14 +114,26 @@ class Settings(BaseSettings):
     # Legacy skill param only — NOT a platform search default. Radar/Insights require explicit facets.
     default_naics: str = "561210"
 
-    mineru_enabled: bool = False
+    mineru_enabled: bool = True
+    mineru_autostart: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("mineru_autostart", "MINERU_AUTOSTART"),
+    )
     mineru_docker_image: str | None = None
+    mineru_venv_path: Path = Field(
+        default=Path(".venv-mineru"),
+        validation_alias=AliasChoices("mineru_venv_path", "MINERU_VENV_PATH"),
+    )
+    mineru_python: str = Field(
+        default="",
+        validation_alias=AliasChoices("mineru_python", "MINERU_PYTHON"),
+    )
     mineru_local_endpoint: str = Field(
         default="http://127.0.0.1:8888",
         validation_alias=AliasChoices("mineru_local_endpoint", "MINERU_LOCAL_ENDPOINT"),
     )
     mineru_backend: str = Field(
-        default="pipeline",
+        default="hybrid-auto-engine",
         validation_alias=AliasChoices("mineru_backend", "MINERU_LOCAL_BACKEND", "MINERU_BACKEND"),
     )
     mineru_parse_method: str = Field(
@@ -129,12 +141,36 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("mineru_parse_method", "MINERU_LOCAL_PARSE_METHOD", "PARSE_METHOD"),
     )
     mineru_language: str = Field(
-        default="en",
+        default="ch",
         validation_alias=AliasChoices("mineru_language", "MINERU_LANGUAGE"),
     )
     mineru_parse_timeout_seconds: int = Field(
         default=600,
         validation_alias=AliasChoices("mineru_parse_timeout_seconds", "MINERU_PARSE_TIMEOUT_SECONDS"),
+    )
+    mineru_startup_timeout_seconds: int = Field(
+        default=300,
+        validation_alias=AliasChoices("mineru_startup_timeout_seconds", "MINERU_STARTUP_TIMEOUT_SECONDS"),
+    )
+    mineru_spawn_fail_seconds: float = Field(
+        default=5.0,
+        validation_alias=AliasChoices("mineru_spawn_fail_seconds", "MINERU_SPAWN_FAIL_SECONDS"),
+    )
+    mineru_vlm_preload: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("mineru_vlm_preload", "MINERU_VLM_PRELOAD"),
+    )
+    mineru_device_mode: str = Field(
+        default="cuda",
+        validation_alias=AliasChoices("mineru_device_mode", "MINERU_DEVICE_MODE"),
+    )
+    mineru_cuda_visible_devices: str = Field(
+        default="0",
+        validation_alias=AliasChoices("mineru_cuda_visible_devices", "CUDA_VISIBLE_DEVICES"),
+    )
+    mineru_hybrid_batch_ratio: int = Field(
+        default=8,
+        validation_alias=AliasChoices("mineru_hybrid_batch_ratio", "MINERU_HYBRID_BATCH_RATIO"),
     )
 
     langgraph_enabled: bool = False
