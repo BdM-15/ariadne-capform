@@ -81,15 +81,28 @@ def test_open_bulk_csv_reads_zip(tmp_path: Path):
     assert "contract_transaction_unique_key" in text
 
 
+def _destructive_pg_test_allowed() -> bool:
+    return os.environ.get("THREAD_INTEL_ALLOW_DESTRUCTIVE_PG_TEST", "").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
+
 @pytest.mark.skipif(
-    __import__("os").environ.get("THREAD_SKIP_PG_TESTS", "").lower() in ("1", "true", "yes"),
+    os.environ.get("THREAD_SKIP_PG_TESTS", "").lower() in ("1", "true", "yes"),
     reason="Postgres tests disabled",
+)
+@pytest.mark.skipif(
+    not _destructive_pg_test_allowed(),
+    reason="Set THREAD_INTEL_ALLOW_DESTRUCTIVE_PG_TEST=1 to run DROP+reload PG test",
 )
 def test_load_prime_file_inserts_row(settings, tmp_path: Path):
     import psycopg
 
     from thread.config import Settings
-    from thread.intel.bulk_migration import _drop_intel_tables, load_prime_file
+    from thread.intel.bulk_fields import PRIME_TABLE, SUB_TABLE
+    from thread.intel.bulk_migration import _drop_intel_tables, _pg_table_count, load_prime_file
 
     csv_path = tmp_path / "one.csv"
     row = {field: "" for field in PRIME_TARGET_FIELDS}
@@ -120,6 +133,8 @@ def test_load_prime_file_inserts_row(settings, tmp_path: Path):
         with psycopg.connect(dsn) as conn:
             conn.autocommit = True
             with conn.cursor() as cur:
+                if _pg_table_count(cur, PRIME_TABLE) > 1_000 or _pg_table_count(cur, SUB_TABLE) > 1_000:
+                    pytest.skip("Refusing to DROP intel tables — production-scale data present")
                 _drop_intel_tables(cur)
                 rows_in_file, inserted = load_prime_file(cur, csv_path)
                 assert rows_in_file == 1

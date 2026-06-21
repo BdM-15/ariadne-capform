@@ -555,12 +555,33 @@ def run_intel_migration(
     state["sub_rows"] = _pg_table_count_from_settings(settings, SUB_TABLE)
     _save_state(sp, state)
 
-    if not skip_indexes and state["prime_rows"] > 0:
+    prime_loaded = _loaded_chunks(state, "prime")
+    sub_loaded = _loaded_chunks(state, "sub")
+    prime_files = discover_bulk_files(prime_dir)
+    sub_files = discover_bulk_files(sub_dir) if sub_dir.is_dir() else []
+    prime_pg = int(state["prime_rows"])
+    sub_pg = int(state["sub_rows"])
+
+    if prime_files and len(prime_loaded) >= len(prime_files) and prime_pg < 1_000_000:
+        msg = (
+            f"Prime mismatch: {len(prime_loaded)}/{len(prime_files)} files marked loaded "
+            f"but only {prime_pg:,} rows in PG (expected ~64M). "
+            "Clear chunks_loaded.prime in state and re-run with --skip-subawards, "
+            "or check for accidental pytest test_load_prime_file_inserts_row."
+        )
+        _append_log(settings, f"ERROR: {msg}")
+        print(f"[intel] ERROR: {msg}")
+        return MigrationResult(False, msg, prime_rows=prime_pg, sub_rows=sub_pg)
+
+    if not skip_indexes and prime_pg > 0:
         print("[intel] Building indexes (long step — monitor .thread/intel_migration.log)...")
         ensure_intel_indexes(settings)
+        state = _load_state(sp)
 
     state["completed_at"] = datetime.now(timezone.utc).isoformat()
     state["phase"] = "complete"
+    state["prime_rows"] = _pg_table_count_from_settings(settings, PRIME_TABLE)
+    state["sub_rows"] = _pg_table_count_from_settings(settings, SUB_TABLE)
     _save_state(sp, state)
 
     prime_total = state["prime_rows"]
