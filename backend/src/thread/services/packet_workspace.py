@@ -26,7 +26,7 @@ from thread.domain.packet_slides import (
     slide_visible,
 )
 from thread.domain.packet_field_seed import FIELD_SEED_BY_KEY
-from thread.services.opportunities import ensure_packet_definitions, ensure_packet_answers
+from thread.services.opportunities import ensure_packet_definitions, ensure_packet_answers, get_opportunity
 from thread.services.packet_route_fill import build_data_needs
 from thread.services.packet_workflows import build_slide_fill_workflows
 
@@ -49,6 +49,8 @@ class PacketFieldCard:
     answer_sources: tuple[str, ...] = ()
     route_hint: str = ""
     deterministic: bool = False
+    decision_impact: tuple[str, ...] = ()
+    prerequisites: tuple[str, ...] = ()
 
     def as_template_dict(self) -> dict[str, Any]:
         return {
@@ -67,6 +69,8 @@ class PacketFieldCard:
             "answer_sources": list(self.answer_sources),
             "route_hint": self.route_hint,
             "deterministic": self.deterministic,
+            "decision_impact": list(self.decision_impact),
+            "prerequisites": list(self.prerequisites),
         }
 
 
@@ -83,6 +87,14 @@ async def build_packet_workspace(
 ) -> dict[str, Any]:
     await ensure_packet_definitions(session)
     await ensure_packet_answers(session, opp_id)
+
+    opp = await get_opportunity(session, opp_id)
+    prov = (opp.intel_provenance or {}) if opp else {}
+    data_needs_context = {
+        "award_key": str(prov.get("award_key") or "").strip(),
+        "notice_id": str(prov.get("notice_id") or "").strip(),
+        "has_mineru": bool(prov.get("mineru_bundle_id") or prov.get("mineru_parsed")),
+    }
 
     gate = normalize_milestone_gate(milestone_gate)
     slide_id = normalize_packet_slide(active_slide)
@@ -134,6 +146,8 @@ async def build_packet_workspace(
             answer_sources=route.sources if route else (),
             route_hint=route.hint if route else "",
             deterministic=route.deterministic if route else False,
+            decision_impact=seed.decision_impact if seed else (),
+            prerequisites=seed.prerequisites if seed else (),
         )
         cards.append(card)
 
@@ -221,7 +235,7 @@ async def build_packet_workspace(
         "slide_count": len(slide_nav),
         "fields": active_fields,
         "fill_workflows": build_slide_fill_workflows(active_fields, opp_id=opp_id),
-        "data_needs": build_data_needs(all_field_dicts),
+        "data_needs": build_data_needs(all_field_dicts, context=data_needs_context),
         "open_field_count": sum(1 for f in active_fields if not (f.get("value") or "").strip()),
         "progress": {
             "filled": ms_critical_filled,
@@ -256,5 +270,7 @@ async def enrich_packet_field_card(
         answer_sources=route.sources if route else (),
         route_hint=route.hint if route else "",
         deterministic=route.deterministic if route else False,
+        decision_impact=seed.decision_impact if seed else (),
+        prerequisites=seed.prerequisites if seed else (),
     )
     return card.as_template_dict()

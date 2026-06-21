@@ -12,6 +12,20 @@ from thread.domain.enums import (
 )
 from thread.domain.packet_answer_sources import AnswerRouteStub
 
+DECISION_IMPACT_TAGS: frozenset[str] = frozenset(
+    {"qualify", "fund", "team", "price", "compliance", "recommend", "relationship"}
+)
+FIELD_PREREQUISITES: frozenset[str] = frozenset({"award_key", "notice_id", "mineru"})
+DECISION_IMPACT_PRIORITY: dict[str, int] = {
+    "qualify": 0,
+    "fund": 1,
+    "team": 2,
+    "price": 3,
+    "compliance": 4,
+    "recommend": 5,
+    "relationship": 6,
+}
+
 ALL_MS = (
     MilestoneGate.MILESTONE_1,
     MilestoneGate.MILESTONE_2,
@@ -51,6 +65,8 @@ class PacketFieldSeed:
     reference_slide: str
     answer_route: AnswerRouteStub | None = None
     template_only: bool = False
+    decision_impact: tuple[str, ...] = ()
+    prerequisites: tuple[str, ...] = ()
 
 
 def __getattr__(name: str):

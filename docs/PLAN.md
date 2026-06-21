@@ -1065,7 +1065,7 @@ primary_artifacts   — packet slide, review gate, downstream feeds (Grok, Clew,
 
 | Slice | Scope | When |
 |-------|--------|------|
-| **20c-a** | `decision_impact` + `prerequisites` on catalog seeds; **ranked data-needs strip** (rules only — deterministic-first, tag priority, prerequisite gating) | **MVP-adjacent** — after intel migration smoke; **not blocking** current sprint |
+| **20c-a** ✅ (2026-06-21) | `decision_impact` + `prerequisites` on catalog seeds; **ranked data-needs strip** (rules only — deterministic-first, tag priority, prerequisite gating) | **MVP-adjacent** — after intel migration smoke; **not blocking** current sprint |
 | **20c-b** | Bootstrap generates `foundation/packet-routing-matrix.md`; refresh `data-elements/` frontmatter; vault lint catalog ↔ wiki field_key sync | **Post-MVP** (or parallel doc-only if migration still running) |
 | **20c-c** | Optional Grok “why these next” blurb on top 3–5 open gaps (reads vault prose + packet context) | **Post-MVP** — requires 20c-a tags + stable vault matrix |
 | **20c-d** | Sibling matrices for `RISK_REGISTER_DATA_DICTIONARY` + `CALL_PLAN_DATA_DICTIONARY` (same pattern, artifact-scoped indexes) | **Post-MVP** |
@@ -1218,7 +1218,7 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 2. ~~**Phase 16h** — Checklist toggle in task drawer~~ ✅
 3. ~~**Phase 19a** — MinerU FastAPI wire + parsed markdown on capture~~ ✅ · **19e** ExtractionBundle deferred
 4. ~~**Phase 20a** — PG intel inline fill + data-needs panel~~ ✅ · ~~**20b** Grok/SAM execution~~ ✅
-5. **Phase 20c-a** (MVP-adjacent, after intel smoke) — catalog `decision_impact` tags + ranked data-needs strip (rules only)
+5. ~~**Phase 20c-a** — catalog `decision_impact` tags + ranked data-needs strip (rules only)~~ ✅
 6. **Phase 15 polish backlog** (non-blocking) — faster FAB (parallel title+spellfix); richer title prompts
 
 **Post-MVP (capture-lane polish):** 20c-b/c/d routing matrix · 22a–d operator education · DOX sparse `AGENTS.md` tree (agent codebase docs only)
@@ -1274,7 +1274,7 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 - [x] Phase 14f — Full data dictionary catalog + answer-route stubs (Phase 20 prep)
 - [x] Phase 20a — PG intel inline packet fill + data-needs strip
 - [x] Phase 20b — Grok synthesis + SAM MCP inline packet fill
-- [ ] Phase 20c-a — Routing matrix tags + ranked data-needs (MVP-adjacent)
+- [x] Phase 20c-a — Routing matrix tags + ranked data-needs (MVP-adjacent)
 - [ ] Phase 20c-b — Vault `packet-routing-matrix.md` + catalog↔wiki lint (post-MVP)
 - [ ] Phase 20c-c — Optional Grok routing advisor on open gaps (post-MVP)
 - [ ] Phase 22a — Operator reference HTML + THREAD_GLOSSARY from guides (post-MVP, agent `/teach`)

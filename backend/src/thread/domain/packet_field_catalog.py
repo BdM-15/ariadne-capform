@@ -57,6 +57,8 @@ def _f(
     deterministic: bool = False,
     feeds: tuple[str, ...] = (),
     template_only: bool = False,
+    decision_impact: tuple[str, ...] = (),
+    prerequisites: tuple[str, ...] = (),
 ) -> PacketFieldSeed:
     return PacketFieldSeed(
         key=key,
@@ -75,10 +77,19 @@ def _f(
             feeds=feeds,
         ),
         template_only=template_only,
+        decision_impact=decision_impact,
+        prerequisites=prerequisites,
     )
 
 
-def _ms1(key: str, label: str, q: str | None = None) -> PacketFieldSeed:
+def _ms1(
+    key: str,
+    label: str,
+    q: str | None = None,
+    *,
+    decision_impact: tuple[str, ...] = (),
+    prerequisites: tuple[str, ...] = (),
+) -> PacketFieldSeed:
     return _f(
         key,
         label,
@@ -90,10 +101,19 @@ def _ms1(key: str, label: str, q: str | None = None) -> PacketFieldSeed:
         "slide_17_approval",
         sources=(VAULT, PG_INTEL, GROK, HUMAN),
         hint="Vault capture notes + intel evidence → Grok criterion answer",
+        decision_impact=decision_impact,
+        prerequisites=prerequisites,
     )
 
 
-def _ms2(key: str, label: str, q: str | None = None) -> PacketFieldSeed:
+def _ms2(
+    key: str,
+    label: str,
+    q: str | None = None,
+    *,
+    decision_impact: tuple[str, ...] = (),
+    prerequisites: tuple[str, ...] = (),
+) -> PacketFieldSeed:
     return _f(
         key,
         label,
@@ -105,10 +125,19 @@ def _ms2(key: str, label: str, q: str | None = None) -> PacketFieldSeed:
         "slide_17_approval",
         sources=(VAULT, CLEW, PG_INTEL, GROK, HUMAN),
         hint="Packet fields + Clew teaming/money_flow + Grok criterion synthesis",
+        decision_impact=decision_impact,
+        prerequisites=prerequisites,
     )
 
 
-def _ms3(key: str, label: str, q: str | None = None) -> PacketFieldSeed:
+def _ms3(
+    key: str,
+    label: str,
+    q: str | None = None,
+    *,
+    decision_impact: tuple[str, ...] = (),
+    prerequisites: tuple[str, ...] = (),
+) -> PacketFieldSeed:
     return _f(
         key,
         label,
@@ -120,6 +149,8 @@ def _ms3(key: str, label: str, q: str | None = None) -> PacketFieldSeed:
         "slide_18_approval",
         sources=(VAULT, CLEW, PG_INTEL, GROK, HUMAN),
         hint="Win/pricing/risk packet bundle → Grok MS3 gate answer",
+        decision_impact=decision_impact,
+        prerequisites=prerequisites,
     )
 
 
@@ -194,7 +225,13 @@ def _path_to_blue_row(area_key: str, area_label: str) -> list[PacketFieldSeed]:
     ]
 
 
-def _team_role(key: str, label: str, gates: tuple[MilestoneGate, ...]) -> PacketFieldSeed:
+def _team_role(
+    key: str,
+    label: str,
+    gates: tuple[MilestoneGate, ...],
+    *,
+    decision_impact: tuple[str, ...] = (),
+) -> PacketFieldSeed:
     return _f(
         key,
         label,
@@ -206,6 +243,7 @@ def _team_role(key: str, label: str, gates: tuple[MilestoneGate, ...]) -> Packet
         "slide_6_team",
         sources=(HUMAN, CRM),
         hint="Org roster / CRM contact or manual assignment",
+        decision_impact=decision_impact,
     )
 
 
@@ -213,7 +251,7 @@ _CATALOG: list[PacketFieldSeed] = [
     # --- Slide 2 Cover ---
     _f("business_unit", "Business Unit", "Which business unit owns the pursuit?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_2_cover", sources=(HUMAN, CRM), hint="Org profile default or operator"),
 
-    _f("opportunity_name", "Opportunity Name", "What is the pursuit name?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_2_cover", sources=(SAM_MCP, HUMAN), hint="SAM title or operator"),
+    _f("opportunity_name", "Opportunity Name", "What is the pursuit name?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_2_cover", sources=(SAM_MCP, HUMAN), hint="SAM title or operator", decision_impact=("qualify",), prerequisites=("notice_id",)),
     _f("milestone_stage", "Milestone Stage", "Active MS gate for this packet review?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_2_cover", sources=(HUMAN,), hint="Operator MS gate selector (Phase 14 remainder)"),
     _f("packet_date", "Packet Date", "Date of this briefing?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.DATE, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_2_cover", sources=(HUMAN,), hint="Default today"),
     _f("prepared_by", "Prepared By", "Who prepared this packet?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_2_cover", sources=(HUMAN,), hint="Operator / local profile"),
@@ -226,46 +264,46 @@ _CATALOG: list[PacketFieldSeed] = [
     _f("salesforce_id", "Salesforce ID", "CRM opportunity identifier?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(CRM, HUMAN), hint="CRM import when wired"),
     _f("draft_rfp_date", "Draft RFP Date", "Expected draft RFP date?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.DATE, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(SAM_MCP, HUMAN), hint="SAM dates or operator"),
     _f("kbr_role", "Prime/Sub Role", "Prime or subcontractor role?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(HUMAN, SAM_MCP), hint="Teaming posture — operator or SAM set-aside context"),
-    _f("rfp_release_date", "RFP Release Date", "When is the RFP expected or released?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.DATE, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(SAM_MCP, HUMAN), deterministic=True, hint="SAM notice response timeline"),
-    _f("prime_name", "Prime Name", "Who is expected to prime?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.ENTITY, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(USASPENDING_MCP, PG_INTEL, CLEW), deterministic=True, hint="USAspending incumbent / Clew money_flow top recipient"),
-    _f("proposal_due_date", "Proposal Due Date", "When is the proposal due?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.DATE, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(SAM_MCP, HUMAN), deterministic=True, hint="SAM notice deadline"),
+    _f("rfp_release_date", "RFP Release Date", "When is the RFP expected or released?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.DATE, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(SAM_MCP, HUMAN), deterministic=True, hint="SAM notice response timeline", decision_impact=("qualify",), prerequisites=("notice_id",)),
+    _f("prime_name", "Prime Name", "Who is expected to prime?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.ENTITY, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(USASPENDING_MCP, PG_INTEL, CLEW), deterministic=True, hint="USAspending incumbent / Clew money_flow top recipient", decision_impact=("qualify", "team"), prerequisites=("award_key",)),
+    _f("proposal_due_date", "Proposal Due Date", "When is the proposal due?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.DATE, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(SAM_MCP, HUMAN), deterministic=True, hint="SAM notice deadline", decision_impact=("qualify", "compliance"), prerequisites=("notice_id",)),
     _f("crm_stage", "CRM Stage", "CRM lifecycle stage (00–04)?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(CRM, HUMAN), hint="CRM sync or operator"),
-    _f("award_date", "Award Date", "Expected or actual award date?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.DATE, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(USASPENDING_MCP, PG_INTEL), deterministic=True, hint="USAspending period of performance end / recompete signal"),
-    _f("customer_name", "Customer Name", "Which customer or buying command?", PacketSection.CUSTOMER_CONTEXT, PacketFieldValueKind.ENTITY, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(SAM_MCP, USASPENDING_MCP, VAULT), deterministic=True, hint="SAM agency + USAspending awarding agency; vault agency page"),
+    _f("award_date", "Award Date", "Expected or actual award date?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.DATE, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(USASPENDING_MCP, PG_INTEL), deterministic=True, hint="USAspending period of performance end / recompete signal", decision_impact=("qualify",), prerequisites=("award_key",)),
+    _f("customer_name", "Customer Name", "Which customer or buying command?", PacketSection.CUSTOMER_CONTEXT, PacketFieldValueKind.ENTITY, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(SAM_MCP, USASPENDING_MCP, VAULT), deterministic=True, hint="SAM agency + USAspending awarding agency; vault agency page", decision_impact=("qualify", "relationship")),
     _f("contract_start_date", "Contract Start", "Contract start date?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.DATE, ALL_MS, PacketFieldRouteKind.SOURCE_PROFILE_LOOKUP, "slide_4_synopsis", sources=(USASPENDING_MCP, PG_INTEL), deterministic=True, hint="USAspending award PoP start"),
     _f("mts_priority", "Capture Priority", "Priority band (A/B/O)?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(HUMAN,), hint="Leadership priority assignment"),
-    _f("contract_end_date", "Contract End", "Contract end date?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.DATE, ALL_MS, PacketFieldRouteKind.SOURCE_PROFILE_LOOKUP, "slide_4_synopsis", sources=(USASPENDING_MCP, PG_INTEL), deterministic=True, hint="USAspending PoP end — recompete radar input", feeds=(CLEW,)),
-    _f("financial_contract_type", "Financial Contract Type", "FFP, CPFF, CPAF, T&M, Multiple?", PacketSection.PRICE_TO_WIN, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_PROFILE_LOOKUP, "slide_4_synopsis", sources=(USASPENDING_MCP, PG_INTEL), deterministic=True, hint="USAspending type_of_contract_pricing"),
-    _f("total_contract_value", "Total Contract Value", "Total contract value?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.MONEY, ALL_MS, PacketFieldRouteKind.SOURCE_PROFILE_LOOKUP, "slide_4_synopsis", sources=(USASPENDING_MCP, PG_INTEL), deterministic=True, hint="USAspending obligated amount on award_key"),
-    _f("new_business_or_recompete", "New Business / Recompete", "New business or recompete?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.RESEARCH_OR_MCP, "slide_4_synopsis", sources=(PG_INTEL, CLEW, VAULT), hint="Recompete radar + incumbent match on award_key"),
+    _f("contract_end_date", "Contract End", "Contract end date?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.DATE, ALL_MS, PacketFieldRouteKind.SOURCE_PROFILE_LOOKUP, "slide_4_synopsis", sources=(USASPENDING_MCP, PG_INTEL), deterministic=True, hint="USAspending PoP end — recompete radar input", feeds=(CLEW,), decision_impact=("qualify", "fund"), prerequisites=("award_key",)),
+    _f("financial_contract_type", "Financial Contract Type", "FFP, CPFF, CPAF, T&M, Multiple?", PacketSection.PRICE_TO_WIN, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_PROFILE_LOOKUP, "slide_4_synopsis", sources=(USASPENDING_MCP, PG_INTEL), deterministic=True, hint="USAspending type_of_contract_pricing", decision_impact=("price", "fund"), prerequisites=("award_key",)),
+    _f("total_contract_value", "Total Contract Value", "Total contract value?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.MONEY, ALL_MS, PacketFieldRouteKind.SOURCE_PROFILE_LOOKUP, "slide_4_synopsis", sources=(USASPENDING_MCP, PG_INTEL), deterministic=True, hint="USAspending obligated amount on award_key", decision_impact=("fund", "qualify"), prerequisites=("award_key",)),
+    _f("new_business_or_recompete", "New Business / Recompete", "New business or recompete?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.RESEARCH_OR_MCP, "slide_4_synopsis", sources=(PG_INTEL, CLEW, VAULT), hint="Recompete radar + incumbent match on award_key", decision_impact=("qualify",), prerequisites=("award_key",)),
     _f("bookable_revenue", "Bookable Revenue", "Bookable revenue estimate?", PacketSection.PRICE_TO_WIN, PacketFieldValueKind.MONEY, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_4_synopsis", sources=(FINANCE, GROK, HUMAN), hint="Finance model or operator"),
-    _f("pwin_percent", "pWin %", "Probability of win?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.PERCENTAGE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_4_synopsis", sources=(PG_INTEL, CLEW, VAULT, GROK), hint="Competitive intel + Grok estimate — review gate"),
+    _f("pwin_percent", "pWin %", "Probability of win?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.PERCENTAGE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_4_synopsis", sources=(PG_INTEL, CLEW, VAULT, GROK), hint="Competitive intel + Grok estimate — review gate", decision_impact=("recommend", "qualify")),
     _f("operating_income_margin_percent", "Operating Income Margin", "Operating income margin %?", PacketSection.PRICE_TO_WIN, PacketFieldValueKind.PERCENTAGE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_4_synopsis", sources=(FINANCE, GROK), hint="Finance model"),
-    _f("primary_scope_description", "Primary Scope", "Description of work / primary scope?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_4_synopsis", sources=(SAM_MCP, MINERU, GROK), hint="SAM description + MinerU SOW parse → Grok summary"),
+    _f("primary_scope_description", "Primary Scope", "Description of work / primary scope?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_4_synopsis", sources=(SAM_MCP, MINERU, GROK), hint="SAM description + MinerU SOW parse → Grok summary", decision_impact=("qualify",), prerequisites=("notice_id",)),
     _f("number_of_ftes", "Number of FTEs", "Estimated FTE count?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_4_synopsis", sources=(MINERU, GROK, HUMAN), hint="SOW evidence or staffing model"),
-    _f("competition_company_1_name", "Competitor 1", "Primary competitor / incumbent?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.ENTITY, ALL_MS, PacketFieldRouteKind.RESEARCH_OR_MCP, "slide_4_synopsis", sources=(USASPENDING_MCP, PG_INTEL, CLEW), deterministic=True, hint="USAspending top recipient on NAICS/agency facet"),
+    _f("competition_company_1_name", "Competitor 1", "Primary competitor / incumbent?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.ENTITY, ALL_MS, PacketFieldRouteKind.RESEARCH_OR_MCP, "slide_4_synopsis", sources=(USASPENDING_MCP, PG_INTEL, CLEW), deterministic=True, hint="USAspending top recipient on NAICS/agency facet", decision_impact=("qualify", "team"), prerequisites=("award_key",)),
     _f("competition_company_1_role", "Competitor 1 Role", "Incumbent or challenger role?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.RESEARCH_OR_MCP, "slide_4_synopsis", sources=(PG_INTEL, CLEW), hint="Incumbent if matches award recipient"),
     _f("competition_company_2_name", "Competitor 2", "Second competitor?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.ENTITY, ALL_MS, PacketFieldRouteKind.RESEARCH_OR_MCP, "slide_4_synopsis", sources=(CLEW, PG_INTEL, WEB_RESEARCH), hint="Clew recipient_landscape rank 2"),
     _f("competition_company_2_role", "Competitor 2 Role", "Role/notes for competitor 2?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_4_synopsis", sources=(WEB_RESEARCH, GROK), hint="Research + synthesis"),
     _f("competition_company_3_name", "Competitor 3", "Third competitor?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.ENTITY, ALL_MS, PacketFieldRouteKind.RESEARCH_OR_MCP, "slide_4_synopsis", sources=(CLEW, PG_INTEL), hint="Clew landscape rank 3"),
     _f("competition_company_3_role", "Competitor 3 Role", "Role/notes for competitor 3?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_4_synopsis", sources=(WEB_RESEARCH, GROK), hint="Research + synthesis"),
-    _f("small_business_goal", "Small Business Goal", "Small business participation goal?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(SAM_MCP, MINERU), hint="SAM set-aside / solicitation text"),
+    _f("small_business_goal", "Small Business Goal", "Small business participation goal?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_4_synopsis", sources=(SAM_MCP, MINERU), hint="SAM set-aside / solicitation text", decision_impact=("compliance",), prerequisites=("notice_id",)),
     _f("special_considerations", "Special Considerations", "Special acquisition considerations?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_4_synopsis", sources=(SAM_MCP, MINERU, GROK), hint="Solicitation flags → Grok summary"),
     # --- Slide 5 BLUF ---
-    _f("opportunity_context", "Opportunity Context", "What does leadership need to know?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_5_bluf", sources=(VAULT, PG_INTEL, SAM_MCP, GROK), hint="Vault + intel + SAM → Grok BLUF context"),
+    _f("opportunity_context", "Opportunity Context", "What does leadership need to know?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_5_bluf", sources=(VAULT, PG_INTEL, SAM_MCP, GROK), hint="Vault + intel + SAM → Grok BLUF context", decision_impact=("recommend", "qualify")),
     _f("strategic_fit_summary", "Strategic Fit", "Fit against BU/Division strategy?", PacketSection.SOLUTION_STRATEGY, PacketFieldValueKind.PROSE, MS1_MS2, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_5_bluf", sources=(VAULT, GROK, HUMAN), hint="domain_intel capabilities + Grok"),
     _f("acquisition_capture_progress", "Capture Progress", "Acquisition/capture progress?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_5_bluf", sources=(ACTION_PLAN, VAULT, GROK), hint="Action plan status + vault notes"),
     _f("customer_need_funding_status", "Customer Need / Funding", "Ongoing need and funding context?", PacketSection.CUSTOMER_CONTEXT, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.CUSTOMER_CALL_PLAN, "slide_5_bluf", sources=(USASPENDING_MCP, WEB_RESEARCH, VAULT, GROK), hint="USAspending agency spend + customer research"),
-    _f("competitive_landscape_summary", "Competitive Landscape", "Overall competitive landscape?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.RESEARCH_OR_MCP, "slide_5_bluf", sources=(CLEW, PG_INTEL, VAULT, WEB_RESEARCH, GROK), hint="Clew traces + vault competitors → Grok prose"),
+    _f("competitive_landscape_summary", "Competitive Landscape", "Overall competitive landscape?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.RESEARCH_OR_MCP, "slide_5_bluf", sources=(CLEW, PG_INTEL, VAULT, WEB_RESEARCH, GROK), hint="Clew traces + vault competitors → Grok prose", decision_impact=("qualify", "team")),
     _f("ms1_bluf_focus", "MS1 BLUF Focus", "MS1 focus: market intel, relationships, B&P?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.PROSE, MS1_ONLY, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_5_bluf", sources=(PG_INTEL, VAULT, GROK), hint="Intel inbox + vault for qualification gate"),
     _f("ms2_bluf_focus", "MS2 BLUF Focus", "MS2 focus: engagement, gaps, teaming, B&P?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.PROSE, MS2_UP, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_5_bluf", sources=(CLEW, VAULT, GROK), hint="Teaming + gap-fill Clew modes"),
     _f("ms3_bluf_focus", "MS3 BLUF Focus", "MS3 focus: closure, staffing, B&P?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.PROSE, MS3_UP, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_5_bluf", sources=(VAULT, GROK, HUMAN), hint="Packet completion + staffing status"),
     _f("what_it_takes_to_win", "What Will It Take To Win?", "Capture and ops hurdles to win?", PacketSection.SOLUTION_STRATEGY, PacketFieldValueKind.PROSE, MS2_UP, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_5_bluf", sources=(VAULT, CLEW, GROK), hint="SWOT + Clew + vault win themes"),
-    _f("recommendation", "Recommendation", "Leadership-ready recommendation?", PacketSection.RECOMMENDATION_AND_NEXT_ACTIONS, PacketFieldValueKind.DECISION, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_5_bluf", sources=(GROK, HUMAN), hint="Synthesis of packet gaps → proceed/hold/no-bid"),
+    _f("recommendation", "Recommendation", "Leadership-ready recommendation?", PacketSection.RECOMMENDATION_AND_NEXT_ACTIONS, PacketFieldValueKind.DECISION, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_5_bluf", sources=(GROK, HUMAN), hint="Synthesis of packet gaps → proceed/hold/no-bid", decision_impact=("recommend",)),
     # --- Slide 6 Team ---
     _f("operating_unit", "Operating Unit (OU)", "Which operating unit owns the pursuit?", PacketSection.OPPORTUNITY_OVERVIEW, PacketFieldValueKind.TEXT, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_6_team", sources=(HUMAN, CRM), hint="Assigned at MS1 — org profile or operator"),
     _team_role("business_unit_division", "Business Unit Division", ALL_MS),
-    _team_role("capture_manager", "Capture Manager", ALL_MS),
+    _team_role("capture_manager", "Capture Manager", ALL_MS, decision_impact=("team",)),
     _team_role("operations_leader", "Operations Leader", ALL_MS),
     _team_role("solution_architect", "Solution Architect", ALL_MS),
     _team_role("proposal_manager", "Proposal Manager", ALL_MS),
@@ -297,7 +335,7 @@ _CATALOG: list[PacketFieldSeed] = [
     _f("evaluation_factors", "Evaluation Factors Table", "Factor/subfactor table (JSON rows)?", PacketSection.REQUIREMENTS_AND_SCOPE, PacketFieldValueKind.PROSE, MS2_UP, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_7_evaluation", sources=(MINERU,), hint="Structured Section M parse"),
     # --- Slide 8 SWOT (required MS1–MS3 per deck marker) ---
     _f("swot_strengths", "SWOT Strengths", "Key strengths?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_8_swot", sources=(VAULT, PG_INTEL, GROK), hint="Capabilities + past performance evidence"),
-    _f("swot_weaknesses", "SWOT Weaknesses", "Key weaknesses?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_8_swot", sources=(VAULT, CLEW, GROK), hint="Gap-fill teaming + honest gap analysis"),
+    _f("swot_weaknesses", "SWOT Weaknesses", "Key weaknesses?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_8_swot", sources=(VAULT, CLEW, GROK), hint="Gap-fill teaming + honest gap analysis", decision_impact=("qualify", "team")),
     _f("swot_opportunities", "SWOT Opportunities", "Key opportunities?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_8_swot", sources=(PG_INTEL, WEB_RESEARCH, GROK), hint="Market signals + research"),
     _f("swot_threats", "SWOT Threats", "Key threats?", PacketSection.COMPETITIVE_POSITION, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_8_swot", sources=(CLEW, WEB_RESEARCH, GROK), hint="Competitor concentration + intel"),
     # --- Slide 9 Path to Blue ---
@@ -334,26 +372,26 @@ _CATALOG: list[PacketFieldSeed] = [
     _f("proposal_risks", "Proposal Risks", "Proposal-phase risks?", PacketSection.RISKS_AND_GAPS, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_13_risks", sources=(MINERU, GROK, HUMAN), hint="Compliance/shred gaps → risk rows"),
     _f("execution_risks", "Execution Risks", "Execution-phase risks?", PacketSection.RISKS_AND_GAPS, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.MODEL_SYNTHESIS, "slide_13_risks", sources=(VAULT, GROK, HUMAN), hint="Ops/past performance risk synthesis"),
     # --- Slide 14 Actions ---
-    _f("action_plan_items", "Action Plan Items", "Capture action plan rows?", PacketSection.RECOMMENDATION_AND_NEXT_ACTIONS, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_14_actions", sources=(ACTION_PLAN,), deterministic=True, hint="Sync from workspace Actions matrix"),
+    _f("action_plan_items", "Action Plan Items", "Capture action plan rows?", PacketSection.RECOMMENDATION_AND_NEXT_ACTIONS, PacketFieldValueKind.PROSE, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_14_actions", sources=(ACTION_PLAN,), deterministic=True, hint="Sync from workspace Actions matrix", decision_impact=("recommend",)),
     # --- Slide 15 Questions ---
     _f("questions_slide_enabled", "Questions Slide Enabled?", "Include questions slide?", PacketSection.RECOMMENDATION_AND_NEXT_ACTIONS, PacketFieldValueKind.BOOLEAN, ALL_MS, PacketFieldRouteKind.SOURCE_BACKED_ANSWER, "slide_15_questions", sources=(HUMAN,), hint="Template toggle", template_only=True),
     # --- Slide 17 MS1 & MS2 approval ---
     _ms1("ms1_strategic_fit_confirmed", "Strategic fit confirmed?"),
-    _ms1("ms1_customer_decision_maker_identified", "Customer decision-maker identified?"),
+    _ms1("ms1_customer_decision_maker_identified", "Customer decision-maker identified?", decision_impact=("relationship", "qualify")),
     _ms1("ms1_customer_access_plan_established", "Viable customer access plan established?"),
-    _ms1("ms1_customer_funding_and_opportunity_credible", "Customer funding and opportunity credible?"),
+    _ms1("ms1_customer_funding_and_opportunity_credible", "Customer funding and opportunity credible?", decision_impact=("fund", "qualify")),
     _ms1("ms1_acquisition_timeline_defined", "Anticipated acquisition timeline defined?"),
     _ms1("ms1_acquisition_strategy_understood", "Customer acquisition strategy understood?"),
     _ms1("ms1_business_unit_identified_accountable", "Business Unit identified and accountable?"),
     _ms1("ms1_capture_manager_available_qualified", "Capture Manager available and qualified?"),
     _ms1("ms1_oci_sweep_initiated", "OCI Sweep initiated?"),
     _ms2("ms2_capture_strategy_plan_validated", "Capture strategy and plan validated?"),
-    _ms2("ms2_teaming_strategy_validated", "Teaming strategy validated?"),
+    _ms2("ms2_teaming_strategy_validated", "Teaming strategy validated?", decision_impact=("team", "qualify")),
     _ms2("ms2_teaming_agreements_ready", "Teaming agreements ready for execution?"),
     _ms2("ms2_pursuit_team_available_qualified", "Pursuit Team available and qualified?"),
-    _ms2("ms2_initial_pricing_strategy_acceptable", "Initial pricing strategy acceptable?"),
+    _ms2("ms2_initial_pricing_strategy_acceptable", "Initial pricing strategy acceptable?", decision_impact=("price",)),
     _ms2("ms2_oci_assessment_complete_acceptable", "OCI assessment complete and acceptable?"),
-    _ms2("ms2_pwin_reassessed_matured", "pWin reassessed and matured?"),
+    _ms2("ms2_pwin_reassessed_matured", "pWin reassessed and matured?", decision_impact=("recommend", "qualify")),
     _ms2("ms2_unique_hiring_investment_expenses_approved", "Unique hiring/investment expenses approved?"),
     _ms2("ms2_bp_budget_estimate_approved", "B&P budget estimate approved?"),
     # --- Slide 18 MS3 & MS4 approval ---
@@ -363,7 +401,7 @@ _CATALOG: list[PacketFieldSeed] = [
     _ms3("ms3_win_strategy_validated", "Win strategy validated?"),
     _ms3("ms3_oci_reassessed_acceptable", "OCI reassessed and acceptable?"),
     _ms3("ms3_pwin_reassessed_matured", "pWin reassessed and matured?"),
-    _ms3("ms3_pricing_strategy_ptw_approved", "Pricing strategy and PTW approved?"),
+    _ms3("ms3_pricing_strategy_ptw_approved", "Pricing strategy and PTW approved?", decision_impact=("price", "recommend")),
     _ms3("ms3_execution_risks_acceptable", "Execution risks acceptable?"),
     _ms3("ms3_bp_budget_adjustments_approved", "B&P budget adjustments approved?"),
     _ms4("ms4_compelling_compliant_proposal_developed", "Compelling compliant proposal developed?"),

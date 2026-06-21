@@ -27,7 +27,7 @@ from thread.domain.packet_answer_sources import (
     VAULT,
     WEB_RESEARCH,
 )
-from thread.domain.packet_field_seed import FIELD_SEED_BY_KEY
+from thread.domain.packet_field_seed import DECISION_IMPACT_PRIORITY, FIELD_SEED_BY_KEY
 from thread.intel.pg_queries import get_award_profile
 from thread.llm.router import CompletionResult, LlmRouterError, LlmTaskKind, complete
 from thread.mcp.service import MCPService
@@ -73,6 +73,40 @@ class DataNeedItem:
     slide: str
     route_kind: str
     deterministic: bool
+    decision_impact: tuple[str, ...] = ()
+    prerequisites: tuple[str, ...] = ()
+    blocked: bool = False
+    blocked_reason: str = ""
+
+
+_PREREQ_LABELS: dict[str, str] = {
+    "award_key": "award link",
+    "notice_id": "SAM notice",
+    "mineru": "parsed solicitation",
+}
+
+
+def _impact_sort_key(tags: tuple[str, ...]) -> tuple[int, str]:
+    if not tags:
+        return (99, "")
+    best = min(DECISION_IMPACT_PRIORITY.get(tag, 99) for tag in tags)
+    primary = next(tag for tag in tags if DECISION_IMPACT_PRIORITY.get(tag, 99) == best)
+    return (best, primary)
+
+
+def _prerequisite_met(prereq: str, context: dict[str, Any]) -> bool:
+    if prereq == "award_key":
+        return bool((context.get("award_key") or "").strip())
+    if prereq == "notice_id":
+        return bool((context.get("notice_id") or "").strip())
+    if prereq == "mineru":
+        return bool(context.get("has_mineru"))
+    return True
+
+
+def _blocked_reason(missing: tuple[str, ...]) -> str:
+    labels = [_PREREQ_LABELS.get(item, item) for item in missing]
+    return "Needs " + ", ".join(labels)
 
 
 def _award_key_from_opp(opp: Opportunity) -> str | None:
@@ -145,14 +179,22 @@ def _format_award_value(field_key: str, profile: dict[str, Any]) -> str | None:
     return str(raw).strip()
 
 
-def build_data_needs(fields: list[dict[str, Any]], *, limit: int = 12) -> dict[str, Any]:
+def build_data_needs(
+    fields: list[dict[str, Any]],
+    *,
+    limit: int = 12,
+    context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """MS-critical open elements for workspace data-needs strip."""
+    ctx = context or {}
     open_items: list[DataNeedItem] = []
     for field in fields:
         value = (field.get("value") or "").strip()
         status = field.get("status", "")
         if value and status not in ("unanswered", "gap"):
             continue
+        prereqs = tuple(field.get("prerequisites") or ())
+        missing = tuple(p for p in prereqs if not _prerequisite_met(p, ctx))
         open_items.append(
             DataNeedItem(
                 field_key=field["field_key"],
@@ -160,11 +202,26 @@ def build_data_needs(fields: list[dict[str, Any]], *, limit: int = 12) -> dict[s
                 slide=field.get("reference_slide") or "",
                 route_kind=field.get("route_kind") or "",
                 deterministic=bool(field.get("deterministic")),
+                decision_impact=tuple(field.get("decision_impact") or ()),
+                prerequisites=prereqs,
+                blocked=bool(missing),
+                blocked_reason=_blocked_reason(missing) if missing else "",
             )
         )
-    open_items.sort(key=lambda item: (0 if item.deterministic else 1, item.label))
+    open_items.sort(
+        key=lambda item: (
+            1 if item.blocked else 0,
+            0 if item.deterministic else 1,
+            _impact_sort_key(item.decision_impact),
+            item.label,
+        )
+    )
+    ready_count = sum(1 for item in open_items if not item.blocked)
+    blocked_count = len(open_items) - ready_count
     return {
         "count": len(open_items),
+        "ready_count": ready_count,
+        "blocked_count": blocked_count,
         "gaps": [
             {
                 "field_key": item.field_key,
@@ -172,6 +229,9 @@ def build_data_needs(fields: list[dict[str, Any]], *, limit: int = 12) -> dict[s
                 "slide": item.slide,
                 "route_kind": item.route_kind,
                 "deterministic": item.deterministic,
+                "decision_impact": list(item.decision_impact),
+                "blocked": item.blocked,
+                "blocked_reason": item.blocked_reason,
             }
             for item in open_items[:limit]
         ],

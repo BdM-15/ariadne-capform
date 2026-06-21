@@ -26,7 +26,83 @@ def test_build_data_needs_counts_open_fields():
         ]
     )
     assert needs["count"] == 1
+    assert needs["ready_count"] == 1
+    assert needs["blocked_count"] == 0
     assert needs["gaps"][0]["field_key"] == "a"
+
+
+def test_build_data_needs_ranks_deterministic_and_impact_tags():
+    needs = build_data_needs(
+        [
+            {
+                "field_key": "slow",
+                "label": "Slow Field",
+                "value": "",
+                "status": "unanswered",
+                "reference_slide": "slide_5_bluf",
+                "route_kind": "model_synthesis",
+                "deterministic": False,
+                "decision_impact": ("recommend",),
+            },
+            {
+                "field_key": "qualify_slow",
+                "label": "Qualify Slow",
+                "value": "",
+                "status": "unanswered",
+                "reference_slide": "slide_5_bluf",
+                "route_kind": "model_synthesis",
+                "deterministic": False,
+                "decision_impact": ("qualify",),
+            },
+            {
+                "field_key": "fast",
+                "label": "Fast Field",
+                "value": "",
+                "status": "unanswered",
+                "reference_slide": "slide_4_synopsis",
+                "route_kind": "source_profile_lookup",
+                "deterministic": True,
+                "decision_impact": ("fund",),
+            },
+        ]
+    )
+    keys = [gap["field_key"] for gap in needs["gaps"]]
+    assert keys == ["fast", "qualify_slow", "slow"]
+
+
+def test_build_data_needs_defers_missing_prerequisites():
+    needs = build_data_needs(
+        [
+            {
+                "field_key": "prime_name",
+                "label": "Prime Name",
+                "value": "",
+                "status": "unanswered",
+                "reference_slide": "slide_4_synopsis",
+                "route_kind": "source_backed_answer",
+                "deterministic": True,
+                "decision_impact": ("qualify", "team"),
+                "prerequisites": ("award_key",),
+            },
+            {
+                "field_key": "capture_manager",
+                "label": "Capture Manager",
+                "value": "",
+                "status": "unanswered",
+                "reference_slide": "slide_6_team",
+                "route_kind": "source_backed_answer",
+                "deterministic": False,
+                "decision_impact": ("team",),
+            },
+        ],
+        context={"award_key": "", "notice_id": ""},
+    )
+    assert needs["blocked_count"] == 1
+    assert needs["ready_count"] == 1
+    assert needs["gaps"][0]["field_key"] == "capture_manager"
+    assert needs["gaps"][1]["field_key"] == "prime_name"
+    assert needs["gaps"][1]["blocked"] is True
+    assert "award link" in needs["gaps"][1]["blocked_reason"]
 
 
 def test_workflow_pg_intel_executable_for_prime_name():
