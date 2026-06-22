@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-22 (Incubator develop/publish in plan; intel bulk migration complete; raw-data ETL assessment)
+**Last updated:** 2026-06-22 (MVP reprioritize — Data Insights command surface; defer Incubator 21b+ / intel ETL polish)
 
 ---
 
@@ -19,20 +19,19 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | `.env` / `config.py` | ✅ Done | Full categorized config including research, MCP, orchestration |
 | Docker Compose | ✅ Done | Postgres **16** image on `:55432` (matches volume; PG18 needs pg_upgrade) + `research` profile |
 | Reference corpus | ✅ Done | Briefing packet, call plan, risk register, Shipley, USAspending |
-| Workflow DB models | 🟡 Partial | Opportunities, packet, actions, review, **`operator_tasks` (Phase 16 ✅)**; missing intel/research/capability tables |
-| Alembic migrations | ❌ Not started | Still using `create_all()` |
+| Workflow DB models | 🟡 Partial | Opportunities, packet, actions, review, **`operator_tasks` (Phase 16 ✅)** |
+| Alembic migrations | ✅ Done | Workflow tables via Alembic; intel tables via bulk migration script |
 | Intel migration (bulk zip→PG) | ✅ Complete | 64.2M prime + 1.5M sub · indexes built · `scripts/run-intel-migration.ps1 --status` |
-| `pg_queries` intel layer | ✅ Done | Core queries + portfolio intel signals |
-| LLM router (Grok + Ollama) | ❌ Not started | Config only |
-| Web research module | ❌ Not started | Config + docker profile only |
-| Skill runtime (3 skills) | ❌ Not started | SKILL.md stubs exist |
-| MCP manifests | 🟡 Partial | USAspending only; 7 more planned |
-| Frontend command center | 🟡 Foundation shell | HTMX Command Center, Pulse (`/pulse`), **Capture** (`/capture`), workspace (`/capture/{id}`); Phase 12b–12l + 14a–14h ✅ — Phase 19/20 next |
+| `pg_queries` intel layer | ✅ Done | Core queries + Clew analyze + portfolio intel signals |
+| LLM router (Grok + Ollama) | ✅ Done | Reasoning → xAI; admin → Ollama |
+| Web research module | ✅ MVP | SearXNG/Crawl4AI adapters + `/api/research/*` |
+| Skill runtime + MCP | ✅ MVP | 8 MCP manifests + skills run UX on `/tools/skills` |
+| Frontend command center | 🟡 Product gap | Shell + Pulse + Filament ✅ — **Data Insights analytics page incomplete** (17e) |
 | Theseus visual language | ✅ Done | `frontend/styles/theseus.css` synced from proj-theseus |
 | Orchestration (LangGraph) | 🟡 Placeholder | Env + tracing bootstrap; runtime deferred |
 | Git | ✅ Done | Repo pushed; commit early/often |
 
-**Resume here:** Foundation + intel bulk load ✅. **MVP focus:** operator tasks lane, capture/Incubator polish, Clew/radar on loaded PG. **Post-MVP:** intel ETL cleanup layer (see below) — raw COPY is MVP-grade for queries, not production analytics hygiene.
+**Resume here:** Foundation + intel bulk load ✅. **MVP focus:** close **Lane 1 identification loop** — Data Insights command surface (17e) → Watch → Track → packet fill. **Defer:** Incubator 21b–21d, intel ETL polish beyond views, Clew interact/FH hierarchy, education/DOX.
 
 ---
 
@@ -583,7 +582,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 ## MVP scope
 
-**Operator lanes:** Opportunity identification · Capture development · Winning proposals (see above).
+**Operator lanes:** Opportunity identification · Capture development · Winning proposals (see above). **Win lane (Studio/Theseus) is post-MVP.**
 
 **Platform pillars:**
 
@@ -592,6 +591,20 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 3. **Developer Skills** — skill-creator, clew_intel, mcp_federal_tools
 4. **Data & Intel** — PG intel, 1102 MCPs, web research, MinerU utility
 5. **Config & Stack** — FastAPI HTMX shell, PostgreSQL, Grok-primary reasoning
+
+### MVP sign-off test (do not lose sight of this)
+
+> Can a solo operator **find a pursuit**, **watch** it, **track** it, **open a packet**, and **fill fields from intel** — without fighting the UI or waiting on unfinished plumbing?
+
+| Step | MVP must prove | Current gap |
+|------|----------------|-------------|
+| **Find** | Run facet slice on `/insights`, see **market picture** (not just expiring rows), spot agency/competitor worth pursuing | `/insights` = expiring list + SAM; charts live on `/clew` only; no capture-insights-style overview KPIs |
+| **Watch** | One-click Watch from Insights row → Pulse watchlist with provenance | ✅ wired |
+| **Track** | Pulse watchlist → Track form → opportunity `pursuing` | ✅ wired — needs E2E smoke |
+| **Open packet** | `/capture/{id}` slide workspace loads | ✅ wired |
+| **Fill from intel** | `POST …/packet/{field}/fill` from award_key / Clew context | ✅ 20a/20b — needs pursuit seeded from Insights path |
+
+**MVP is not:** Incubator Develop/Publish, intel dedup matview, Clew Sankey click-expand, FH agency hierarchy, routing matrix prose, or education curriculum.
 
 ---
 
@@ -640,7 +653,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 |--------|------------|-------------|
 | Command Center (`/`) | Attention widgets, compact nav, pursuit rail — **not** analytics home | Widget row (12c–12h): reviews, phase band, hot signals, health strip, **quick actions**; anti-pattern: metrics dump |
 | Portfolio Pulse (`/pulse`) | Morning briefing: **watchlist** + inbox + digest + capture snapshot | Identify-only; Track → `/capture/{id}`; not packet home |
-| Data Insights (`/insights`) | ✅ Live explore + bookmarks + Watch; **Connect the dots** (17b, DR-inspired) | PG18 vectors + MinerU search (17c) |
+| Data Insights (`/insights`) | 🟡 Facet explore + Watch + bookmarks; Clew on separate `/clew` | **17e** command surface — overview KPIs + charts + drill-down lenses (capture-insights visuals, Thread facet model) |
 | **Filament** (`/capture`) | ✅ Post-identify pursuit list; nav **Filament** (connected packets, not hand-jammed decks) | CRM pipeline board (deferred) |
 | Filament workspace (`/capture/{id}`) | ✅ Slide canvas + **connected fill routes** (14j/20a/20b) + evidence inspector; MS pills | Phase 20c ranked routing matrix + optional Grok advisor |
 | Sidebar nav | Command / Identify / **Filament** (home first) / **Tools** / Win / System | Studio route (Phase 21) |
@@ -886,6 +899,71 @@ Central artifact — not “parallel afterthought.”
 
 **17d (future):** Distinct-value facet autocomplete from PG intel (+ FH table labels) — quick win before 17c semantic search.
 
+#### Phase 17e — Data Insights command surface (MVP blocker)
+
+**Problem capture-insights got wrong (do not repeat):**
+
+| Anti-pattern | Why it failed |
+|--------------|---------------|
+| **NAICS-defaulted dashboard** (`useState('561210')`) | Every tab was “market for 561210” — not operator-defined slices; violated peer-facet doctrine |
+| **Parallel tab overviews** | Market / Agency / Competitive / Vehicles each re-loaded bootstrap KPIs for the same NAICS — tabs were duplicate overviews, not complementary lenses |
+| **No drill-down context** | Seeing “Lockheed dominates” on Overview did not narrow the slice — operator had to re-type facets manually |
+| **Overview ≠ command** | Overview was a report page; tabs did not inherit or refine the same **active slice** |
+
+**Thread fix — one active slice, lenses not duplicate dashboards:**
+
+```mermaid
+flowchart TD
+  Facets[Operator defines facet slice] --> Run[Run slice]
+  Run --> Overview[Overview lens — C&C for THIS slice]
+  Overview -->|click recipient| NarrowR[Slice + recipient locked]
+  Overview -->|click agency| NarrowA[Slice + agency locked]
+  NarrowR --> Lenses[Lenses share same slice context]
+  NarrowA --> Lenses
+  Lenses --> Recompete[Recompete — expiring in slice]
+  Lenses --> Competition[Competition — set-aside + extent competed]
+  Lenses --> Trace[Trace — Clew pre-filled]
+  Lenses --> Watch[Watch row → Pulse]
+  Watch --> Track[Track → Capture]
+  Track --> Fill[Packet fill from award_key]
+```
+
+**Core concepts:**
+
+| Concept | Definition |
+|---------|------------|
+| **Slice** | Active `InsightFacetQuery` — agency, sub_agency, recipient, naics, psc (peer facets, **zero platform defaults**) |
+| **Overview lens** | Command surface for the slice: KPI strip + “what jumped out” + top entities with **Hone** actions |
+| **Lens** | A view on the **same slice** — different question, not a new overview (Recompete, Competition, Agency mix, Trace) |
+| **Hone** | Click chart/table row → append facet dimension → re-run slice (breadcrumb shows drill path) |
+| **Saved lens** | Bookmark to reopen slice + optional lens tab — not Pulse remote control |
+
+**Visual inventory (reuse capture-insights queries + ECharts; mine Superset recipes, no Superset install):**
+
+| Visual | Question it answers | capture-insights source | MVP priority |
+|--------|---------------------|-------------------------|--------------|
+| KPI strip | How big is this slice? | `get_dashboard_bootstrap` / market summary | **P0** |
+| FY spend trend | Growing or shrinking? | `fy_trends` / Clew `spend_trend` | **P0** |
+| Set-aside donut | Small biz vs full & open? | `get_set_aside_breakdown` · use `set_aside_chart_bucket` view | **P0** |
+| Extent competed bar | How competed is work? | `by_extent_competed` (vehicle analysis) | **P0** |
+| Top recipients bar | Who wins here? | `top_recipients` · click → Hone recipient | **P0** |
+| Top agencies bar | Who buys? | agency intensity / flows | **P1** |
+| Expiring table | What recompetes soon? | current `/insights` explore rows | **P0** (exists — move under Recompete lens) |
+| Money-flow Sankey | Recipient → agency paths | Clew `money_flow` | **P1** (link to `/clew` or embed) |
+| Geo / vehicles / combo | POP state, IDV mix, combos | capture-insights tabs | **Post-MVP** |
+
+**17e slices (implementation order):**
+
+| Slice | Scope | Done when |
+|-------|--------|-----------|
+| **17e-a** | **Slice context bar** — show active facets + breadcrumbs after Hone; persist in HTMX form hidden fields | Operator always knows what data means |
+| **17e-b** | **Overview lens** — KPI + FY trend + set-aside + extent competed + top recipients (ECharts on `/insights`) | Run facet → see market picture in &lt;30s cached |
+| **17e-c** | **Hone interactions** — click recipient/agency bar → narrow slice → refresh all lenses | “Why is Lockheed getting money?” is one click |
+| **17e-d** | **Lens tabs** — Overview · Recompete · Competition · Trace (Clew handoff) — shared slice, not duplicate bootstraps | Tabs complement Overview; each answers one follow-up question |
+| **17e-e** | **Sign-off E2E smoke** — facet → hone → Watch → Pulse → Track → packet fill one field | MVP sign-off test passes |
+
+**Clew boundary:** `/clew` stays the deep trace workbench (Sankey, teaming, saved traces). `/insights` Overview links **Trace** lens with facets pre-filled; do not duplicate full Clew UI on Insights.
+
 ### Phase 15 — Knowledge vault browser + Capture Studio
 
 **15 ✅ (2026-06-18):** `/knowledge` replaces shell stub — two-pane HTMX browser over `knowledge/thread/` (read-only). Tree nav + breadcrumbs; `.md` rendered via marked + wikilink deep links; `.json` raw view. API already at `/api/knowledge/vault/*`. Pulse digest **Open** links deep-link to vault pages. Unblocks **17b-vault** (Clew trusted → wiki ingest).
@@ -947,13 +1025,13 @@ flowchart LR
 
 **Done (21a):** `write_incubator_note`, slim seed body, Incubator UI (Hold/Develop/Reject), seed edit/polish/re-parse, rejected seeds list, publish blocked on `maturity: seed`.
 
-**MVP backlog (21b–21d):**
+**Deferred post-MVP (21b–21d)** — do not block Lane 1 sign-off:
 
 | Slice | Scope | Model |
 |-------|--------|-------|
-| **21b** | Develop button → ingest plan preview (structured JSON) + operator edit | `LlmTaskKind.INGEST_PLAN` — **frontier selectable** when `capture_kind=document` or vault context > N tokens |
-| **21c** | Context packer: seed + Layer 1 excerpt + related vault pages + dedup hints + `capture-llm-wiki` rules | Retrieval bounded — never whole vault |
-| **21d** | Publish executes approved plan (primary + related pages, index, log) — replaces bulk `append_trusted_page` promote | Deterministic writes; LLM not required |
+| **21b** | Develop button → ingest plan preview (structured JSON) + operator edit | `LlmTaskKind.INGEST_PLAN` — frontier selectable |
+| **21c** | Context packer: seed + Layer 1 excerpt + related vault pages + dedup hints | Retrieval bounded |
+| **21d** | Publish executes approved plan → trusted pages | Deterministic writes |
 
 **LangGraph:** Deferred until 21c plan generation needs multi-step fan-out (research enrich → plan → human interrupt). Route-first Develop v1 is one frontier call + JSON schema.
 
@@ -1270,8 +1348,9 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 8. Semantic vault search (OpenAI embeddings)
 9. Neo4j import from `edges.jsonl`
 10. LangGraph chain executor when skill chains need state/checkpointing
-11. Incubator Develop ingest plan (`INGEST_PLAN` task + frontier model picker) — Phase 21b
-12. Intel analytics views / dedup matview (agency normalize, obligation semantics) — Phase 23a
+11. Incubator Develop → Publish (Phase 21b–21d)
+12. Intel dedup matview + extra ETL rules (Phase 23b)
+13. Clew interact, FH hierarchy, semantic search (Phase 17b-interact, 17c, 17d-agency)
 
 ---
 
@@ -1296,18 +1375,23 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 
 ## Immediate next actions (resume here)
 
-**Current build slice (MVP):** Tasks + intel completeness + capture lane — Clew robustness deferred to post-MVP phases below.
+**North star:** Pass **MVP sign-off test** (find → watch → track → packet fill from intel).
 
-1. ~~**Intel migration**~~ ✅ 64.2M prime + 1.5M sub + indexes — Clew/radar unblocked on PG
-2. **MVP smoke** — Pulse recompete + Clew teaming + Insights facet on loaded data; fix query timeouts if seq-scans hurt
-3. ~~**Phase 19a / 21a** — MinerU + Incubator capture~~ ✅ · **21b Develop** ingest plan (frontier model picker) next capture-lane slice
-4. ~~**Phase 16h / 20a / 20c-a**~~ ✅
-5. **Phase 23a** (post-MVP, non-blocking) — `intel_analytics` SQL views for agency normalize + obligation semantics
-6. **Phase 15 polish backlog** — parallel title+spellfix; richer title prompts
+**Current build slice:** **Phase 17e** Data Insights command surface — not Incubator 21b, not intel ETL polish.
 
-**Post-MVP (capture-lane polish):** 20c-b/c/d routing matrix · 22a–d operator education · DOX sparse `AGENTS.md` tree (agent codebase docs only)
+| Priority | Work | Why |
+|----------|------|-----|
+| **P0** | **17e-b** Overview lens — KPI + charts on `/insights` after facet Run | Lane 1 “find” is broken without market picture |
+| **P0** | **17e-c** Hone — click agency/recipient → narrow slice | Fixes capture-insights “tabs don’t complement overview” failure |
+| **P0** | **17e-d** Lens tabs (Overview · Recompete · Competition · Trace) sharing one slice | Complementary lenses, not duplicate NAICS overviews |
+| **P0** | **17e-e** E2E sign-off smoke script | Proves funnel end-to-end |
+| **P1** | Query cache / limits on 64M PG (bootstrap TTL like capture-insights) | UX — Clew queries 45–70s today |
+| **Defer** | 21b–21d Incubator Develop/Publish | Capture ingest polish |
+| **Defer** | 23b dedup matview, more analytics view rules | Chart accuracy polish |
+| **Defer** | 17b-interact, 17d-agency, 17c vectors | Clew/Insights UX depth |
+| **Defer** | 20c-b/c, 22 education, DOX | Post-MVP operator mastery |
 
-**Clew post-MVP (planned, not now):** 17b-interact → 17d-agency (FH hierarchy PG + cascading selects) → 17d autocomplete → 17c-graph
+**Done recently:** Intel migration ✅ · 21a Incubator hold ✅ · 23a analytics views ✅ (raw tables untouched)
 
 **Done (2026-06-18):** Phase 14k — Milestone deck alignment (private refs gitignored); reference slides in navigator; workspace tabs retired in favor of utilities bar + action drawer.
 
@@ -1325,8 +1409,11 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 - [x] Orchestration env placeholders
 - [x] Alembic workflow migrations (intel tables still via migration script)
 - [x] Intel migration from capture-insights bulk zip/CSV (64.2M prime + 1.5M sub)
-- [ ] Intel analytics cleanup views (Phase 23a — post-MVP)
-- [ ] Incubator Develop → Publish (Phase 21b–21d)
+- [x] Intel analytics SQL views (Phase 23a — views over raw PG)
+- [x] Phase 21a — Incubator capture hold (seed, edit, reject, parse preview)
+- [ ] **Phase 17e** — Data Insights command surface (MVP blocker)
+- [ ] MVP sign-off E2E (find → watch → track → packet fill)
+- [ ] Incubator Develop → Publish (Phase 21b–21d — deferred)
 - [x] `pg_queries` intel layer
 - [x] LLM router (Grok primary)
 - [x] Vault seed — global_wiki, domain_intel, training scaffold
