@@ -117,6 +117,7 @@ class MineruController:
     def start(
         self,
         *,
+        wait_ready: bool = True,
         popen: Callable[..., subprocess.Popen] = subprocess.Popen,
         port_check: Callable[[str, int], bool] = is_port_listening,
         wait: Callable[[MineruEndpoint], bool] | None = None,
@@ -173,6 +174,10 @@ class MineruController:
                 self.stop()
                 return False
             time.sleep(0.25)
+
+        if not wait_ready:
+            logger.debug("MinerU spawned in background at %s (readiness probe deferred)", self.endpoint.base_url)
+            return True
 
         wait_fn = wait or (
             lambda ep: wait_for_mineru(

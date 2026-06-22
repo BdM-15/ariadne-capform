@@ -181,6 +181,43 @@ def _pg_table_count(cur: psycopg.Cursor, table: str) -> int:
     return int(cur.fetchone()[0])
 
 
+def _pg_table_estimate(cur: psycopg.Cursor, table: str) -> int:
+    """Fast row estimate from pg statistics — avoids full table scan."""
+    cur.execute("SELECT to_regclass(%s)", [table])
+    if cur.fetchone()[0] is None:
+        return 0
+    cur.execute(
+        "SELECT COALESCE(reltuples::bigint, 0) FROM pg_class WHERE relname = %s",
+        [table],
+    )
+    return int(cur.fetchone()[0])
+
+
+def _row_counts_from_state(state: dict[str, Any]) -> tuple[int, int] | None:
+    """Persisted counts from migration completion — exact, no DB scan."""
+    if not state.get("indexes_built") or str(state.get("phase", "")) != "complete":
+        return None
+    prime_raw = state.get("prime_rows", state.get("prime_rows_inserted"))
+    if prime_raw is None:
+        return None
+    sub_raw = state.get("sub_rows", state.get("sub_rows_inserted", 0))
+    return int(prime_raw), int(sub_raw or 0)
+
+
+def _migration_files_complete(
+    state: dict[str, Any],
+    prime_files: list[Path],
+    sub_files: list[Path],
+) -> tuple[bool, bool]:
+    prime_loaded = _loaded_chunks(state, "prime")
+    sub_loaded = _loaded_chunks(state, "sub")
+    prime_files_done = len(prime_loaded) if prime_loaded else int(state.get("prime_files_done", 0))
+    sub_files_done = len(sub_loaded) if sub_loaded else int(state.get("sub_files_done", 0))
+    prime_complete = bool(prime_files) and prime_files_done >= len(prime_files)
+    sub_complete = bool(sub_files) and sub_files_done >= len(sub_files)
+    return prime_complete, sub_complete
+
+
 def _ensure_prime_schema(cur: psycopg.Cursor) -> None:
     cur.execute(prime_table_ddl())
     cur.execute(prime_staging_ddl())
@@ -368,23 +405,12 @@ def get_migration_status(settings: Settings) -> MigrationStatus:
     prime_loaded = _loaded_chunks(state, "prime")
     sub_loaded = _loaded_chunks(state, "sub")
 
-    prime_migrated = sub_migrated = 0
-    try:
-        with psycopg.connect(_pg_dsn(settings)) as conn:
-            with conn.cursor() as cur:
-                prime_migrated = _pg_table_count(cur, PRIME_TABLE)
-                sub_migrated = _pg_table_count(cur, SUB_TABLE)
-    except psycopg.Error:
-        prime_migrated = int(state.get("prime_rows_inserted", 0))
-        sub_migrated = int(state.get("sub_rows_inserted", 0))
-
     prime_files_done = len(prime_loaded) if prime_loaded else int(state.get("prime_files_done", 0))
     sub_files_done = len(sub_loaded) if sub_loaded else int(state.get("sub_files_done", 0))
 
     phase = str(state.get("phase", "idle"))
     indexes_built = bool(state.get("indexes_built", False))
-    prime_complete = bool(prime_files) and prime_files_done >= len(prime_files)
-    sub_complete = bool(sub_files) and sub_files_done >= len(sub_files)
+    prime_complete, sub_complete = _migration_files_complete(state, prime_files, sub_files)
     complete = (
         prime_dir.exists()
         and sub_dir.exists()
@@ -392,6 +418,24 @@ def get_migration_status(settings: Settings) -> MigrationStatus:
         and sub_complete
         and indexes_built
     )
+
+    prime_migrated = sub_migrated = 0
+    cached_counts = _row_counts_from_state(state) if complete else None
+    if cached_counts is not None:
+        prime_migrated, sub_migrated = cached_counts
+    else:
+        try:
+            with psycopg.connect(_pg_dsn(settings)) as conn:
+                with conn.cursor() as cur:
+                    if complete:
+                        prime_migrated = _pg_table_estimate(cur, PRIME_TABLE)
+                        sub_migrated = _pg_table_estimate(cur, SUB_TABLE)
+                    else:
+                        prime_migrated = _pg_table_count(cur, PRIME_TABLE)
+                        sub_migrated = _pg_table_count(cur, SUB_TABLE)
+        except psycopg.Error:
+            prime_migrated = int(state.get("prime_rows_inserted", 0))
+            sub_migrated = int(state.get("sub_rows_inserted", 0))
 
     source = f"{prime_dir} + {sub_dir}"
     return MigrationStatus(

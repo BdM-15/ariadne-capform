@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import time
 from datetime import date
 from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from thread.config import get_settings
+from thread.intel.bulk_migration import _load_state, _row_counts_from_state, state_path
 from thread.intel.facet_query import InsightFacetQuery, build_facet_sql
 from thread.intel.sql_expressions import (
     AGENCY_EXPR,
@@ -33,7 +36,55 @@ async def table_exists(session: AsyncSession, table_name: str) -> bool:
     return bool(row.scalar())
 
 
-async def get_intel_stats(session: AsyncSession) -> dict[str, Any]:
+_STATS_CACHE: dict[str, Any] | None = None
+_STATS_CACHE_AT: float = 0.0
+_STATS_TTL_SECONDS = 60.0
+
+
+def clear_intel_stats_cache() -> None:
+    """Test helper — drop in-memory stats cache."""
+    global _STATS_CACHE, _STATS_CACHE_AT
+    _STATS_CACHE = None
+    _STATS_CACHE_AT = 0.0
+
+
+async def _estimate_table_rows(session: AsyncSession, table: str) -> int:
+    row = await session.execute(
+        text("SELECT COALESCE(reltuples::bigint, 0) FROM pg_class WHERE relname = :name"),
+        {"name": table},
+    )
+    return int(row.scalar() or 0)
+
+
+async def _intel_row_counts(session: AsyncSession) -> tuple[int, int]:
+    """Row counts without scanning 64M-row tables when migration is done."""
+    settings = get_settings()
+    state = _load_state(state_path(settings))
+    cached = _row_counts_from_state(state)
+    if cached is not None:
+        return cached
+    prime = await _estimate_table_rows(session, PRIME_TABLE)
+    sub = 0
+    if await table_exists(session, "intel_usaspending_subawards"):
+        sub = await _estimate_table_rows(session, "intel_usaspending_subawards")
+    return prime, sub
+
+
+async def get_intel_stats(
+    session: AsyncSession,
+    *,
+    force_refresh: bool = False,
+) -> dict[str, Any]:
+    global _STATS_CACHE, _STATS_CACHE_AT
+
+    now = time.monotonic()
+    if (
+        not force_refresh
+        and _STATS_CACHE is not None
+        and (now - _STATS_CACHE_AT) < _STATS_TTL_SECONDS
+    ):
+        return dict(_STATS_CACHE)
+
     stats: dict[str, Any] = {
         "prime_awards_ready": False,
         "prime_award_count": 0,
@@ -41,18 +92,15 @@ async def get_intel_stats(session: AsyncSession) -> dict[str, Any]:
         "naics_cache_count": 0,
     }
     if not await table_exists(session, PRIME_TABLE):
+        _STATS_CACHE = stats
+        _STATS_CACHE_AT = now
         return stats
+
     stats["prime_awards_ready"] = True
-    stats["prime_award_count"] = int(
-        (await session.execute(text(f"SELECT COUNT(*) FROM {PRIME_TABLE}"))).scalar() or 0
-    )
+    prime_count, sub_count = await _intel_row_counts(session)
+    stats["prime_award_count"] = prime_count
     if await table_exists(session, "intel_usaspending_subawards"):
-        stats["subaward_count"] = int(
-            (
-                await session.execute(text("SELECT COUNT(*) FROM intel_usaspending_subawards"))
-            ).scalar()
-            or 0
-        )
+        stats["subaward_count"] = sub_count
     if await table_exists(session, "intel_naics_summary_cache"):
         stats["naics_cache_count"] = int(
             (
@@ -60,6 +108,9 @@ async def get_intel_stats(session: AsyncSession) -> dict[str, Any]:
             ).scalar()
             or 0
         )
+
+    _STATS_CACHE = stats
+    _STATS_CACHE_AT = now
     return stats
 
 

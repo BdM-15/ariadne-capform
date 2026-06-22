@@ -16,7 +16,13 @@ from thread.intel.bulk_fields import (
     prime_table_ddl,
     sanitize_sub_column,
 )
-from thread.intel.bulk_migration import _save_state, discover_bulk_files, open_bulk_csv
+from thread.config import Settings
+from thread.intel.bulk_migration import (
+    _save_state,
+    discover_bulk_files,
+    get_migration_status,
+    open_bulk_csv,
+)
 
 
 def test_sanitize_sub_column_normalizes_headers():
@@ -63,6 +69,47 @@ def test_discover_bulk_files_sorted(tmp_path: Path):
     files = discover_bulk_files(tmp_path)
     assert len(files) == 2
     assert files[0].name.startswith("prime_2015")
+
+
+def test_get_migration_status_fast_when_complete(tmp_path: Path, monkeypatch):
+    state_dir = tmp_path / ".thread"
+    state_dir.mkdir()
+    prime_dir = tmp_path / "prime"
+    sub_dir = tmp_path / "sub"
+    prime_dir.mkdir()
+    sub_dir.mkdir()
+    (prime_dir / "prime_2016-01-01_to_2016-01-02.zip").write_bytes(b"")
+    (sub_dir / "sub_2016-01-01_to_2016-01-02.zip").write_bytes(b"")
+
+    state = {
+        "phase": "complete",
+        "indexes_built": True,
+        "prime_rows": 64_231_918,
+        "sub_rows": 12_345_678,
+        "chunks_loaded": {
+            "prime": ["prime_2016-01-01_to_2016-01-02.zip"],
+            "sub": ["sub_2016-01-01_to_2016-01-02.zip"],
+        },
+        "completed_at": "2026-06-22T00:00:00+00:00",
+    }
+    _save_state(state_dir / "intel_migration_state.json", state)
+
+    settings = Settings(
+        thread_state_dir=state_dir,
+        intel_bulk_prime_dir=prime_dir,
+        intel_bulk_sub_dir=sub_dir,
+    )
+
+    def _forbidden_count(*_args, **_kwargs):
+        raise AssertionError("COUNT(*) must not run when migration is complete")
+
+    monkeypatch.setattr("thread.intel.bulk_migration._pg_table_count", _forbidden_count)
+    monkeypatch.setattr("thread.intel.bulk_migration.psycopg.connect", _forbidden_count)
+
+    status = get_migration_status(settings)
+    assert status.complete is True
+    assert status.prime_migrated == 64_231_918
+    assert status.sub_migrated == 12_345_678
 
 
 def test_open_bulk_csv_reads_zip(tmp_path: Path):

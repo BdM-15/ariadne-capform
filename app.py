@@ -224,11 +224,11 @@ def main() -> int:
         ep_url = settings.mineru_local_endpoint
         if mineru_controller is not None:
             ep = mineru_controller.endpoint
-            if mineru_controller.start():
+            if mineru_controller.start(wait_ready=False):
                 mode = "spawned" if mineru_controller.started_by_us else "already running"
                 print(
                     f"[thread] MinerU: {mode} @ {ep.base_url} "
-                    f"({settings.mineru_backend}, {settings.mineru_device_mode})"
+                    f"({settings.mineru_backend}, {settings.mineru_device_mode}) — loading in background"
                 )
             else:
                 detail = mineru_controller.last_error or "startup failed"

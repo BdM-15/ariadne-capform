@@ -58,3 +58,33 @@ def test_start_reuses_existing_port():
     ctrl = MineruController(settings=settings, endpoint=MineruEndpoint("127.0.0.1", 8888))
     assert ctrl.start(port_check=lambda _h, _p: True) is True
     assert ctrl.started_by_us is False
+
+
+def test_start_non_blocking_skips_readiness_wait(monkeypatch):
+    settings = Settings(mineru_enabled=True, mineru_spawn_fail_seconds=1.0)
+    proc = MagicMock()
+    proc.poll.return_value = None
+    proc.stderr = None
+    monkeypatch.setattr(
+        "thread.bootstrap.mineru_lifecycle.mineru_installed",
+        lambda _s: True,
+    )
+    monkeypatch.setattr(
+        "thread.bootstrap.mineru_lifecycle.mineru_api_executable",
+        lambda _s: "/fake/mineru-api.exe",
+    )
+    waited = {"called": False}
+
+    def _should_not_wait(_ep):
+        waited["called"] = True
+        return False
+
+    ctrl = MineruController(settings=settings, endpoint=MineruEndpoint("127.0.0.1", 18889))
+    assert ctrl.start(
+        wait_ready=False,
+        port_check=lambda _h, _p: False,
+        popen=lambda *a, **k: proc,
+        wait=_should_not_wait,
+    )
+    assert waited["called"] is False
+    assert ctrl.started_by_us is True
