@@ -196,7 +196,7 @@ def _mineru_placeholder_markdown(staged: StagedDocument, *, settings: Settings) 
     if settings.mineru_enabled:
         lead = (
             f"MinerU enabled at {mineru_base_url(settings)} but parse did not complete. "
-            "Staged source preserved — start MinerU FastAPI and re-capture or enrich later."
+            "Staged source preserved — use **Re-parse** in Vault Inbox Advanced when the API is up."
         )
         status = "mineru_error"
     else:

@@ -1483,6 +1483,46 @@ async def knowledge_polish_candidate(
         return templates.TemplateResponse(request, "partials/knowledge_capture_studio.html", ctx)
 
 
+@router.post("/partials/knowledge/candidate-reparse", response_class=HTMLResponse)
+async def knowledge_reparse_candidate(
+    request: Request,
+    review_id: uuid.UUID = Form(...),
+    candidate_path: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    from thread.services.mineru_reparse import MineruReparseError, reparse_candidate_document
+
+    try:
+        result = reparse_candidate_document(settings, candidate_path.strip())
+        if result.mineru_ready:
+            flash = (
+                f"MinerU re-parsed {result.filename}"
+                + (f" — {result.glance_summary}" if result.glance_summary else "")
+            )
+            flash_ok = True
+        else:
+            flash = f"MinerU re-parse failed: {result.error}"
+            flash_ok = False
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            edit_review_id=review_id,
+            flash=flash,
+            flash_ok=flash_ok,
+        )
+        return templates.TemplateResponse(request, "partials/knowledge_capture_studio.html", ctx)
+    except MineruReparseError as exc:
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            edit_review_id=review_id,
+            flash=str(exc),
+            flash_ok=False,
+        )
+        return templates.TemplateResponse(request, "partials/knowledge_capture_studio.html", ctx)
+
+
 @router.post("/partials/knowledge/candidate-enrich", response_class=HTMLResponse)
 async def knowledge_enrich_candidate(
     request: Request,

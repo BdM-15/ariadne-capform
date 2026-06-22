@@ -22,6 +22,10 @@ from thread.services.vault_dedup import (
     find_dedup_hints,
     resolve_auto_promote_target,
 )
+from thread.services.mineru_reparse import (
+    ingest_id_from_citations,
+    mineru_parse_failed_in_body,
+)
 from thread.services.vault_inbox_display import (
     build_intent_line,
     display_title,
@@ -64,6 +68,8 @@ class VaultReviewItem:
     auto_promote_target: str = ""
     auto_promote_summary: str = ""
     auto_enrich: AutoEnrichPlan | None = None
+    mineru_reparse_ingest_id: str = ""
+    mineru_parse_failed: bool = False
 
 
 @dataclass(frozen=True)
@@ -175,6 +181,9 @@ def _load_candidate_preview(
         or _clip_body(editable_body or body)
         or "(no preview — open Advanced to edit)"
     )
+    citations = meta.get("citations", "")
+    ingest_id = ingest_id_from_citations(citations)
+    parse_failed = mineru_parse_failed_in_body(body)
     return VaultReviewItem(
         review_id=record.id,
         candidate_path=candidate_rel,
@@ -198,6 +207,8 @@ def _load_candidate_preview(
         auto_promote_target=auto_target,
         auto_promote_summary=auto_summary,
         auto_enrich=infer_auto_enrich(page_type=page_type, title=title),
+        mineru_reparse_ingest_id=ingest_id if parse_failed else "",
+        mineru_parse_failed=parse_failed and bool(ingest_id),
     )
 
 

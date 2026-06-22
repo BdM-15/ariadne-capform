@@ -37,3 +37,4 @@ else:
 "@
 
 Write-Host "[mineru] Done. Parser autostarts with python app.py when MINERU_ENABLED=true."
+Write-Host "[mineru] After app start, verify: powershell -File scripts\smoke-mineru.ps1"

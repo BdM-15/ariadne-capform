@@ -126,8 +126,9 @@
       <p id="capture-fab-file-hint" class="capture-fab-file-hint capture-fab-hidden"></p>
     </div>
 
-    <p id="capture-fab-working" class="capture-fab-working htmx-indicator text-[10px] font-mono text-neon-cyan">
-      Platform working — staging file, MinerU parse, title, polish, queue…
+    <p id="capture-fab-working" class="capture-fab-working htmx-indicator text-[10px] font-mono text-neon-cyan" aria-live="polite">
+      <span id="capture-fab-working-text">Staging file…</span>
+      <span class="capture-fab-working-hint text-slate-500"> · first GPU parse may take 3–7 min — drawer stays open</span>
     </p>
     <button type="submit" class="btn btn-primary text-xs w-full capture-fab-submit" title="Platform writes, stages docs, polishes, queues review">
       <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>

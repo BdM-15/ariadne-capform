@@ -21,6 +21,7 @@ data/graph/
 Thumbs.db
 /mcps/
 .tmp/
+output/
 
 # Operator milestone deck references — local only, never commit
 docs/reference/briefing_packet/private/

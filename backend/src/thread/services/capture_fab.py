@@ -288,7 +288,7 @@ def format_document_status_note(
     if status in {"mineru_parsed", "parsed"}:
         return f"{name} — {summary}" if summary else f"{name} — document text extracted."
     if status == "mineru_error":
-        return f"{name} — staged; MinerU parse failed (file kept). Approve in Vault Inbox or re-upload."
+        return f"{name} — parse failed (file staged). Vault Inbox → Advanced → Re-parse when MinerU is up."
     if status == "mineru_stub":
         return f"{name} — staged only (MinerU disabled)."
     if status == "inline_text":

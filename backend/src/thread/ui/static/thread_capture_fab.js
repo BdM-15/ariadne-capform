@@ -379,7 +379,48 @@
     );
   }
 
+  var captureParseProgressTimer = null;
+  var captureParseProgressStep = 0;
+  var captureParseProgressMessages = [
+    "Staging file…",
+    "MinerU GPU parse (first run loads models — 3–7 min)…",
+    "Extracting text and tables…",
+    "Inferring title and vault path…",
+    "Polishing and queuing Vault Inbox…",
+  ];
+
+  function startCaptureParseProgress() {
+    var label = document.getElementById("capture-fab-working-text");
+    if (!label) return;
+    captureParseProgressStep = 0;
+    label.textContent = captureParseProgressMessages[0];
+    if (captureParseProgressTimer) clearInterval(captureParseProgressTimer);
+    captureParseProgressTimer = setInterval(function () {
+      captureParseProgressStep = (captureParseProgressStep + 1) % captureParseProgressMessages.length;
+      label.textContent = captureParseProgressMessages[captureParseProgressStep];
+    }, 12000);
+  }
+
+  function stopCaptureParseProgress() {
+    if (captureParseProgressTimer) {
+      clearInterval(captureParseProgressTimer);
+      captureParseProgressTimer = null;
+    }
+  }
+
   function bindCaptureFormEncoding() {
+    document.body.addEventListener("htmx:beforeRequest", function (event) {
+      var elt = event.detail && event.detail.elt;
+      if (!elt || elt.id !== "capture-fab-form") return;
+      startCaptureParseProgress();
+    });
+
+    document.body.addEventListener("htmx:afterRequest", function (event) {
+      var elt = event.detail && event.detail.elt;
+      if (!elt || elt.id !== "capture-fab-form") return;
+      stopCaptureParseProgress();
+    });
+
     document.body.addEventListener("htmx:configRequest", function (event) {
       var elt = event.detail && event.detail.elt;
       if (!elt || elt.id !== "capture-fab-form") return;
