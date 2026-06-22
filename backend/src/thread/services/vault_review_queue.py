@@ -26,10 +26,14 @@ from thread.services.mineru_reparse import (
     ingest_id_from_citations,
     mineru_parse_failed_in_body,
 )
+from thread.services.incubator_capture import is_incubator_path
 from thread.services.vault_inbox_display import (
+    build_incubator_intent_line,
     build_intent_line,
+    capture_kind_label,
     display_title,
     extract_dump_snippet,
+    maturity_label,
     promote_destination_label,
 )
 from thread.services.vault_link_index import VaultStemOption, build_vault_stem_options
@@ -70,6 +74,11 @@ class VaultReviewItem:
     auto_enrich: AutoEnrichPlan | None = None
     mineru_reparse_ingest_id: str = ""
     mineru_parse_failed: bool = False
+    is_incubator: bool = False
+    maturity: str = ""
+    capture_kind: str = ""
+    maturity_label: str = ""
+    capture_kind_label: str = ""
 
 
 @dataclass(frozen=True)
@@ -84,6 +93,11 @@ class CandidateEditForm:
     merge_targets: tuple[MergeTargetOption, ...] = ()
     stem_options: tuple[VaultStemOption, ...] = ()
     related_custom: str = ""
+    is_incubator: bool = False
+    maturity: str = ""
+    capture_kind: str = ""
+    intent: str = ""
+    ingest_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -184,6 +198,24 @@ def _load_candidate_preview(
     citations = meta.get("citations", "")
     ingest_id = ingest_id_from_citations(citations)
     parse_failed = mineru_parse_failed_in_body(body)
+    incubator = is_incubator_path(candidate_rel)
+    maturity = meta.get("maturity", "seed" if incubator else "")
+    capture_kind = meta.get("capture_kind", "")
+    intent_meta = meta.get("intent", "")
+    if incubator:
+        intent_line = build_incubator_intent_line(
+            capture_kind=capture_kind or "idea",
+            intent=intent_meta,
+            title=title,
+        )
+        destination = "Incubator"
+    else:
+        intent_line = build_intent_line(
+            page_type=page_type,
+            title=title,
+            promote_summary=auto_summary,
+        )
+        destination = promote_destination_label(auto_target)
     return VaultReviewItem(
         review_id=record.id,
         candidate_path=candidate_rel,
@@ -192,12 +224,8 @@ def _load_candidate_preview(
         promote_target=target,
         body_preview=_clip_body(body) or snippet,
         snippet=snippet,
-        intent_line=build_intent_line(
-            page_type=page_type,
-            title=title,
-            promote_summary=auto_summary,
-        ),
-        destination_label=promote_destination_label(auto_target),
+        intent_line=intent_line,
+        destination_label=destination,
         queue_position=queue_position,
         is_test=is_test,
         created_at=record.created_at,
@@ -209,6 +237,11 @@ def _load_candidate_preview(
         auto_enrich=infer_auto_enrich(page_type=page_type, title=title),
         mineru_reparse_ingest_id=ingest_id if parse_failed else "",
         mineru_parse_failed=parse_failed and bool(ingest_id),
+        is_incubator=incubator,
+        maturity=maturity,
+        capture_kind=capture_kind,
+        maturity_label=maturity_label(maturity) if maturity else "",
+        capture_kind_label=capture_kind_label(capture_kind) if capture_kind else "",
     )
 
 
@@ -246,17 +279,24 @@ def load_candidate_edit_form(settings: Settings, record: ReviewRecord) -> Candid
     related_custom = ", ".join(
         link for link in loaded["related"] if link not in known_stems
     )
+    candidate_rel = loaded["candidate_path"]
+    incubator = is_incubator_path(candidate_rel)
     return CandidateEditForm(
         review_id=record.id,
-        candidate_path=loaded["candidate_path"],
+        candidate_path=candidate_rel,
         name=loaded["name"],
         page_type=loaded["page_type"],
         body=loaded["body"],
         related=tuple(loaded["related"]),
-        promote_target=target,
-        merge_targets=merge_targets,
+        promote_target=target if not incubator else candidate_rel,
+        merge_targets=merge_targets if not incubator else (),
         stem_options=stem_options,
         related_custom=related_custom,
+        is_incubator=incubator,
+        maturity=meta.get("maturity", "seed" if incubator else ""),
+        capture_kind=meta.get("capture_kind", ""),
+        intent=meta.get("intent", ""),
+        ingest_id=meta.get("ingest", "") or ingest_id_from_citations(loaded.get("citations", "")),
     )
 
 
@@ -281,6 +321,8 @@ async def build_vault_review_widget(
     settings: Settings,
     *,
     highlight_review_id: uuid.UUID | None = None,
+    maturity_filter: str = "",
+    capture_kind_filter: str = "",
 ) -> VaultReviewWidget:
     pending = await list_pending_reviews(session)
     vault_records = [r for r in pending if r.entity_type == "vault_candidate"]
@@ -294,6 +336,10 @@ async def build_vault_review_widget(
             highlight_review_id=highlight_review_id,
         )
         if item:
+            if maturity_filter and item.maturity != maturity_filter:
+                continue
+            if capture_kind_filter and item.capture_kind != capture_kind_filter:
+                continue
             all_items.append(item)
 
     production_raw = [item for item in all_items if not item.is_test]
@@ -322,6 +368,13 @@ async def build_vault_review_widget(
                     auto_promote_target=item.auto_promote_target,
                     auto_promote_summary=item.auto_promote_summary,
                     auto_enrich=item.auto_enrich,
+                    mineru_reparse_ingest_id=item.mineru_reparse_ingest_id,
+                    mineru_parse_failed=item.mineru_parse_failed,
+                    is_incubator=item.is_incubator,
+                    maturity=item.maturity,
+                    capture_kind=item.capture_kind,
+                    maturity_label=item.maturity_label,
+                    capture_kind_label=item.capture_kind_label,
                 )
             )
         return tuple(out)

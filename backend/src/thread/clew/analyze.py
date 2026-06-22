@@ -240,7 +240,7 @@ async def _teaming(
         SELECT
             prime_awardee_name AS prime,
             subawardee_name AS sub,
-            {round_numeric("SUM(COALESCE(subaward_amount, 0)) / 1000000.0")} AS millions,
+            {round_numeric("SUM(COALESCE(NULLIF(subaward_amount, '')::DOUBLE PRECISION, 0)) / 1000000.0")} AS millions,
             COUNT(*) AS links
         FROM {SUB_TABLE}
         WHERE prime_awardee_name IS NOT NULL

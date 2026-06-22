@@ -12,6 +12,8 @@ from thread.config import Settings
 from thread.services.mineru_client import parse_staged_document
 from thread.services.mineru_markdown import format_mineru_vault_document, summarize_mineru_body
 from thread.services.mineru_stub import probe_mineru_health
+from thread.services.incubator_capture import format_incubator_body, is_incubator_path
+from thread.services.mineru_stub import DocumentExtract
 from thread.services.vault_write import VaultWriteError, load_candidate_note, save_candidate_note
 
 _INGEST_ID_RE = re.compile(r"ingest:([a-f0-9]{12})")
@@ -39,7 +41,11 @@ def ingest_id_from_citations(citations: str) -> str:
 
 def mineru_parse_failed_in_body(body: str) -> bool:
     text = body or ""
-    return "mineru_error" in text or "Parse error" in text and "MinerU HTTP" in text
+    return (
+        "mineru_error" in text
+        or ("Parse error" in text and "MinerU HTTP" in text)
+        or "Parse failed — staged source preserved" in text
+    )
 
 
 def mineru_parsed_in_body(body: str) -> bool:
@@ -135,16 +141,36 @@ def reparse_candidate_document(settings: Settings, candidate_rel: str) -> Mineru
 
     ingest_rel = _INGEST_PATH_RE.search(citations)
     rel_path = ingest_rel.group(1) if ingest_rel else f"ingest/inbox/{ingest_id}/{filename}"
-    doc_block = format_mineru_vault_document(
-        filename=filename,
-        ingest_id=ingest_id,
-        ingest_rel=rel_path,
-        parsed_rel=parsed.parsed_rel,
-        raw_body=parsed.markdown,
-    )
-    new_body = doc_block.rstrip()
-    if operator_tail:
-        new_body = f"{new_body}\n\n{operator_tail}\n"
+    summary = summarize_mineru_body(parsed.markdown, filename=filename)
+
+    if is_incubator_path(candidate_rel):
+        intent = str(loaded.get("intent") or loaded.get("name") or "")
+        if "## Intent" in str(loaded.get("body") or ""):
+            intent_block = str(loaded.get("body") or "").split("## Intent", 1)[1]
+            intent_block = intent_block.split("##", 1)[0].strip()
+            if intent_block:
+                intent = intent_block
+        document = DocumentExtract(
+            filename=filename,
+            ingest_id=ingest_id,
+            ingest_rel=rel_path,
+            markdown=parsed.markdown,
+            source_kind="mineru",
+            mineru_ready=True,
+            glance_summary=summary,
+        )
+        new_body = format_incubator_body(intent=intent, document=document)
+    else:
+        doc_block = format_mineru_vault_document(
+            filename=filename,
+            ingest_id=ingest_id,
+            ingest_rel=rel_path,
+            parsed_rel=parsed.parsed_rel,
+            raw_body=parsed.markdown,
+        )
+        new_body = doc_block.rstrip()
+        if operator_tail:
+            new_body = f"{new_body}\n\n{operator_tail}\n"
 
     save_candidate_note(
         settings,
@@ -155,7 +181,8 @@ def reparse_candidate_document(settings: Settings, candidate_rel: str) -> Mineru
         related=list(loaded.get("related") or ()),
     )
 
-    summary = summarize_mineru_body(doc_block, filename=filename)
+    if not summary:
+        summary = summarize_mineru_body(parsed.markdown, filename=filename)
     return MineruReparseResult(
         candidate_path=candidate_rel,
         ingest_id=ingest_id,

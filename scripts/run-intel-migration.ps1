@@ -5,6 +5,7 @@
 #   .\scripts\run-intel-migration.ps1 -Status
 #   .\scripts\run-intel-migration.ps1 -Force
 #   .\scripts\run-intel-migration.ps1 -IndexesOnly
+#   .\scripts\run-intel-migration.ps1 -ViewsOnly
 #
 # Re-run to resume after interrupt. Progress: .thread/intel_migration_state.json
 # Source: capture-insights/data/raw/10year_bulk/{prime,sub}
@@ -14,7 +15,9 @@ param(
     [switch]$Force,
     [switch]$SkipSubawards,
     [switch]$SkipIndexes,
-    [switch]$IndexesOnly
+    [switch]$IndexesOnly,
+    [switch]$ViewsOnly,
+    [switch]$WithDedupMatview
 )
 
 $ErrorActionPreference = "Stop"
@@ -40,6 +43,8 @@ if ($Force) { $pyArgs += "--force" }
 if ($SkipSubawards) { $pyArgs += "--skip-subawards" }
 if ($SkipIndexes) { $pyArgs += "--skip-indexes" }
 if ($IndexesOnly) { $pyArgs += "--indexes-only" }
+if ($ViewsOnly) { $pyArgs += "--views-only" }
+if ($WithDedupMatview) { $pyArgs += "--with-dedup-matview" }
 
 if (-not $Status) {
     Write-Host "[intel] Ensuring PostgreSQL container is up..."

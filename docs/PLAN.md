@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-20 (Phase 22b MISSION + Lesson 01 in vault; DOX agent dev docs)
+**Last updated:** 2026-06-22 (Incubator develop/publish in plan; intel bulk migration complete; raw-data ETL assessment)
 
 ---
 
@@ -21,7 +21,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Reference corpus | ✅ Done | Briefing packet, call plan, risk register, Shipley, USAspending |
 | Workflow DB models | 🟡 Partial | Opportunities, packet, actions, review, **`operator_tasks` (Phase 16 ✅)**; missing intel/research/capability tables |
 | Alembic migrations | ❌ Not started | Still using `create_all()` |
-| Intel migration (DuckDB→PG) | 🟡 In progress | Resumable via `scripts/run-intel-migration.ps1` (~64M rows, separate window) |
+| Intel migration (bulk zip→PG) | ✅ Complete | 64.2M prime + 1.5M sub · indexes built · `scripts/run-intel-migration.ps1 --status` |
 | `pg_queries` intel layer | ✅ Done | Core queries + portfolio intel signals |
 | LLM router (Grok + Ollama) | ❌ Not started | Config only |
 | Web research module | ❌ Not started | Config + docker profile only |
@@ -32,7 +32,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Orchestration (LangGraph) | 🟡 Placeholder | Env + tracing bootstrap; runtime deferred |
 | Git | ✅ Done | Repo pushed; commit early/often |
 
-**Resume here:** Foundation steps 1–11 ✅. Next: **Phase 12** (command center usefulness) in small vertical slices — see below. Intel migration continues in background.
+**Resume here:** Foundation + intel bulk load ✅. **MVP focus:** operator tasks lane, capture/Incubator polish, Clew/radar on loaded PG. **Post-MVP:** intel ETL cleanup layer (see below) — raw COPY is MVP-grade for queries, not production analytics hygiene.
 
 ---
 
@@ -482,11 +482,51 @@ python app.py
 ### A. Workflow tables
 `opportunities`, `packet_field_definitions`, `packet_field_answers`, `action_matrix_items`, `evidence_items`, `review_records`, `capability_runs`, `extraction_bundles`, `mcp_invocations`
 
-### B. Intel tables (migrated from capture-insights DuckDB)
+### B. Intel tables (bulk zip/CSV → PostgreSQL)
 `intel_usaspending_prime_awards`, `intel_usaspending_subawards`, `intel_entities`, `intel_relationships`, `intel_naics_summary_cache`
 
-**Migration script:** `backend/scripts/migrate_intel_from_duckdb.py`  
-**Queries:** `backend/src/thread/intel/pg_queries.py` (port from capture-insights `queries.py`)
+**Migration script:** `backend/scripts/migrate_intel_from_bulk.py` · wrapper `scripts/run-intel-migration.ps1`  
+**Status (2026-06-22):** ✅ 64,231,918 prime · 1,524,536 sub · indexes built · **do not `--force`** unless intentional full reload  
+**Queries:** `backend/src/thread/intel/pg_queries.py`
+
+#### Intel data posture — raw load vs production-grade (honest assessment)
+
+Thread **COPY-loads raw USAspending bulk CSV** with type casts + derived `fy`/`quarter` only. No Data_Insights-style cleansing pipeline yet.
+
+**Compared to [Data_Insights `data_processing`](https://github.com/BdM-15/Data_Insights/tree/main/src/backend/data/data_processing):**
+
+| Data_Insights step | What it does | Thread today | MVP need |
+|--------------------|--------------|--------------|----------|
+| `1_cleansing` | Agency normalize, NAICS strip, mod `0`, UPPER names, dedup `DISTINCT ON` | ❌ Not applied | 🟡 Post-MVP for analytics accuracy |
+| `2_enrichment` | KBR flags, derived columns | ❌ | Defer — operator-specific |
+| `3–4` embeddings | pgvector semantic search | ❌ | Defer (Phase 8 semantic vault) |
+| `5` canonicalize | `s3_processed` schema | ❌ Different storage model | N/A |
+| `6` indexes/MVs | Filter tables, `mv_agency_analysis_summary` | Partial — 6 btree indexes via `ensure_intel_indexes` | Add query-driven indexes (below) |
+
+**Read-only audit (2026-06-22, existing PG — no deletes):**
+
+| Signal | Count | Interpretation |
+|--------|------:|----------------|
+| Prime rows | 64,231,918 | Matches bulk source |
+| Distinct `contract_transaction_unique_key` | 64,206,069 | **25,849 duplicate txn keys** — raw file duplicates, not migration bug |
+| Negative `federal_action_obligation` | 2,841,454 | Valid deobligations — queries must `SUM()` net, not assume ≥ 0 |
+| Zero obligation rows | 6,327,975 | Common in mods — filter in analytics, not drop |
+| `DEPT OF DEFENSE` (un-normalized) | 35.9M rows | Data_Insights would map → `DEPARTMENT OF DEFENSE` — facet grouping splits without cleanup |
+| Missing NAICS | 15,632 | Small — acceptable for MVP |
+| Sub null `prime_awardee_name` | 6,570 | FFATA raw — Clew teaming joins need `COALESCE` or cleanup view |
+
+**Indexes present:** `naics_code`, `(naics_code, period_of_performance_current_end_date)`, `contract_award_unique_key`, `contract_transaction_unique_key`, sub name indexes.
+
+**Indexes to add (post-MVP `intel_etl` or `--indexes-only` extension):** `action_date`, `recipient_uei`, `recipient_name`, `period_of_performance_current_end_date` standalone, `sub.prime_award_unique_key` — recompete/radar queries currently may seq-scan without NAICS filter.
+
+**Recommended path (do not copy-paste Data_Insights):**
+
+1. **MVP:** Query on raw tables + `sql_expressions.AGENCY_EXPR` + document negative obligations in `docs/usaspending/`.
+2. **Phase 23a — `intel_analytics` views:** SQL-only `intel_prime_awards_v` with agency normalize + net obligation flags (no table rewrite).
+3. **Phase 23b — optional dedup matview:** `DISTINCT ON (award_id_piid, mod, action_date, obligation, recipient)` for Clew aggregates only.
+4. **Skip for Thread:** pgvector embeddings, S3 processed schema, filter-value tables (facet queries replace), KBR enrichment unless operator requests.
+
+**Safe ops:** `.\scripts\run-intel-migration.ps1 -Status` (read-only) · `-IndexesOnly` (add indexes, no data touch) · **never `-Force`** on production load without backup.
 
 ### C. Research tables
 `capture_research_runs`, `capture_research_sources`, `capture_research_findings`
@@ -874,8 +914,50 @@ You approve; Thread maintains Karpathy wiki structure so captures never bypass s
 | **15d** | Dedup hints via `vault_link_index` + merge-target picker on promote | ✅ `vault_dedup.py`, amber hints + Approve merge picker |
 | **15e** | Ollama polish pass + diff accept (frontmatter, Related, callouts) | ✅ `vault_candidate_polish.py`, diff accept in Studio |
 | **15f** | Enrich: Clew/research stubs → append draft section with provenance | ✅ `vault_candidate_enrich.py`, Enrich drawer in Studio |
-| **15g** | Global FAB + context prefill (opp, award_key, entity from workspace/Pulse) | ✅ Dump + MinerU doc upload; ingest spellfix (≤20s Ollama); title routing fixes; Vault Inbox UX |
+| **15g** | Global FAB + context prefill (opp, award_key, entity from workspace/Pulse) | ✅ Dump + MinerU doc upload; rules-incubator seeds; MinerU parse on disk |
 | **15h** | `idea_capturer` skill wired to Studio + `vault_maintainer` gate | ✅ Fleeting thought → schema-valid candidate |
+
+#### Phase 21 — Incubator (capture → hold → develop → publish)
+
+**Verdict (2026-06-22):** Incubator replaces “approve dump to synthesis” as the default FAB path. Capture stays fast; trusted wiki waits on Karpathy ingest.
+
+```mermaid
+flowchart LR
+  FAB[Capture FAB] --> Hold[Incubator seed]
+  Hold --> Develop[Develop ingest plan]
+  Develop --> Publish[Publish Karpathy ingest]
+  Parse[Layer 1 parse on disk] -.-> Develop
+  Vault[Vault context pack] -.-> Develop
+```
+
+| Stage | Path / artifact | LLM | Operator |
+|-------|-----------------|-----|----------|
+| **Capture** | `generated-projections/incubator/{slug}-{date}.md` · `maturity: seed` | Rules polish only | Dump + optional doc |
+| **Hold** | Incubator list + filters + rejected seeds UI | — | Glance, edit intent/extract, re-parse |
+| **Develop** | `ingest_plan` JSON (targets, excerpts, wikilinks) | **Operator picks model** — local admin vs frontier when vault+parse context is large | Review/edit plan |
+| **Publish** | Executes plan → trusted pages + index + log | Optional prose polish | Approve plan only |
+
+**Layer model (Karpathy):**
+
+| Layer | Location | Editable in UI |
+|-------|----------|----------------|
+| 1 Raw parse | `.thread/ingest/parsed/{ingest_id}/output.md` | Read-only preview (split-pane editor) |
+| 2 Seed | Incubator note — Intent / Extract / Source | Yes |
+| 3 Trusted wiki | `entities/`, `global/domain_intel/`, etc. | Via publish plan only |
+
+**Done (21a):** `write_incubator_note`, slim seed body, Incubator UI (Hold/Develop/Reject), seed edit/polish/re-parse, rejected seeds list, publish blocked on `maturity: seed`.
+
+**MVP backlog (21b–21d):**
+
+| Slice | Scope | Model |
+|-------|--------|-------|
+| **21b** | Develop button → ingest plan preview (structured JSON) + operator edit | `LlmTaskKind.INGEST_PLAN` — **frontier selectable** when `capture_kind=document` or vault context > N tokens |
+| **21c** | Context packer: seed + Layer 1 excerpt + related vault pages + dedup hints + `capture-llm-wiki` rules | Retrieval bounded — never whole vault |
+| **21d** | Publish executes approved plan (primary + related pages, index, log) — replaces bulk `append_trusted_page` promote | Deterministic writes; LLM not required |
+
+**LangGraph:** Deferred until 21c plan generation needs multi-step fan-out (research enrich → plan → human interrupt). Route-first Develop v1 is one frontier call + JSON schema.
+
+**Not Incubator:** Education studio, manual `write_candidate_note`, idea_capturer — keep legacy Publish/merge until migrated.
 
 **Command Center stale ingest (12m):** Dedicated Attention widget — vault candidates pending **>72h** → `/knowledge#knowledge-vault-review` (not buried in Pulse inbox or generic gate-reviews count).
 
@@ -1188,6 +1270,8 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 8. Semantic vault search (OpenAI embeddings)
 9. Neo4j import from `edges.jsonl`
 10. LangGraph chain executor when skill chains need state/checkpointing
+11. Incubator Develop ingest plan (`INGEST_PLAN` task + frontier model picker) — Phase 21b
+12. Intel analytics views / dedup matview (agency normalize, obligation semantics) — Phase 23a
 
 ---
 
@@ -1197,7 +1281,7 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 |---|------|--------|
 | 1 | Scaffold + `app.py` + docker + `.env.example` | ✅ |
 | 2 | Config + PG schema (workflow) + models | 🟡 |
-| 3 | **Intel migration + `pg_queries`** | 🟡 **← run migration script** |
+| 3 | **Intel migration + `pg_queries`** | ✅ bulk COPY complete (2026-06-22) |
 | 4 | Alembic migrations (replace `create_all`) | ✅ |
 | 5 | Vault bootstrap (full seed) | ✅ |
 | 6 | LLM router (Grok + Ollama) | ✅ |
@@ -1214,12 +1298,12 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 
 **Current build slice (MVP):** Tasks + intel completeness + capture lane — Clew robustness deferred to post-MVP phases below.
 
-1. **Intel migration** ← **priority** — finish FFATA subawards (no `--skip-subawards`); unblocks Clew Teaming + saved traces
-2. ~~**Phase 16h** — Checklist toggle in task drawer~~ ✅
-3. ~~**Phase 19a** — MinerU FastAPI wire + parsed markdown on capture~~ ✅ · **19e** ExtractionBundle deferred
-4. ~~**Phase 20a** — PG intel inline fill + data-needs panel~~ ✅ · ~~**20b** Grok/SAM execution~~ ✅
-5. ~~**Phase 20c-a** — catalog `decision_impact` tags + ranked data-needs strip (rules only)~~ ✅
-6. **Phase 15 polish backlog** (non-blocking) — faster FAB (parallel title+spellfix); richer title prompts
+1. ~~**Intel migration**~~ ✅ 64.2M prime + 1.5M sub + indexes — Clew/radar unblocked on PG
+2. **MVP smoke** — Pulse recompete + Clew teaming + Insights facet on loaded data; fix query timeouts if seq-scans hurt
+3. ~~**Phase 19a / 21a** — MinerU + Incubator capture~~ ✅ · **21b Develop** ingest plan (frontier model picker) next capture-lane slice
+4. ~~**Phase 16h / 20a / 20c-a**~~ ✅
+5. **Phase 23a** (post-MVP, non-blocking) — `intel_analytics` SQL views for agency normalize + obligation semantics
+6. **Phase 15 polish backlog** — parallel title+spellfix; richer title prompts
 
 **Post-MVP (capture-lane polish):** 20c-b/c/d routing matrix · 22a–d operator education · DOX sparse `AGENTS.md` tree (agent codebase docs only)
 
@@ -1240,7 +1324,9 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 - [x] Reference docs + packet field seeds
 - [x] Orchestration env placeholders
 - [x] Alembic workflow migrations (intel tables still via migration script)
-- [ ] Intel migration from capture-insights DuckDB (in progress)
+- [x] Intel migration from capture-insights bulk zip/CSV (64.2M prime + 1.5M sub)
+- [ ] Intel analytics cleanup views (Phase 23a — post-MVP)
+- [ ] Incubator Develop → Publish (Phase 21b–21d)
 - [x] `pg_queries` intel layer
 - [x] LLM router (Grok primary)
 - [x] Vault seed — global_wiki, domain_intel, training scaffold

@@ -1,6 +1,11 @@
 """Shared SQL fragments — ported from capture-insights queries.py for PostgreSQL."""
 
 PRIME_TABLE = "intel_usaspending_prime_awards"
+SUB_TABLE = "intel_usaspending_subawards"
+ANALYTICS_SCHEMA = "intel_analytics"
+PRIME_AWARDS_VIEW = f"{ANALYTICS_SCHEMA}.intel_prime_awards_v"
+SUBAWARDS_VIEW = f"{ANALYTICS_SCHEMA}.intel_subawards_v"
+DEDUP_MATVIEW = f"{ANALYTICS_SCHEMA}.mv_prime_awards_dedup"
 
 AGENCY_EXPR = """COALESCE(
     NULLIF(parent_award_agency_name, ''),
@@ -8,6 +13,47 @@ AGENCY_EXPR = """COALESCE(
     NULLIF(funding_agency_name, ''),
     '(Unspecified Agency)'
 )"""
+
+AGENCY_NORMALIZED_EXPR = f"""CASE
+    WHEN UPPER(TRIM(({AGENCY_EXPR}))) = '' THEN '(Unspecified Agency)'
+    WHEN UPPER(TRIM(({AGENCY_EXPR}))) ~ '^DEPT OF '
+        THEN REGEXP_REPLACE(UPPER(TRIM(({AGENCY_EXPR}))), '^DEPT OF ', 'DEPARTMENT OF ')
+    ELSE UPPER(TRIM(({AGENCY_EXPR})))
+END"""
+
+def agency_normalized_expr(column: str) -> str:
+    """Normalize a single agency column (DEPT OF → DEPARTMENT OF, UPPER)."""
+    trimmed = f"UPPER(TRIM(COALESCE({column}, '')))"
+    return f"""CASE
+        WHEN {trimmed} = '' THEN ''
+        WHEN {trimmed} ~ '^DEPT OF '
+            THEN REGEXP_REPLACE({trimmed}, '^DEPT OF ', 'DEPARTMENT OF ')
+        ELSE {trimmed}
+    END"""
+
+OBLIGATION_KIND_EXPR = """CASE
+    WHEN federal_action_obligation IS NULL THEN 'unknown'
+    WHEN federal_action_obligation < 0 THEN 'deobligation'
+    WHEN federal_action_obligation = 0 THEN 'zero'
+    ELSE 'obligation'
+END"""
+
+EXTENT_COMPETED_NORMALIZED_EXPR = "UPPER(TRIM(COALESCE(extent_competed, '')))"
+
+# Data_Insights cleansing — keeps set-aside / competition chart buckets consistent.
+SET_ASIDE_NORMALIZED_EXPR = """CASE
+    WHEN type_of_set_aside ILIKE 'NO SET ASIDE USED.' THEN 'NO SET ASIDE USED'
+    WHEN UPPER(TRIM(COALESCE(extent_competed, ''))) = 'FULL AND OPEN COMPETITION' THEN 'NO SET ASIDE USED'
+    WHEN UPPER(TRIM(COALESCE(extent_competed, ''))) = 'FULL AND OPEN COMPETITION AFTER EXCLUSION OF SOURCES'
+         AND (
+             UPPER(TRIM(COALESCE(type_of_set_aside, ''))) = 'NO SET ASIDE USED'
+             OR UPPER(TRIM(COALESCE(type_of_set_aside, ''))) = 'NO SET ASIDE USED.'
+         ) THEN NULL
+    WHEN NULLIF(TRIM(COALESCE(type_of_set_aside, '')), '') IS NULL THEN NULL
+    ELSE UPPER(TRIM(type_of_set_aside))
+END"""
+
+SET_ASIDE_CHART_EXPR = f"COALESCE(({SET_ASIDE_NORMALIZED_EXPR}), '(Not Applicable)')"
 
 STATE_EXPR = "COALESCE(NULLIF(primary_place_of_performance_state_code, ''), '??')"
 

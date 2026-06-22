@@ -10,6 +10,7 @@ Usage (from repo root):
     .venv\\Scripts\\python.exe backend/scripts/migrate_intel_from_bulk.py --force
     .venv\\Scripts\\python.exe backend/scripts/migrate_intel_from_bulk.py --skip-subawards
     .venv\\Scripts\\python.exe backend/scripts/migrate_intel_from_bulk.py --indexes-only
+    .venv\\Scripts\\python.exe backend/scripts/migrate_intel_from_bulk.py --views-only
 """
 
 from __future__ import annotations
@@ -55,7 +56,17 @@ def main() -> int:
     parser.add_argument(
         "--indexes-only",
         action="store_true",
-        help="Only build analytics indexes on existing intel tables",
+        help="Build analytics indexes + intel_analytics views (no data reload)",
+    )
+    parser.add_argument(
+        "--views-only",
+        action="store_true",
+        help="Only (re)create intel_analytics SQL views",
+    )
+    parser.add_argument(
+        "--with-dedup-matview",
+        action="store_true",
+        help="Also build dedup materialized view (slow on full 64M load)",
     )
     args = parser.parse_args()
 
@@ -87,6 +98,7 @@ def main() -> int:
         )
         print(f"  Phase:      {status.phase}")
         print(f"  Indexes:    {status.indexes_built}")
+        print(f"  Views:      {status.views_built}")
         print(f"  Complete:   {status.complete}")
         print(f"  State file: {status.state_path}")
         print(f"  Log file:   {status.log_path}")
@@ -106,6 +118,8 @@ def main() -> int:
         skip_subawards=args.skip_subawards,
         skip_indexes=args.skip_indexes,
         indexes_only=args.indexes_only,
+        views_only=args.views_only,
+        with_dedup_matview=args.with_dedup_matview,
         on_progress=lambda done, total, kind: print(
             f"[intel] {kind}: {done:,} / {total:,} files ({100 * done / max(total, 1):.1f}%)"
         ),

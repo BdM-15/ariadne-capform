@@ -1717,6 +1717,74 @@ body.task-drawer-open {
   max-width: 48rem;
 }
 
+.vault-candidate-editor--split {
+  max-width: none;
+}
+
+.vault-editor-split {
+  display: grid;
+  grid-template-columns: minmax(16rem, 1fr) minmax(18rem, 1.05fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.vault-editor-split--solo {
+  grid-template-columns: 1fr;
+}
+
+.vault-editor-main-col {
+  min-width: 0;
+}
+
+.vault-editor-parse-panel {
+  min-width: 0;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  background: rgba(2, 6, 23, 0.45);
+  padding: 0.65rem 0.75rem;
+  max-height: min(72vh, 42rem);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: sticky;
+  top: 0.35rem;
+}
+
+.vault-editor-parse-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.vault-editor-parse-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgb(226 232 240);
+}
+
+.vault-editor-parse-meta {
+  margin: 0.15rem 0 0;
+}
+
+.vault-editor-parse-hint {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.45;
+  color: rgb(100 116 139);
+}
+
+.vault-editor-parse-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  line-height: 1.5;
+}
+
 .vault-editor-header {
   display: flex;
   flex-wrap: wrap;
@@ -1854,6 +1922,17 @@ body.task-drawer-open {
   align-items: center;
   gap: 0.35rem;
   padding-top: 0.15rem;
+}
+
+@media (max-width: 900px) {
+  .vault-editor-split {
+    grid-template-columns: 1fr;
+  }
+
+  .vault-editor-parse-panel {
+    position: static;
+    max-height: 24rem;
+  }
 }
 
 @media (max-width: 640px) {

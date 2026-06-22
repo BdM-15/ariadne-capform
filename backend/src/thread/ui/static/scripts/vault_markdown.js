@@ -56,7 +56,11 @@
       target.id === "education-lesson-panel" ||
       target.closest("#education-lesson-panel") ||
       target.id === "education-studio-mount" ||
-      target.closest("#education-studio-mount")
+      target.closest("#education-studio-mount") ||
+      target.id === "knowledge-candidate-editor" ||
+      target.closest("#knowledge-candidate-editor") ||
+      target.id === "knowledge-capture-studio-mount" ||
+      target.closest("#knowledge-capture-studio-mount")
     ) {
       renderAll(target);
     }

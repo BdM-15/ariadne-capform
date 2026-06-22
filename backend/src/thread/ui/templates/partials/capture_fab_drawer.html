@@ -2,7 +2,7 @@
   <div class="capture-fab-drawer-head">
     <div class="min-w-0">
       <h2 class="capture-fab-title">Dump &amp; go</h2>
-      <p class="capture-fab-sub">Rough notes and/or any document — platform infers title, type, MinerU parse, polish, merge plan. You approve in Vault Inbox.</p>
+      <p class="capture-fab-sub">Rough notes and/or any document — platform stages parse on disk, writes a slim seed to Incubator. Develop → publish later.</p>
       {% if context.context_label %}
       <p
         class="capture-fab-context"
@@ -19,7 +19,7 @@
   <div class="capture-fab-success capture-fab-success-done" id="capture-fab-result">
     <p class="capture-fab-flash is-ok">
       <span class="capture-fab-flash-kicker">
-        {% if capture_lane == 'task' %}Added to Tasks{% elif inbox_lane == 'test' %}Added to Test Inbox{% else %}Queued in Vault Inbox{% endif %}
+        {% if capture_lane == 'task' %}Added to Tasks{% elif inbox_lane == 'test' %}Held in Test Incubator{% else %}Held in Incubator{% endif %}
       </span>
       {% if queue_position and queue_total %}
       <span class="capture-fab-flash-queue">#{{ queue_position }} of {{ queue_total }}</span>
@@ -39,18 +39,18 @@
       {% if capture_lane == 'task' %}
       Intent ({{ title_provider }}) · polish ({{ polish_provider }}) — check off on Tasks when done.
       {% else %}
-      Title ({{ title_provider }}) · body ({{ polish_provider }}) — review and approve to publish.
+      Title ({{ title_provider }}) · body ({{ polish_provider }}) — seed held; develop before publish.
       {% endif %}
     </p>
     <p class="capture-fab-next-step">
       <strong>Next:</strong>
-      {% if capture_lane == 'task' %}Open Tasks to check off when handled.{% else %}Open Vault Inbox → review candidate → Approve to publish into Knowledge.{% endif %}
+      {% if capture_lane == 'task' %}Open Tasks to check off when handled.{% else %}Open Incubator → glance seed → develop ingest plan when ready.{% endif %}
     </p>
     <div class="capture-fab-success-actions">
       {% if capture_lane == 'task' and task_href %}
       <a href="{{ task_href }}" class="btn btn-primary btn-compact text-xs no-underline capture-fab-studio-link">Open Tasks</a>
       {% elif studio_href %}
-      <a href="{{ studio_href }}" class="btn btn-primary btn-compact text-xs no-underline capture-fab-studio-link">Open Vault Inbox</a>
+      <a href="{{ studio_href }}" class="btn btn-primary btn-compact text-xs no-underline capture-fab-studio-link">Open Incubator</a>
       {% endif %}
       <button type="button" class="btn btn-ghost btn-compact text-xs capture-fab-again" data-capture-fab-reload>Upload another</button>
     </div>

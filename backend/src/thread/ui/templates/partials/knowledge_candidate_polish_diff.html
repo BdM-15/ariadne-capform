@@ -4,7 +4,7 @@
       <h3 class="text-sm font-semibold text-neon-amber">Polish preview</h3>
       <p class="text-[10px] font-mono text-slate-500">
         {{ polish_result.provider }}{% if polish_result.model %} · {{ polish_result.model }}{% endif %}
-        — accept writes candidate only
+        — accept updates {% if edit_form.is_incubator %}seed{% else %}draft{% endif %} only (not published)
       </p>
     </div>
     <button

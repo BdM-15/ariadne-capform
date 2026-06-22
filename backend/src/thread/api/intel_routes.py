@@ -55,6 +55,7 @@ async def intel_migration_status() -> dict:
         "sub_source_total": status.sub_source_total,
         "phase": status.phase,
         "indexes_built": status.indexes_built,
+        "views_built": status.views_built,
         "complete": status.complete,
         "state_path": status.state_path,
         "log_path": status.log_path,

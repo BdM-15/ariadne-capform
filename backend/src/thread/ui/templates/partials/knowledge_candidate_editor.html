@@ -1,10 +1,21 @@
-<article id="knowledge-candidate-editor" class="vault-candidate-editor">
+<article id="knowledge-candidate-editor" class="vault-candidate-editor{% if parse_preview %} vault-candidate-editor--split{% endif %}">
   <div class="vault-editor-header">
     <div>
+      {% if edit_form.is_incubator %}
+      <h3 class="vault-editor-title">Edit seed</h3>
+      <p class="vault-editor-lead">
+        {% if parse_preview %}
+        Left: slim seed (Intent / Extract). Right: full MinerU parse — read-only Layer 1 on disk.
+        {% else %}
+        Refine intent, extract summary, and type hint — full parse stays on disk until develop/publish.
+        {% endif %}
+      </p>
+      {% else %}
       <h3 class="vault-editor-title">Override draft</h3>
       <p class="vault-editor-lead">
         Platform picked title, type, merge path, and links — change only what you disagree with.
       </p>
+      {% endif %}
     </div>
     <a
       href="#knowledge-vault-inbox"
@@ -14,7 +25,7 @@
       hx-swap="innerHTML"
     >
       <i data-lucide="arrow-left" class="w-3 h-3"></i>
-      Back to inbox
+      Back to Incubator
     </a>
   </div>
 
@@ -22,35 +33,54 @@
     <dl class="vault-editor-summary">
       <div>
         <dt>
-          Platform title
-          <span class="settings-label-tip" title="Human label in vault browser and inbox — not the filename slug.">?</span>
+          {% if edit_form.is_incubator %}Seed title{% else %}Platform title{% endif %}
+          <span class="settings-label-tip" title="Human label in Incubator and vault browser — not the filename slug.">?</span>
         </dt>
         <dd>{{ edit_form.name }}</dd>
       </div>
       <div>
         <dt>
           Page type
-          <span class="settings-label-tip" title="Routes vault folder on approve: synthesis→domain intel, concept→frameworks, agency→entities/agencies, competitor→entities/competitors, opportunity→pursuits. Wrong type = wrong browse folder.">?</span>
+          <span class="settings-label-tip" title="{% if edit_form.is_incubator %}Hint for future publish routing when you develop an ingest plan.{% else %}Routes vault folder on publish: synthesis→domain intel, concept→frameworks, agency→entities/agencies, competitor→entities/competitors, opportunity→pursuits.{% endif %}">?</span>
         </dt>
         <dd><span class="font-mono text-neon-cyan">{{ edit_form.page_type }}</span></dd>
       </div>
+      {% if edit_form.is_incubator %}
+      <div>
+        <dt>Capture kind</dt>
+        <dd><span class="font-mono text-neon-lime">{{ edit_form.capture_kind or 'idea' }}</span></dd>
+      </div>
+      <div>
+        <dt>Maturity</dt>
+        <dd><span class="font-mono text-neon-lime">{{ edit_form.maturity or 'seed' }}</span></dd>
+      </div>
+      {% if edit_form.ingest_id %}
+      <div>
+        <dt>Ingest id</dt>
+        <dd class="font-mono text-slate-400">{{ edit_form.ingest_id }}</dd>
+      </div>
+      {% endif %}
+      {% else %}
       <div class="vault-editor-summary-wide">
         <dt>
-          Merge target on approve
+          Merge target on publish
           <span class="settings-label-tip" title="Trusted .md path where body appends (or new file created). Dedup may suggest a near-duplicate instead.">?</span>
         </dt>
         <dd class="font-mono truncate" title="{{ edit_form.promote_target }}">{{ edit_form.promote_target }}</dd>
       </div>
+      {% endif %}
       <div class="vault-editor-summary-wide">
         <dt>
-          Draft file
-          <span class="settings-label-tip" title="Staging note under generated-projections/ — not trusted vault until you Approve.">?</span>
+          {% if edit_form.is_incubator %}Seed file{% else %}Draft file{% endif %}
+          <span class="settings-label-tip" title="{% if edit_form.is_incubator %}Incubator seed under generated-projections/incubator/ — not trusted wiki until publish.{% else %}Staging note under generated-projections/ — not trusted vault until you Publish.{% endif %}">?</span>
         </dt>
         <dd class="font-mono truncate" title="{{ edit_form.candidate_path }}">{{ edit_form.candidate_path }}</dd>
       </div>
     </dl>
   </section>
 
+  <div class="vault-editor-split{% if not parse_preview %} vault-editor-split--solo{% endif %}">
+    <div class="vault-editor-main-col">
   <form
     id="candidate-edit-form-{{ edit_form.review_id }}"
     class="vault-editor-form"
@@ -65,9 +95,9 @@
       <label class="vault-editor-field">
         <span class="vault-editor-label">
           Display title
-          <span class="settings-label-tip" title="Short memorable name — e.g. Proposal Review Comments Repository. Becomes frontmatter name on save.">?</span>
+          <span class="settings-label-tip" title="Short memorable name — becomes frontmatter name on save.">?</span>
         </span>
-        <p class="vault-editor-field-hint">Shown in inbox and vault tree — not the file slug.</p>
+        <p class="vault-editor-field-hint">Shown in Incubator and vault tree — not the file slug.</p>
         <input
           class="thread-input text-xs w-full"
           name="name"
@@ -79,9 +109,9 @@
       <label class="vault-editor-field">
         <span class="vault-editor-label">
           Vault page type
-          <span class="settings-label-tip" title="Picks folder + frontmatter template on approve. synthesis=general note, concept=playbook, agency=customer, competitor=rival profile, opportunity=pursuit intel.">?</span>
+          <span class="settings-label-tip" title="{% if edit_form.is_incubator %}Future publish folder hint — develop step picks Karpathy ingest targets.{% else %}Picks folder + frontmatter template on publish.{% endif %}">?</span>
         </span>
-        <p class="vault-editor-field-hint">Wrong type → note lands in wrong vault folder.</p>
+        <p class="vault-editor-field-hint">{% if edit_form.is_incubator %}Type hint only while seed is held.{% else %}Wrong type → note lands in wrong vault folder.{% endif %}</p>
         <select class="thread-input text-xs w-full" name="page_type">
           <option value="synthesis" {% if edit_form.page_type == 'synthesis' %}selected{% endif %}>synthesis — general knowledge</option>
           <option value="concept" {% if edit_form.page_type == 'concept' %}selected{% endif %}>concept — framework / playbook</option>
@@ -93,10 +123,16 @@
 
       <label class="vault-editor-field vault-editor-field-body">
         <span class="vault-editor-label">
-          Note body
-          <span class="settings-label-tip" title="Markdown content — your dump, optionally polished. Platform strips candidate boilerplate on save.">?</span>
+          {% if edit_form.is_incubator %}Seed body{% else %}Note body{% endif %}
+          <span class="settings-label-tip" title="{% if edit_form.is_incubator %}Keep ## Intent / ## Extract / ## Source — intent syncs to frontmatter on save.{% else %}Markdown content — platform strips candidate boilerplate on save.{% endif %}">?</span>
         </span>
-        <p class="vault-editor-field-hint">Main content published on approve — markdown OK.</p>
+        <p class="vault-editor-field-hint">
+          {% if edit_form.is_incubator %}
+          Intent + glance extract + ingest pointer — do not paste full MinerU parse here.
+          {% else %}
+          Main content published on approve — markdown OK.
+          {% endif %}
+        </p>
         <textarea
           class="thread-input text-xs w-full vault-editor-body-input"
           name="body"
@@ -108,18 +144,19 @@
         <div class="vault-editor-related-head">
           <span class="vault-editor-label">
             Related wikilinks
-            <span class="settings-label-tip" title="Obsidian [[links]] between notes. Stems = filename without .md. Graph edges let Clew, browse, and semantic passes traverse your vault. LLM guessed these — swap if you want different connections. capture-llm-wiki hub added automatically on save.">?</span>
+            <span class="settings-label-tip" title="Obsidian [[links]] for develop/publish graph planning. capture-llm-wiki hub added automatically on save.">?</span>
           </span>
           <p class="vault-editor-field-hint">
-            Graph edges to other vault pages. LLM picked stems so search and Clew can traverse — change if you want different links.
+            {% if edit_form.is_incubator %}
+            Stems to consider when you develop the ingest plan.
+            {% else %}
+            Graph edges to other vault pages — change if you want different links.
+            {% endif %}
           </p>
         </div>
 
         <label class="vault-editor-field vault-editor-field-stems">
-          <span class="vault-editor-sublabel">
-            Vault pages
-            <span class="settings-label-tip" title="Trusted pages in knowledge/thread/. Ctrl+click (⌘ on Mac) to select multiple. Selected stems become [[wikilinks]] in Related on save.">?</span>
-          </span>
+          <span class="vault-editor-sublabel">Vault pages</span>
           <select
             class="thread-input text-xs w-full vault-stem-select"
             name="related_stems"
@@ -139,10 +176,7 @@
         </label>
 
         <label class="vault-editor-field vault-editor-field-custom">
-          <span class="vault-editor-sublabel">
-            Custom stems
-            <span class="settings-label-tip" title="Stems not in vault yet, or LLM used a shorthand. Comma-separated, no [[brackets]]. Example: my-new-topic, lessons-learned-index">?</span>
-          </span>
+          <span class="vault-editor-sublabel">Custom stems</span>
           <input
             class="thread-input text-xs w-full font-mono"
             name="related_custom"
@@ -154,14 +188,14 @@
     </div>
 
     <div class="vault-editor-actions">
-      <button type="submit" class="btn btn-primary btn-compact text-xs" title="Save overrides — still requires Approve to publish">
+      <button type="submit" class="btn btn-primary btn-compact text-xs" title="{% if edit_form.is_incubator %}Save seed edits — still held until develop/publish{% else %}Save overrides — still requires Publish{% endif %}">
         <i data-lucide="save" class="w-3 h-3"></i>
-        Save overrides
+        Save {% if edit_form.is_incubator %}seed{% else %}overrides{% endif %}
       </button>
       <button
         type="button"
         class="btn btn-soft btn-compact text-xs"
-        title="Ollama rewrites structure, callouts, and Related — shows diff before apply"
+        title="{% if edit_form.is_incubator %}Ollama refines intent/extract structure — shows diff before apply{% else %}Ollama rewrites structure, callouts, and Related — shows diff before apply{% endif %}"
         hx-post="/partials/knowledge/candidate-polish"
         hx-target="#knowledge-capture-studio-mount"
         hx-swap="innerHTML"
@@ -169,8 +203,13 @@
         hx-include="#candidate-edit-form-{{ edit_form.review_id }}"
       >
         <i data-lucide="sparkles" class="w-3 h-3"></i>
-        Re-polish (Ollama)
+        {% if edit_form.is_incubator %}Polish seed{% else %}Re-polish (Ollama){% endif %}
       </button>
     </div>
   </form>
+    </div>
+    {% if parse_preview %}
+    {% include "partials/knowledge_ingest_parse_preview.html" %}
+    {% endif %}
+  </div>
 </article>

@@ -945,14 +945,21 @@ async def _capture_studio_template_context(
     *,
     edit_review_id: uuid.UUID | None = None,
     highlight_review_id: uuid.UUID | None = None,
+    maturity_filter: str = "",
+    capture_kind_filter: str = "",
+    show_rejected: bool = False,
     polish_result=None,
     flash: str | None = None,
     flash_ok: bool = True,
 ) -> dict:
+    from thread.services.incubator_rejected import list_rejected_seeds
+
     widget = await build_vault_review_widget(
         db,
         settings,
         highlight_review_id=highlight_review_id,
+        maturity_filter=maturity_filter.strip(),
+        capture_kind_filter=capture_kind_filter.strip(),
     )
     edit_form = None
     polish_diff = None
@@ -962,15 +969,25 @@ async def _capture_studio_template_context(
             edit_form = load_candidate_edit_form(settings, record)
     if polish_result is not None and edit_form is not None:
         polish_diff = build_polish_diff(polish_result.before, polish_result.after)
+    parse_preview = None
+    if edit_form is not None and edit_form.ingest_id:
+        from thread.services.ingest_parse_view import load_ingest_parse_preview
+
+        parse_preview = load_ingest_parse_preview(settings, edit_form.ingest_id)
     return {
         "widget": widget,
         "edit_form": edit_form,
+        "parse_preview": parse_preview,
         "polish_result": polish_result,
         "polish_diff": polish_diff,
         "flash": flash,
         "flash_ok": flash_ok,
         "studio_open": widget.needs_attention or edit_form is not None or polish_result is not None,
         "highlight_review_id": str(highlight_review_id) if highlight_review_id else "",
+        "maturity_filter": maturity_filter.strip(),
+        "capture_kind_filter": capture_kind_filter.strip(),
+        "rejected_seeds": list_rejected_seeds(settings),
+        "show_rejected": show_rejected,
     }
 
 
@@ -1042,6 +1059,9 @@ async def knowledge_vault_review_partial(
 async def knowledge_capture_studio_partial(
     request: Request,
     inbox: str = Query(""),
+    maturity: str = Query(""),
+    capture_kind: str = Query(""),
+    rejected: str = Query(""),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
@@ -1049,6 +1069,9 @@ async def knowledge_capture_studio_partial(
         db,
         settings,
         highlight_review_id=_parse_inbox_review_id(inbox),
+        maturity_filter=maturity,
+        capture_kind_filter=capture_kind,
+        show_rejected=rejected.lower() in ("1", "true", "yes", "open"),
     )
     return templates.TemplateResponse(
         request,
@@ -1507,7 +1530,7 @@ async def knowledge_reparse_candidate(
         ctx = await _capture_studio_template_context(
             db,
             settings,
-            edit_review_id=review_id,
+            highlight_review_id=review_id,
             flash=flash,
             flash_ok=flash_ok,
         )
@@ -1516,7 +1539,7 @@ async def knowledge_reparse_candidate(
         ctx = await _capture_studio_template_context(
             db,
             settings,
-            edit_review_id=review_id,
+            highlight_review_id=review_id,
             flash=str(exc),
             flash_ok=False,
         )
@@ -2974,14 +2997,20 @@ async def reject_review_route(
         if record.entity_type == "vault_candidate":
             reject_vault_candidate(settings, record.entity_id)
         await db.commit()
-        flash = f"Rejected — archived {Path(record.entity_id).name}"
+        flash = f"Rejected — moved to generated-projections/rejected/{Path(record.entity_id).name}"
     except ReviewGateError as exc:
         await db.rollback()
         flash = str(exc)
         flash_ok = False
 
     if return_scope in ("knowledge_vault_review", "knowledge_capture_studio"):
-        ctx = await _capture_studio_template_context(db, settings, flash=flash, flash_ok=flash_ok)
+        ctx = await _capture_studio_template_context(
+            db,
+            settings,
+            flash=flash,
+            flash_ok=flash_ok,
+            show_rejected=True,
+        )
         return templates.TemplateResponse(
             request,
             "partials/knowledge_capture_studio.html",

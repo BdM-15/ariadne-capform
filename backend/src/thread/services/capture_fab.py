@@ -22,12 +22,17 @@ from thread.services.vault_candidate_polish import (
 from thread.services.vault_inbox_display import extract_dump_snippet
 from thread.services.vault_review_queue import build_vault_review_widget
 from thread.services.vault_sandbox import is_sandbox_path
+from thread.services.incubator_capture import (
+    build_incubator_intent,
+    format_incubator_body,
+    infer_capture_kind,
+)
 from thread.services.vault_write import (
     VaultWriteError,
     VaultWriteResult,
     load_candidate_note,
     queue_vault_candidate_review,
-    write_candidate_note,
+    write_incubator_note,
 )
 
 _MAX_TITLE = 72
@@ -199,6 +204,7 @@ def prepare_quick_capture(
     *,
     context: CaptureContext,
     document: DocumentExtract | None = None,
+    incubator: bool = True,
 ) -> QuickCaptureDraft:
     dump = _clean(raw_dump)
     if not dump and not document:
@@ -206,16 +212,23 @@ def prepare_quick_capture(
             "No text or file received — drop the file again (green chip must show), then submit."
         )
 
-    parts: list[str] = []
-    if document:
-        parts.append(document.markdown.strip())
-    if dump:
-        parts.append(dump)
-
-    body = "\n\n".join(parts)
     footer = _context_footer(context)
-    if footer:
-        body = f"{body.rstrip()}\n\n{footer}\n"
+    if incubator:
+        intent = build_incubator_intent(dump, document=document)
+        body = format_incubator_body(
+            intent=intent,
+            document=document,
+            context_footer=footer,
+        )
+    else:
+        parts: list[str] = []
+        if document:
+            parts.append(document.markdown.strip())
+        if dump:
+            parts.append(dump)
+        body = "\n\n".join(parts)
+        if footer:
+            body = f"{body.rstrip()}\n\n{footer}\n"
 
     fallback_title = ""
     if context.opp_name:
@@ -288,7 +301,7 @@ def format_document_status_note(
     if status in {"mineru_parsed", "parsed"}:
         return f"{name} — {summary}" if summary else f"{name} — document text extracted."
     if status == "mineru_error":
-        return f"{name} — parse failed (file staged). Vault Inbox → Advanced → Re-parse when MinerU is up."
+        return f"{name} — parse failed (file staged). Incubator → Advanced → Re-parse when MinerU is up."
     if status == "mineru_stub":
         return f"{name} — staged only (MinerU disabled)."
     if status == "inline_text":
@@ -343,6 +356,8 @@ async def ingest_quick_capture(
         page_type=inferred.page_type or draft.page_type,
         related=draft.related,
     )
+    capture_kind = infer_capture_kind(document=document, award_key=context.award_key)
+    incubator_intent = build_incubator_intent(_clean(raw_dump), document=document)
     citations = build_capture_citations(
         opp_id=context.opp_id,
         award_key=context.award_key,
@@ -350,7 +365,7 @@ async def ingest_quick_capture(
         ingest_id=document.ingest_id if document else "",
         ingest_rel=document.ingest_rel if document else "",
     )
-    write_result = write_candidate_note(
+    write_result = write_incubator_note(
         settings,
         name=draft.name,
         body=draft.body,
@@ -358,16 +373,15 @@ async def ingest_quick_capture(
         citations=citations,
         related=list(draft.related),
         source="fabric",
+        capture_kind=capture_kind,
+        intent=incubator_intent,
+        ingest_id=document.ingest_id if document else "",
     )
 
-    # Ingest polish — light typo/grammar cleanup (≤20s). Skip LLM on large MinerU bodies.
+    # Incubator seeds stay slim — rules polish only (no LLM body rewrite).
     loaded = load_candidate_note(settings, write_result.path)
-    body_len = len(str(loaded.get("body") or ""))
-    if body_len > 12_000:
-        polished = rules_polish_candidate(loaded)
-        polish_provider = "rules-large-doc"
-    else:
-        polished, polish_provider = await ingest_polish_candidate(settings, loaded)
+    polished = rules_polish_candidate(loaded)
+    polish_provider = "rules-incubator"
     if not polished.name:
         polished = PolishedCandidate(
             name=draft.name,

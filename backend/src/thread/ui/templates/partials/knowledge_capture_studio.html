@@ -3,8 +3,8 @@
     <summary class="capture-studio-summary px-4 py-3 cursor-pointer select-none flex items-center justify-between gap-2">
       <span class="flex items-center gap-2 min-w-0">
         <i data-lucide="inbox" class="w-4 h-4 text-neon-magenta shrink-0"></i>
-        <span class="font-semibold text-sm text-slate-100">Vault Inbox</span>
-        <span class="text-[10px] font-mono text-slate-500 truncate hidden sm:inline">dump → glance → approve</span>
+        <span class="font-semibold text-sm text-slate-100">Incubator</span>
+        <span class="text-[10px] font-mono text-slate-500 truncate hidden sm:inline">capture → hold → develop → publish</span>
       </span>
       <span class="flex items-center gap-2 shrink-0">
         {% if widget.needs_attention %}
@@ -22,8 +22,8 @@
     </summary>
     <div class="capture-studio-body border-t border-edge p-4 space-y-3">
       <p class="capture-studio-doctrine m-0">
-        Your brain dumps land here. Platform infers title, type, and merge target — you approve or reject.
-        Not the LangGraph Studio; this is vault ingest only.
+        Capture FAB seeds land here — slim intent + ingest pointer, full parse on disk.
+        Hold by default; develop ingest plan before trusted publish.
       </p>
       <details class="capture-studio-advanced">
         <summary>Structured idea capture (idea_capturer)</summary>
@@ -35,7 +35,7 @@
           hx-indicator="#capture-studio-working"
         >
           <p class="text-[10px] text-slate-500 leading-snug m-0">
-            Tier 1 fleeting note — spellfix at ingest, <span class="font-mono text-slate-400">vault_maintainer</span> gate, then Vault Inbox queue.
+            Tier 1 fleeting note — spellfix at ingest, <span class="font-mono text-slate-400">vault_maintainer</span> gate, then Incubator queue.
           </p>
           <textarea
             class="thread-input text-xs w-full min-h-[4rem]"
@@ -69,6 +69,7 @@
       {% endif %}
 
       {% include "partials/knowledge_vault_review.html" %}
+      {% include "partials/knowledge_incubator_rejected.html" %}
     </div>
   </details>
 </section>

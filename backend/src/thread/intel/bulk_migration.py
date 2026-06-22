@@ -62,6 +62,7 @@ class MigrationStatus:
     phase: str
     complete: bool
     indexes_built: bool
+    views_built: bool
     state_path: str
     log_path: str
     last_updated: str | None
@@ -357,6 +358,17 @@ def ensure_intel_indexes(settings: Settings) -> None:
         ),
         f"CREATE INDEX IF NOT EXISTS idx_intel_sub_prime_name ON {SUB_TABLE}(prime_awardee_name)",
         f"CREATE INDEX IF NOT EXISTS idx_intel_sub_sub_name ON {SUB_TABLE}(subawardee_name)",
+        f"CREATE INDEX IF NOT EXISTS idx_intel_prime_action_date ON {PRIME_TABLE}(action_date)",
+        f"CREATE INDEX IF NOT EXISTS idx_intel_prime_recipient_uei ON {PRIME_TABLE}(recipient_uei)",
+        f"CREATE INDEX IF NOT EXISTS idx_intel_prime_recipient_name ON {PRIME_TABLE}(recipient_name)",
+        (
+            f"CREATE INDEX IF NOT EXISTS idx_intel_prime_pop_end "
+            f"ON {PRIME_TABLE}(period_of_performance_current_end_date)"
+        ),
+        (
+            f"CREATE INDEX IF NOT EXISTS idx_intel_sub_prime_award_key "
+            f"ON {SUB_TABLE}(prime_award_unique_key)"
+        ),
     ]
     _append_log(settings, "building analytics indexes (may take 30+ minutes on full dataset)...")
     with psycopg.connect(dsn) as conn:
@@ -410,6 +422,7 @@ def get_migration_status(settings: Settings) -> MigrationStatus:
 
     phase = str(state.get("phase", "idle"))
     indexes_built = bool(state.get("indexes_built", False))
+    views_built = bool(state.get("views_built", False))
     prime_complete, sub_complete = _migration_files_complete(state, prime_files, sub_files)
     complete = (
         prime_dir.exists()
@@ -448,6 +461,7 @@ def get_migration_status(settings: Settings) -> MigrationStatus:
         phase=phase,
         complete=complete,
         indexes_built=indexes_built,
+        views_built=views_built,
         state_path=str(sp),
         log_path=str(log_path(settings)),
         last_updated=state.get("updated_at"),
@@ -526,6 +540,8 @@ def run_intel_migration(
     skip_subawards: bool = False,
     skip_indexes: bool = False,
     indexes_only: bool = False,
+    views_only: bool = False,
+    with_dedup_matview: bool = False,
     on_progress: Callable[[int, int, str], None] | None = None,
 ) -> MigrationResult:
     prime_dir = bulk_prime_dir(settings)
@@ -536,9 +552,18 @@ def run_intel_migration(
     sp = state_path(settings)
     _append_log(settings, f"=== bulk COPY migration start (force={force}) ===")
 
+    if views_only:
+        from thread.intel.intel_analytics import ensure_intel_analytics_views
+
+        ensure_intel_analytics_views(settings, include_dedup_matview=with_dedup_matview)
+        return MigrationResult(True, "Analytics views built", prime_rows=0)
+
     if indexes_only:
         ensure_intel_indexes(settings)
-        return MigrationResult(True, "Indexes built", prime_rows=0)
+        from thread.intel.intel_analytics import ensure_intel_analytics_views
+
+        ensure_intel_analytics_views(settings, include_dedup_matview=with_dedup_matview)
+        return MigrationResult(True, "Indexes and analytics views built", prime_rows=0)
 
     state = {} if force else _load_state(sp)
 
@@ -620,6 +645,9 @@ def run_intel_migration(
     if not skip_indexes and prime_pg > 0:
         print("[intel] Building indexes (long step — monitor .thread/intel_migration.log)...")
         ensure_intel_indexes(settings)
+        from thread.intel.intel_analytics import ensure_intel_analytics_views
+
+        ensure_intel_analytics_views(settings, include_dedup_matview=with_dedup_matview)
         state = _load_state(sp)
 
     state["completed_at"] = datetime.now(timezone.utc).isoformat()

@@ -48,7 +48,8 @@ async def main() -> int:
             err = result.get("error", "")
             items = result.get("bars") or result.get("flows") or result.get("recipients") or result.get("edges") or []
             if mode == "teaming":
-                ok = bool(err) and "subaward" in err.lower()
+                sub_ready = int(stats.get("subaward_count", 0) or 0) > 0
+                ok = (not err and len(items) > 0) if sub_ready else bool(err) and "subaward" in err.lower()
             else:
                 ok = not err and len(items) > 0
             status = "PASS" if ok else "FAIL"

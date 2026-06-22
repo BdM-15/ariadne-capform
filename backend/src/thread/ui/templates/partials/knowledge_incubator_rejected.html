@@ -1,0 +1,39 @@
+<details class="capture-studio-advanced mt-3" {% if show_rejected %}open{% endif %}>
+  <summary>
+    Rejected seeds
+    {% if rejected_seeds %}
+    <span class="pill pill-compact border border-slate-600 text-slate-400 text-[10px] ml-2">{{ rejected_seeds|length }}</span>
+    {% endif %}
+  </summary>
+  <div class="capture-studio-advanced-body space-y-2">
+    <p class="capture-studio-doctrine m-0">
+      Dismissed from Incubator — files live under
+      <span class="font-mono text-slate-400">generated-projections/rejected/</span>.
+      Not the same as <span class="font-mono text-slate-400">archived/</span> (successful publish moves).
+      Open in Obsidian or vault tree to inspect; restore manually if needed.
+    </p>
+    {% if not rejected_seeds %}
+    <p class="text-xs text-slate-500 m-0">No rejected seeds on disk.</p>
+    {% else %}
+    <ul class="space-y-1.5 m-0 p-0 list-none">
+      {% for item in rejected_seeds %}
+      <li class="rounded-lg border border-edge/60 px-3 py-2 text-xs">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-semibold text-slate-200 truncate max-w-[16rem]" title="{{ item.name }}">{{ item.name }}</span>
+          {% if item.capture_kind %}
+          <span class="pill pill-compact border border-neon-cyan/30 text-neon-cyan text-[10px]">{{ item.capture_kind }}</span>
+          {% endif %}
+          {% if item.is_test %}
+          <span class="pill pill-compact border border-neon-amber/40 text-neon-amber text-[10px]">test</span>
+          {% endif %}
+        </div>
+        <p class="font-mono text-[10px] text-slate-500 truncate m-0 mt-1" title="{{ item.rel_path }}">{{ item.rel_path }}</p>
+        {% if item.modified_at %}
+        <p class="text-[10px] text-slate-600 m-0 mt-0.5">Rejected {{ item.modified_at.strftime('%Y-%m-%d %H:%M') }} UTC</p>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</details>

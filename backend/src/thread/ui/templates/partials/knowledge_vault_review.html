@@ -11,22 +11,42 @@
         <div class="min-w-0 flex-1">
           <div class="vault-inbox-card-meta">
             <span class="vault-inbox-queue-num">#{{ item.queue_position }}</span>
+            {% if item.is_incubator %}
+            <span class="pill pill-compact border border-neon-lime/40 text-neon-lime text-[10px]">{{ item.maturity_label or 'Held' }}</span>
+            <span class="pill pill-compact border border-neon-cyan/30 text-neon-cyan text-[10px]">{{ item.capture_kind_label or item.capture_kind }}</span>
+            {% else %}
             <span class="pill pill-compact border border-neon-cyan/30 text-neon-cyan text-[10px]">{{ item.page_type }}</span>
+            {% endif %}
             {% if item.is_test %}
             <span class="pill pill-compact border border-neon-amber/40 text-neon-amber text-[10px]" title="Sandbox / test fixture">test</span>
             {% endif %}
-            <span class="vault-inbox-destination" title="{{ item.auto_promote_target }}">→ {{ item.destination_label }}</span>
+            <span class="vault-inbox-destination" title="{{ item.auto_promote_target if not item.is_incubator else item.candidate_path }}">→ {{ item.destination_label }}</span>
           </div>
           <h3 class="vault-inbox-title" title="{{ item.title }}">{{ item.title }}</h3>
           <p class="vault-inbox-intent">{{ item.intent_line }}</p>
           <blockquote class="vault-inbox-snippet">“{{ item.snippet }}”</blockquote>
-          {% if item.dedup_hints %}
+          {% if item.dedup_hints and not item.is_incubator %}
           <p class="text-[10px] text-neon-amber/90 mt-1 font-mono">
             {{ item.dedup_hints|length }} similar page{{ 's' if item.dedup_hints|length != 1 else '' }} — platform picked best merge
           </p>
           {% endif %}
         </div>
         <div class="capture-studio-actions">
+          {% if item.is_incubator %}
+          <span class="btn btn-soft btn-compact text-xs opacity-60 cursor-not-allowed" title="Develop ingest plan first — publish comes later">
+            <i data-lucide="pause" class="w-3 h-3"></i>
+            Hold
+          </span>
+          <button
+            type="button"
+            class="btn btn-soft btn-compact text-xs opacity-50 cursor-not-allowed"
+            disabled
+            title="Develop step — ingest plan preview (coming soon)"
+          >
+            <i data-lucide="git-branch" class="w-3 h-3"></i>
+            Develop
+          </button>
+          {% else %}
           <form
             hx-post="/review/{{ item.review_id }}/approve"
             hx-target="#knowledge-capture-studio-mount"
@@ -36,17 +56,18 @@
             <input type="hidden" name="promote_target" value="{{ item.auto_promote_target }}" />
             <button type="submit" class="btn btn-primary btn-compact text-xs" title="Publish — {{ item.auto_promote_summary }}">
               <i data-lucide="check" class="w-3 h-3"></i>
-              Approve
+              Publish
             </button>
           </form>
+          {% endif %}
           <form
             hx-post="/review/{{ item.review_id }}/reject"
             hx-target="#knowledge-capture-studio-mount"
             hx-swap="innerHTML"
-            hx-confirm="Reject this draft? Moves to generated-projections/rejected/."
+            hx-confirm="Reject this seed? Moves to generated-projections/rejected/ (view in Rejected seeds below)."
           >
             <input type="hidden" name="return_scope" value="knowledge_capture_studio" />
-            <button type="submit" class="btn btn-danger btn-compact text-xs" title="Archive draft to rejected/">
+            <button type="submit" class="btn btn-danger btn-compact text-xs" title="Dismiss seed to rejected/ folder">
               <i data-lucide="x" class="w-3 h-3"></i>
               Reject
             </button>
@@ -54,27 +75,33 @@
         </div>
       </div>
       <details class="capture-studio-advanced">
-        <summary>Advanced — path, edit, polish</summary>
+        <summary>Advanced — {% if item.is_incubator %}edit, polish, re-parse{% else %}path, edit, polish{% endif %}</summary>
         <div class="capture-studio-advanced-body">
+          {% if item.is_incubator %}
+          <p class="capture-studio-plan-path truncate" title="{{ item.candidate_path }}">
+            Seed at: {{ item.candidate_path }}
+          </p>
+          {% else %}
           <p class="capture-studio-plan-path truncate" title="{{ item.auto_promote_target }}">
             Lands at: {{ item.auto_promote_target }}
           </p>
+          {% endif %}
           <div class="capture-studio-advanced-toolbar" role="toolbar" aria-label="Candidate tools">
             <button
               type="button"
               class="btn btn-soft btn-compact text-xs"
-              title="Override title, body, or type — platform defaults usually fine"
+              title="{% if item.is_incubator %}Edit intent, extract, title, type{% else %}Override title, body, or type{% endif %}"
               hx-get="/partials/knowledge/candidate-edit?review_id={{ item.review_id }}"
               hx-target="#knowledge-capture-studio-mount"
               hx-swap="innerHTML"
             >
               <i data-lucide="pen-line" class="w-3 h-3"></i>
-              Override
+              {% if item.is_incubator %}Edit{% else %}Override{% endif %}
             </button>
             <button
               type="button"
               class="btn btn-soft btn-compact text-xs"
-              title="Rules/Ollama polish with diff"
+              title="{% if item.is_incubator %}Refine intent/extract (rules or Ollama){% else %}Rules/Ollama polish with diff{% endif %}"
               hx-post="/partials/knowledge/candidate-polish"
               hx-target="#knowledge-capture-studio-mount"
               hx-swap="innerHTML"
@@ -99,7 +126,7 @@
               Re-parse
             </button>
             {% endif %}
-            {% if item.auto_enrich %}
+            {% if item.auto_enrich and not item.is_incubator %}
             <form
               class="capture-studio-toolbar-form"
               hx-post="/partials/knowledge/candidate-enrich"
@@ -124,6 +151,7 @@
             {% endif %}
           </div>
         </div>
+        {% if not item.is_incubator %}
         <form
           class="capture-studio-override-panel"
           hx-post="/review/{{ item.review_id }}/approve"
@@ -136,21 +164,54 @@
           {% set selected_target = item.auto_promote_target %}
           {% include "partials/knowledge_merge_target_picker.html" %}
           <div class="capture-studio-override-actions">
-            <button type="submit" class="btn btn-soft btn-compact text-xs" title="Approve with custom merge target">
+            <button type="submit" class="btn btn-soft btn-compact text-xs" title="Publish with custom merge target">
               <i data-lucide="git-merge" class="w-3 h-3"></i>
-              Approve with override
+              Publish with override
             </button>
           </div>
         </form>
+        {% endif %}
       </details>
     </article>
     {% endfor %}
   </div>
   {% endmacro %}
 
+  <div class="vault-inbox-filters flex flex-wrap items-center gap-2 mb-3">
+    <span class="text-[10px] font-mono text-slate-500 uppercase tracking-wide">Filter</span>
+    <a
+      href="#knowledge-vault-inbox"
+      class="pill pill-compact text-[10px] no-underline {% if not maturity_filter and not capture_kind_filter %}border border-neon-magenta/50 text-neon-magenta{% else %}border border-edge text-slate-400 hover:text-slate-200{% endif %}"
+      hx-get="/partials/knowledge/capture-studio{% if highlight_review_id %}?inbox={{ highlight_review_id }}{% endif %}"
+      hx-target="#knowledge-capture-studio-mount"
+      hx-swap="innerHTML"
+    >All</a>
+    <a
+      href="#knowledge-vault-inbox"
+      class="pill pill-compact text-[10px] no-underline {% if maturity_filter == 'seed' %}border border-neon-lime/50 text-neon-lime{% else %}border border-edge text-slate-400 hover:text-slate-200{% endif %}"
+      hx-get="/partials/knowledge/capture-studio?maturity=seed{% if highlight_review_id %}&inbox={{ highlight_review_id }}{% endif %}"
+      hx-target="#knowledge-capture-studio-mount"
+      hx-swap="innerHTML"
+    >Held</a>
+    <a
+      href="#knowledge-vault-inbox"
+      class="pill pill-compact text-[10px] no-underline {% if capture_kind_filter == 'document' %}border border-neon-cyan/50 text-neon-cyan{% else %}border border-edge text-slate-400 hover:text-slate-200{% endif %}"
+      hx-get="/partials/knowledge/capture-studio?capture_kind=document{% if highlight_review_id %}&inbox={{ highlight_review_id }}{% endif %}"
+      hx-target="#knowledge-capture-studio-mount"
+      hx-swap="innerHTML"
+    >Documents</a>
+    <a
+      href="#knowledge-vault-inbox"
+      class="pill pill-compact text-[10px] no-underline {% if capture_kind_filter == 'idea' %}border border-neon-cyan/50 text-neon-cyan{% else %}border border-edge text-slate-400 hover:text-slate-200{% endif %}"
+      hx-get="/partials/knowledge/capture-studio?capture_kind=idea{% if highlight_review_id %}&inbox={{ highlight_review_id }}{% endif %}"
+      hx-target="#knowledge-capture-studio-mount"
+      hx-swap="innerHTML"
+    >Ideas</a>
+  </div>
+
   {% if not widget.needs_attention %}
   <p class="capture-studio-doctrine">
-    Nothing waiting. Dump thoughts from the magenta button — they land here for a one-click approve.
+    Nothing waiting. Dump thoughts from the magenta button — they land in the Incubator as seeds.
     Packet and research capture stays on
     <a href="/review" class="text-neon-cyan no-underline hover:underline">Review Queue</a>.
   </p>
@@ -160,12 +221,12 @@
   <div class="vault-inbox-lane">
     <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
       <div class="flex items-center gap-2 min-w-0">
-        <h2 class="text-sm font-semibold text-slate-100">Vault Inbox</h2>
-        <span class="pill pill-compact border border-neon-lime/45 text-neon-lime text-[10px] font-mono">{{ widget.production_count }} waiting</span>
+        <h2 class="text-sm font-semibold text-slate-100">Incubator</h2>
+        <span class="pill pill-compact border border-neon-lime/45 text-neon-lime text-[10px] font-mono">{{ widget.production_count }} held</span>
       </div>
-      <span class="text-[10px] font-mono text-slate-600 shrink-0">Real captures · #1 = newest</span>
+      <span class="text-[10px] font-mono text-slate-600 shrink-0">Capture → hold → develop → publish · #1 = newest</span>
     </div>
-    <p class="capture-studio-doctrine">Your dumps and ingests — approve to publish to the trusted vault.</p>
+    <p class="capture-studio-doctrine">Seeds from capture FAB — held until you develop an ingest plan and publish to trusted wiki.</p>
     {{ inbox_cards(widget.production_items) }}
   </div>
   {% endif %}
@@ -174,12 +235,12 @@
   <div class="vault-inbox-lane vault-inbox-lane--test{% if widget.production_count %} mt-4 pt-4 border-t border-edge/60{% endif %}">
     <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
       <div class="flex items-center gap-2 min-w-0">
-        <h2 class="text-sm font-semibold text-slate-100">Test Inbox</h2>
+        <h2 class="text-sm font-semibold text-slate-100">Test Incubator</h2>
         <span class="pill pill-compact border border-neon-amber/45 text-neon-amber text-[10px] font-mono">{{ widget.test_count }} sandbox</span>
       </div>
       <span class="text-[10px] font-mono text-slate-600 shrink-0">Fixtures &amp; dev captures only</span>
     </div>
-    <p class="capture-studio-doctrine">Sandbox notes while we build — safe to reject in bulk. Not production vault.</p>
+    <p class="capture-studio-doctrine">Sandbox seeds while we build — safe to reject in bulk. Not production vault.</p>
     {{ inbox_cards(widget.test_items) }}
   </div>
   {% endif %}

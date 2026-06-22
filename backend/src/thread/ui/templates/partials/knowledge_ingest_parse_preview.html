@@ -1,0 +1,22 @@
+<aside class="vault-editor-parse-panel" aria-label="Layer 1 parse preview">
+  <div class="vault-editor-parse-head">
+    <div class="min-w-0">
+      <h4 class="vault-editor-parse-title">Full parse (read-only)</h4>
+      <p class="vault-editor-parse-meta font-mono text-[10px] text-slate-500 truncate" title="{{ parse_preview.rel_path }}">
+        {{ parse_preview.rel_path }}
+        · {{ parse_preview.char_count | default(0) }} chars
+        {% if parse_preview.source == 'staged' %}· staged file{% endif %}
+      </p>
+    </div>
+    <span class="pill pill-compact border border-neon-amber/40 text-neon-amber text-[10px] shrink-0">Layer 1</span>
+  </div>
+  <p class="vault-editor-parse-hint">
+    Karpathy raw layer — edit <strong class="text-slate-300">Intent</strong> and <strong class="text-slate-300">Extract</strong> on the left;
+    copy phrases from here. Do not paste the whole parse into the seed.
+  </p>
+  <div
+    class="vault-markdown-host vault-editor-parse-body markdown text-xs text-slate-300"
+    data-vault-markdown
+    data-ingest-parse
+  >{{ parse_preview.markdown }}</div>
+</aside>

@@ -71,7 +71,8 @@ def test_prepare_quick_capture_with_inline_md(tmp_path: Path):
     ctx = build_capture_context()
     doc = extract_document_for_capture(settings, "note.md", b"# Hello\nBody")
     draft = prepare_quick_capture("", context=ctx, document=doc)
-    assert "Hello" in draft.body
+    assert "## Extract" in draft.body
+    assert "Body" in draft.body or "Hello" in draft.body
 
 
 def test_build_capture_citations_joins_context():
@@ -111,7 +112,7 @@ async def test_ingest_quick_capture_survives_ollama_title_timeout(db_session, se
     with patch("thread.services.capture_title.complete", new_callable=AsyncMock, side_effect=httpx.ReadTimeout("")):
         result = await ingest_quick_capture(settings, db_session, raw_dump=dump, context=build_capture_context())
     assert result.inferred_title
-    assert result.write.path.startswith("generated-projections/")
+    assert "incubator/" in result.write.path
 
 
 @pytest.mark.asyncio
@@ -171,8 +172,8 @@ async def test_ingest_quick_capture_writes_and_polishes(db_session, settings, tm
         raw_dump="Random thought about cyber spend trends",
         context=ctx,
     )
-    assert result.write.path.startswith("generated-projections/")
-    assert result.polish_provider == "rules"
+    assert "incubator/" in result.write.path
+    assert result.polish_provider == "rules-incubator"
     assert result.inferred_title
 
 
@@ -225,4 +226,4 @@ def test_capture_fab_template_files():
     assert "capture-fab-dropzone" in drawer
     assert ".pdf" in drawer
     assert "MinerU" in drawer
-    assert "Open Vault Inbox" in drawer
+    assert "Open Incubator" in drawer or "Incubator" in drawer

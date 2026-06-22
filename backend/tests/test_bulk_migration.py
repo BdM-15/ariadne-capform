@@ -84,6 +84,7 @@ def test_get_migration_status_fast_when_complete(tmp_path: Path, monkeypatch):
     state = {
         "phase": "complete",
         "indexes_built": True,
+        "views_built": True,
         "prime_rows": 64_231_918,
         "sub_rows": 12_345_678,
         "chunks_loaded": {
@@ -108,6 +109,7 @@ def test_get_migration_status_fast_when_complete(tmp_path: Path, monkeypatch):
 
     status = get_migration_status(settings)
     assert status.complete is True
+    assert status.views_built is True
     assert status.prime_migrated == 64_231_918
     assert status.sub_migrated == 12_345_678
 

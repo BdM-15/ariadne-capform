@@ -12,6 +12,7 @@ import httpx
 
 from thread.config import Settings
 from thread.llm.router import CompletionResult, LlmRouterError, LlmTaskKind, complete
+from thread.services.incubator_capture import is_incubator_path
 from thread.services.vault_write import (
     VaultWriteError,
     load_candidate_note,
@@ -97,7 +98,12 @@ def _rules_fix_common_typos(text: str) -> str:
 def rules_polish_candidate(loaded: dict[str, Any]) -> PolishedCandidate:
     """Deterministic admin normalize when Ollama is off or unreachable."""
     body = _rules_fix_common_typos(_collapse_blank_lines(str(loaded.get("body") or "")))
-    if body and not body.lstrip().startswith(">") and "## Document —" not in body[:240]:
+    if (
+        body
+        and not body.lstrip().startswith(">")
+        and "## Document —" not in body[:240]
+        and "## Intent" not in body[:240]
+    ):
         body = f"> [!note] Candidate draft\n\n{body}"
     return PolishedCandidate(
         name=_rules_fix_common_typos(str(loaded.get("name") or "").strip()),
@@ -200,6 +206,35 @@ def _parse_polish_json(raw: str) -> PolishedCandidate:
     )
 
 
+def build_incubator_polish_prompt(loaded: dict[str, Any]) -> list[dict[str, str]]:
+    schema = (
+        "Return ONLY JSON with keys: name, page_type, body, related.\n"
+        "- body: keep ## Intent, ## Extract, ## Source sections when present\n"
+        "- Refine intent/extract prose only — never embed full document parse\n"
+        "- page_type: hint for future publish routing (synthesis|concept|agency|competitor|opportunity)\n"
+        "- related: wikilink stems (no brackets), include capture-llm-wiki\n"
+        "- maturity stays seed; do not add publish/approve language"
+    )
+    user = json.dumps(
+        {
+            "name": loaded.get("name"),
+            "page_type": loaded.get("page_type"),
+            "body": loaded.get("body"),
+            "related": loaded.get("related"),
+            "intent": loaded.get("intent"),
+            "capture_kind": loaded.get("capture_kind"),
+        },
+        indent=2,
+    )
+    return [
+        {
+            "role": "system",
+            "content": "You polish incubator seed notes before develop/publish. " + schema,
+        },
+        {"role": "user", "content": f"Polish this incubator seed:\n{user}"},
+    ]
+
+
 def build_polish_prompt(loaded: dict[str, Any]) -> list[dict[str, str]]:
     schema = (
         "Return ONLY JSON with keys: name, page_type, body, related.\n"
@@ -264,9 +299,14 @@ async def polish_candidate_note(
     loaded = load_candidate_note(settings, candidate_rel)
     before = _loaded_to_polished(loaded)
 
+    incubator = is_incubator_path(candidate_rel)
     if settings.local_admin_model_enabled:
         try:
-            messages = build_polish_prompt(loaded)
+            messages = (
+                build_incubator_polish_prompt(loaded)
+                if incubator
+                else build_polish_prompt(loaded)
+            )
             run = completer or complete
             result = await run(
                 settings,

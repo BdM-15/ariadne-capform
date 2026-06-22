@@ -19,6 +19,12 @@ from thread.services.knowledge import _safe_path
 from thread.services.review_gate import create_review_record
 from thread.services.vault_review_context import ReviewVaultContext, resolve_review_vault_context
 from thread.domain.enums import TrustLevel
+from thread.services.incubator_capture import (
+    INCUBATOR_PREFIX,
+    SANDBOX_INCUBATOR_PREFIX,
+    intent_from_incubator_body,
+    is_incubator_path,
+)
 from thread.services.vault_sandbox import (
     VaultSandboxError,
     apply_test_markers,
@@ -312,7 +318,7 @@ def _extract_candidate_parts(body: str) -> tuple[str, list[str]]:
     lines: list[str] = []
     skipped_title = False
     for line in main.splitlines():
-        if line.startswith("> Candidate"):
+        if line.startswith("> Candidate") or line.startswith("> Seed"):
             continue
         if not skipped_title and line.startswith("# "):
             skipped_title = True
@@ -344,6 +350,10 @@ def load_candidate_note(settings: Settings, candidate_rel: str) -> dict[str, Any
         "related": related,
         "citations": meta.get("citations", ""),
         "source": meta.get("source", ""),
+        "maturity": meta.get("maturity", ""),
+        "capture_kind": meta.get("capture_kind", ""),
+        "intent": meta.get("intent", ""),
+        "ingest": meta.get("ingest", ""),
     }
 
 
@@ -382,21 +392,93 @@ def save_candidate_note(
     meta["last_updated"] = _today()
     if page_type:
         meta["type"] = page_type.strip() or meta.get("type", "synthesis")
+    if is_incubator_path(rel):
+        synced_intent = intent_from_incubator_body(body)
+        if synced_intent:
+            meta["intent"] = synced_intent
 
     related_block = _format_related(related_links)
+    if is_incubator_path(rel):
+        callout = "> Seed — held in Incubator. Develop an ingest plan before publish.\n\n"
+    else:
+        callout = "> Candidate — approve in Knowledge → Vault Inbox before trusted merge.\n\n"
     content = (
         _render_frontmatter(meta)
         + f"# {clean_name}\n\n"
-        + "> Candidate — approve in Knowledge → Vault Inbox before trusted merge.\n\n"
+        + callout
         + body.strip()
         + f"\n\n## Related\n{related_block}\n"
     )
     target.write_text(content, encoding="utf-8")
-    index_updated = update_index_entry(settings, rel, clean_name, "candidate draft (edited)")
+    summary = "incubator seed (edited)" if is_incubator_path(rel) else "candidate draft (edited)"
+    index_updated = update_index_entry(settings, rel, clean_name, summary)
     log_appended = append_log(settings, "edit", clean_name, rel)
     return VaultWriteResult(
         path=rel,
         created=False,
+        appended=False,
+        index_updated=index_updated,
+        log_appended=log_appended,
+    )
+
+
+def write_incubator_note(
+    settings: Settings,
+    *,
+    name: str,
+    body: str,
+    page_type: str = "synthesis",
+    citations: str = "",
+    related: list[str] | None = None,
+    source: str = "fabric",
+    capture_kind: str = "idea",
+    intent: str = "",
+    ingest_id: str = "",
+) -> VaultWriteResult:
+    slug = _slug(name)
+    today = _today()
+    use_sandbox = sandbox_enabled(settings) or source == "test" or is_test_marked(
+        citations=citations, page_id=f"seed-{slug}"
+    )
+    if use_sandbox:
+        rel = f"{SANDBOX_INCUBATOR_PREFIX}{slug}-{today}.md"
+    else:
+        rel = f"{INCUBATOR_PREFIX}{slug}-{today}.md"
+    vault = _vault_root(settings)
+    target = _safe_path(vault, rel)
+    clean_intent = (intent or name).strip()[:240]
+    meta = {
+        "name": name,
+        "type": page_type,
+        "id": f"seed-{slug}",
+        "trust": "candidate",
+        "maturity": "seed",
+        "capture_kind": capture_kind,
+        "intent": clean_intent,
+        "ingest": ingest_id,
+        "added": _now_iso(),
+        "last_updated": _today(),
+        "citations": citations,
+        "source": source,
+    }
+    if use_sandbox:
+        meta = apply_test_markers(meta, source=source if source != "api" else "test")
+    related_block = _format_related(related or [])
+    content = (
+        _render_frontmatter(meta)
+        + f"# {name}\n\n"
+        + "> Seed — held in Incubator. Develop an ingest plan before publish.\n\n"
+        + body.rstrip()
+        + f"\n\n## Related\n{related_block}\n"
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content, encoding="utf-8")
+    index_updated = update_index_entry(settings, rel, name, f"incubator seed ({capture_kind})")
+    log_kind = "test" if use_sandbox else "incubator"
+    log_appended = append_log(settings, log_kind, name, f"{capture_kind} • {source}")
+    return VaultWriteResult(
+        path=rel,
+        created=True,
         appended=False,
         index_updated=index_updated,
         log_appended=log_appended,
@@ -688,6 +770,10 @@ def promote_vault_candidate(settings: Settings, record: ReviewRecord) -> VaultIn
 
     text = candidate_path.read_text(encoding="utf-8")
     meta, body = _parse_frontmatter(text)
+    if meta.get("maturity") == "seed":
+        raise VaultWriteError(
+            "Incubator seed cannot publish directly — develop an ingest plan first (Karpathy ingest)."
+        )
     _guard_vault_sandbox(
         assert_promote_allowed,
         settings,

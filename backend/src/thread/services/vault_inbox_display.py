@@ -30,6 +30,42 @@ def page_type_label(page_type: str) -> str:
     return _PAGE_TYPE_LABELS.get(key, key.replace("_", " ").title() or "Vault note")
 
 
+_CAPTURE_KIND_LABELS: dict[str, str] = {
+    "idea": "Idea",
+    "document": "Document",
+    "signal": "Signal",
+}
+
+_MATURITY_LABELS: dict[str, str] = {
+    "seed": "Held",
+    "developing": "Developing",
+    "ready": "Ready to publish",
+}
+
+
+def capture_kind_label(capture_kind: str) -> str:
+    key = (capture_kind or "idea").strip().lower()
+    return _CAPTURE_KIND_LABELS.get(key, key.replace("_", " ").title() or "Capture")
+
+
+def maturity_label(maturity: str) -> str:
+    key = (maturity or "").strip().lower()
+    return _MATURITY_LABELS.get(key, key.replace("_", " ").title() or "")
+
+
+def build_incubator_intent_line(
+    *,
+    capture_kind: str,
+    intent: str,
+    title: str,
+) -> str:
+    kind = capture_kind_label(capture_kind)
+    clean_intent = (intent or title or "Untitled").strip()
+    if len(clean_intent) > 96:
+        clean_intent = clean_intent[:95].rstrip() + "…"
+    return f"{kind} seed — {clean_intent}"
+
+
 def build_intent_line(*, page_type: str, title: str, promote_summary: str) -> str:
     label = page_type_label(page_type)
     clean_title = (title or "Untitled").strip()
