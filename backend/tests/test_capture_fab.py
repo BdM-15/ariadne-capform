@@ -45,7 +45,7 @@ def test_prepare_quick_capture_infers_type_and_context_footer():
 
 def test_prepare_quick_capture_requires_content():
     ctx = build_capture_context()
-    with pytest.raises(CaptureFabError, match="Dump a thought or drop a document"):
+    with pytest.raises(CaptureFabError, match="No text or file received"):
         prepare_quick_capture("", context=ctx)
 
 

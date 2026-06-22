@@ -201,7 +201,9 @@ def prepare_quick_capture(
 ) -> QuickCaptureDraft:
     dump = _clean(raw_dump)
     if not dump and not document:
-        raise CaptureFabError("Dump a thought or drop a document — platform handles the rest")
+        raise CaptureFabError(
+            "No text or file received — drop the file again (green chip must show), then submit."
+        )
 
     parts: list[str] = []
     if dump:

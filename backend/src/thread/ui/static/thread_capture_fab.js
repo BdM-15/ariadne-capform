@@ -155,6 +155,7 @@
   }
 
   var CAPTURE_ACCEPT = /\.(pdf|png|jpe?g|bmp|tiff?|webp|docx?|pptx?|xlsx?|html?|epub|mobi|txt|md|markdown)$/i;
+  var stagedCaptureFile = null;
 
   function formatFileSize(bytes) {
     if (!bytes) return "";
@@ -208,22 +209,43 @@
       setCaptureFileHint("Unsupported type — use PDF, Office, images, epub, or .txt/.md", true);
       return false;
     }
+    stagedCaptureFile = file;
     try {
       var dt = new DataTransfer();
       dt.items.add(file);
       fileInput.files = dt.files;
     } catch (err) {
-      setCaptureFileHint("Use “browse files” to pick this document.", true);
-      return false;
+      /* DataTransfer unsupported — stagedCaptureFile still used at submit */
     }
     updateStagedFilePreview(file);
     return true;
   }
 
   function clearCaptureFile() {
+    stagedCaptureFile = null;
     var fileInput = document.getElementById("capture-fab-file");
     if (fileInput) fileInput.value = "";
     updateStagedFilePreview(null);
+  }
+
+  function captureFormHasFile() {
+    if (stagedCaptureFile && stagedCaptureFile.size > 0) return true;
+    var fileInput = document.getElementById("capture-fab-file");
+    return !!(
+      fileInput &&
+      fileInput.files &&
+      fileInput.files.length > 0 &&
+      fileInput.files[0] &&
+      fileInput.files[0].size > 0
+    );
+  }
+
+  function buildCaptureFormData(form) {
+    var formData = new FormData(form);
+    if (stagedCaptureFile) {
+      formData.set("attachment", stagedCaptureFile, stagedCaptureFile.name);
+    }
+    return formData;
   }
 
   function openCaptureFilePicker() {
@@ -346,12 +368,7 @@
         if (!form || form.id !== "capture-fab-form") return;
         var fileInput = document.getElementById("capture-fab-file");
         var dump = form.querySelector('[name="dump"]');
-        var hasFile =
-          fileInput &&
-          fileInput.files &&
-          fileInput.files.length > 0 &&
-          fileInput.files[0] &&
-          fileInput.files[0].size > 0;
+        var hasFile = captureFormHasFile();
         var hasDump = dump && dump.value && dump.value.trim().length > 0;
         if (!hasFile && !hasDump) {
           event.preventDefault();
@@ -366,34 +383,10 @@
     document.body.addEventListener("htmx:configRequest", function (event) {
       var elt = event.detail && event.detail.elt;
       if (!elt || elt.id !== "capture-fab-form") return;
-      var fileInput = document.getElementById("capture-fab-file");
-      var hasFile =
-        fileInput &&
-        fileInput.files &&
-        fileInput.files.length > 0 &&
-        fileInput.files[0] &&
-        fileInput.files[0].size > 0;
-      if (hasFile) {
-        event.detail.headers["Content-Type"] = undefined;
-      }
-    });
-
-    document.body.addEventListener("htmx:beforeRequest", function (event) {
-      var elt = event.detail && event.detail.elt;
-      if (!elt || elt.id !== "capture-fab-form") return;
-      var fileInput = document.getElementById("capture-fab-file");
-      var hasFile =
-        fileInput &&
-        fileInput.files &&
-        fileInput.files.length > 0 &&
-        fileInput.files[0] &&
-        fileInput.files[0].size > 0;
-      if (hasFile) {
-        elt.setAttribute("hx-encoding", "multipart/form-data");
-        elt.setAttribute("enctype", "multipart/form-data");
-      } else {
-        elt.removeAttribute("hx-encoding");
-        elt.removeAttribute("enctype");
+      if (!captureFormHasFile()) return;
+      event.detail.parameters = buildCaptureFormData(elt);
+      if (event.detail.headers) {
+        delete event.detail.headers["Content-Type"];
       }
     });
 

@@ -72,6 +72,8 @@
     hx-target="#capture-fab-drawer"
     hx-swap="innerHTML"
     hx-indicator="#capture-fab-working"
+    hx-encoding="multipart/form-data"
+    enctype="multipart/form-data"
   >
     <input type="hidden" name="opp_id" value="{{ context.opp_id }}" />
     <input type="hidden" name="opp_name" value="{{ context.opp_name }}" />

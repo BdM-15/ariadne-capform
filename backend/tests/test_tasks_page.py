@@ -49,6 +49,8 @@ def test_capture_fab_js_uses_upload_delegation():
     js = Path("src/thread/ui/static/thread_capture_fab.js").read_text(encoding="utf-8")
     assert "bindCaptureUploadDelegation" in js
     assert "data-capture-dropzone" in js
+    assert "stagedCaptureFile" in js
+    assert "buildCaptureFormData" in js
 
 
 def test_capture_fab_js_ignores_header_open_clicks():
