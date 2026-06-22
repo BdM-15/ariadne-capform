@@ -149,7 +149,9 @@ def test_capture_fab_drawer_dump_only_form():
     assert "Platform take it from here" in res.text
     assert "capture-fab-dropzone" in res.text
     assert "Drag &amp; drop" in res.text or "Drag & drop" in res.text
-    assert "Browse files" in res.text
+    assert "browse files" in res.text.lower()
+    assert "capture-fab-file-hidden" in res.text
+    assert "data-capture-dropzone" in res.text
 
 
 def test_capture_fab_template_files():

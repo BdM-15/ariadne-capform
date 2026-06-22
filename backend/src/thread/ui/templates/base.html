@@ -45,7 +45,7 @@
       };
     </script>
     <link rel="stylesheet" href="/static/styles/theseus.css" />
-    <link rel="stylesheet" href="/static/styles/thread.css" />
+    <link rel="stylesheet" href="/static/styles/thread.css?v={{ asset_v() }}" />
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   </head>
   <body class="font-sans antialiased scanline min-h-screen flex flex-col"{% block body_capture_attrs %}{% endblock %}>
@@ -68,7 +68,7 @@
     <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
     <script src="/static/thread_restart.js"></script>
     <script src="/static/thread_sidebar.js"></script>
-    <script src="/static/thread_capture_fab.js"></script>
+    <script src="/static/thread_capture_fab.js?v={{ asset_v() }}"></script>
     <script src="/static/thread_vault_inbox.js"></script>
     <script>
       function initLucide() {

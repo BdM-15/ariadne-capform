@@ -45,6 +45,12 @@ def test_tasks_page_shell():
     assert "openCaptureFab" in res.text
 
 
+def test_capture_fab_js_uses_upload_delegation():
+    js = Path("src/thread/ui/static/thread_capture_fab.js").read_text(encoding="utf-8")
+    assert "bindCaptureUploadDelegation" in js
+    assert "data-capture-dropzone" in js
+
+
 def test_capture_fab_js_ignores_header_open_clicks():
     """Header Capture buttons live outside #capture-fab-root — must not trigger outside-close."""
     js = Path("src/thread/ui/static/thread_capture_fab.js").read_text(encoding="utf-8")

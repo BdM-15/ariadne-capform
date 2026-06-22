@@ -179,6 +179,15 @@ templates.env.globals["task_actions"] = task_actions_for
 templates.env.globals["clew_path_href"] = clew_path_href
 templates.env.globals["education_href"] = education_href
 
+
+def _static_asset_version() -> str:
+    from thread.config import get_settings
+
+    return get_settings().app_version.replace(" ", "-")
+
+
+templates.env.globals["asset_v"] = _static_asset_version
+
 router = APIRouter(tags=["ui"])
 
 

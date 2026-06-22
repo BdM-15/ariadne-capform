@@ -59,7 +59,6 @@
         d.innerHTML = html;
         setOpen(true);
         if (window.htmx) window.htmx.process(d);
-        bindCaptureDropzone();
         if (window.lucide) window.lucide.createIcons();
       });
   }
@@ -98,7 +97,6 @@
         d.innerHTML = html;
         setOpen(true);
         if (window.htmx) window.htmx.process(d);
-        bindCaptureDropzone();
         if (window.lucide) window.lucide.createIcons();
       })
       .catch(function () {
@@ -172,22 +170,31 @@
     hint.classList.toggle("capture-fab-hidden", !visible);
   }
 
+  var captureDragDepth = 0;
+
+  function captureDropzoneEl() {
+    return document.querySelector("[data-capture-dropzone]");
+  }
+
   function updateStagedFilePreview(file) {
     var staged = document.getElementById("capture-fab-staged");
+    var empty = document.getElementById("capture-fab-dropzone-empty");
     var nameEl = document.getElementById("capture-fab-staged-name");
     var sizeEl = document.getElementById("capture-fab-staged-size");
-    var dropzone = document.getElementById("capture-fab-dropzone");
-    if (!staged || !nameEl || !sizeEl) return;
+    var dropzone = captureDropzoneEl();
+    if (!staged || !nameEl || !sizeEl || !empty) return;
     if (!file) {
       staged.classList.add("capture-fab-hidden");
-      if (dropzone) dropzone.classList.remove("capture-fab-hidden");
+      empty.classList.remove("capture-fab-hidden");
+      if (dropzone) dropzone.classList.remove("has-file", "is-dragover");
       nameEl.textContent = "";
       sizeEl.textContent = "";
       setCaptureFileHint("", false);
       return;
     }
     staged.classList.remove("capture-fab-hidden");
-    if (dropzone) dropzone.classList.add("capture-fab-hidden");
+    empty.classList.add("capture-fab-hidden");
+    if (dropzone) dropzone.classList.add("has-file");
     nameEl.textContent = file.name;
     sizeEl.textContent = formatFileSize(file.size);
     setCaptureFileHint("", false);
@@ -201,9 +208,14 @@
       setCaptureFileHint("Unsupported type — use PDF, Office, images, epub, or .txt/.md", true);
       return false;
     }
-    var dt = new DataTransfer();
-    dt.items.add(file);
-    fileInput.files = dt.files;
+    try {
+      var dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+    } catch (err) {
+      setCaptureFileHint("Use “browse files” to pick this document.", true);
+      return false;
+    }
     updateStagedFilePreview(file);
     return true;
   }
@@ -214,68 +226,114 @@
     updateStagedFilePreview(null);
   }
 
-  function bindCaptureDropzone() {
-    var dropzone = document.getElementById("capture-fab-dropzone");
+  function openCaptureFilePicker() {
     var fileInput = document.getElementById("capture-fab-file");
-    var browse = document.getElementById("capture-fab-browse");
-    var clearBtn = document.getElementById("capture-fab-clear-file");
-    if (!dropzone || !fileInput || dropzone.dataset.captureDropBound) return;
-    dropzone.dataset.captureDropBound = "1";
+    if (fileInput) fileInput.click();
+  }
 
-    function preventDefaults(event) {
-      event.preventDefault();
-      event.stopPropagation();
+  function handleCaptureDrop(event) {
+    var dropzone = captureDropzoneEl();
+    if (!dropzone) return;
+    captureDragDepth = 0;
+    dropzone.classList.remove("is-dragover");
+    var files = event.dataTransfer && event.dataTransfer.files;
+    if (!files || !files.length) {
+      setCaptureFileHint("Drop a file, not a folder.", true);
+      return;
     }
+    if (files.length > 1) {
+      setCaptureFileHint("One file at a time — using the first.", true);
+    }
+    assignCaptureFile(files[0]);
+  }
 
-    ["dragenter", "dragover", "dragleave", "drop"].forEach(function (name) {
-      dropzone.addEventListener(name, preventDefaults);
-    });
-    dropzone.addEventListener("dragenter", function () {
-      dropzone.classList.add("is-dragover");
-    });
-    dropzone.addEventListener("dragleave", function () {
-      dropzone.classList.remove("is-dragover");
-    });
-    dropzone.addEventListener("drop", function (event) {
-      dropzone.classList.remove("is-dragover");
-      var files = event.dataTransfer && event.dataTransfer.files;
-      if (!files || !files.length) {
-        setCaptureFileHint("Drop a file, not a folder.", true);
-        return;
-      }
-      if (files.length > 1) {
-        setCaptureFileHint("One file at a time — using the first.", true);
-      }
-      assignCaptureFile(files[0]);
-    });
-    dropzone.addEventListener("click", function (event) {
-      if (event.target.closest("#capture-fab-browse")) return;
-      fileInput.click();
-    });
-    dropzone.addEventListener("keydown", function (event) {
-      if (event.key === "Enter" || event.key === " ") {
+  function bindCaptureUploadDelegation() {
+    if (document.body.dataset.captureUploadDelegate) return;
+    document.body.dataset.captureUploadDelegate = "1";
+
+    document.addEventListener(
+      "dragenter",
+      function (event) {
+        if (!event.target.closest("[data-capture-dropzone]")) return;
         event.preventDefault();
-        fileInput.click();
-      }
-    });
-    if (browse) {
-      browse.addEventListener("click", function (event) {
+        captureDragDepth += 1;
+        var dropzone = captureDropzoneEl();
+        if (dropzone) dropzone.classList.add("is-dragover");
+      },
+      false,
+    );
+
+    document.addEventListener(
+      "dragover",
+      function (event) {
+        if (!event.target.closest("[data-capture-dropzone]")) return;
+        event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+      },
+      false,
+    );
+
+    document.addEventListener(
+      "dragleave",
+      function (event) {
+        if (!event.target.closest("[data-capture-dropzone]")) return;
+        captureDragDepth = Math.max(0, captureDragDepth - 1);
+        if (captureDragDepth === 0) {
+          var dropzone = captureDropzoneEl();
+          if (dropzone) dropzone.classList.remove("is-dragover");
+        }
+      },
+      false,
+    );
+
+    document.addEventListener(
+      "drop",
+      function (event) {
+        if (!event.target.closest("[data-capture-dropzone]")) return;
         event.preventDefault();
         event.stopPropagation();
-        fileInput.click();
-      });
-    }
-    fileInput.addEventListener("change", function () {
-      var file = fileInput.files && fileInput.files[0];
+        handleCaptureDrop(event);
+      },
+      false,
+    );
+
+    document.addEventListener("click", function (event) {
+      if (event.target.closest("#capture-fab-clear-file")) {
+        event.preventDefault();
+        event.stopPropagation();
+        clearCaptureFile();
+        return;
+      }
+      if (event.target.closest("#capture-fab-browse")) {
+        event.preventDefault();
+        event.stopPropagation();
+        openCaptureFilePicker();
+        return;
+      }
+      var dropzone = event.target.closest("[data-capture-dropzone]");
+      if (!dropzone || dropzone.classList.contains("has-file")) return;
+      if (event.target.closest(".capture-fab-staged")) return;
+      openCaptureFilePicker();
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.target.id === "capture-fab-browse" && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault();
+        openCaptureFilePicker();
+      }
+      var dropzone = event.target.closest("[data-capture-dropzone]");
+      if (dropzone && (event.key === "Enter" || event.key === " ") && !dropzone.classList.contains("has-file")) {
+        event.preventDefault();
+        openCaptureFilePicker();
+      }
+    });
+
+    document.addEventListener("change", function (event) {
+      if (!event.target || event.target.id !== "capture-fab-file") return;
+      var file = event.target.files && event.target.files[0];
       if (file) assignCaptureFile(file);
       else updateStagedFilePreview(null);
     });
-    if (clearBtn) {
-      clearBtn.addEventListener("click", function (event) {
-        event.preventDefault();
-        clearCaptureFile();
-      });
-    }
   }
 
   function bindCaptureFormValidation() {
@@ -407,6 +465,7 @@
     bindClose();
     bindCaptureFormEncoding();
     bindCaptureFormValidation();
+    bindCaptureUploadDelegation();
   }
 
   if (document.readyState === "loading") {
@@ -428,7 +487,7 @@
   document.body.addEventListener("htmx:afterSwap", function (event) {
     bindOpenTriggers();
     if (event.detail && event.detail.target && event.detail.target.id === "capture-fab-drawer") {
-      bindCaptureDropzone();
+      captureDragDepth = 0;
       if (window.lucide) window.lucide.createIcons();
       var result = document.getElementById("capture-fab-result");
       if (result) result.scrollIntoView({ block: "nearest", behavior: "smooth" });
