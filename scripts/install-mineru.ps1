@@ -22,10 +22,14 @@ uv pip install -U "mineru[all]" -p $Python
 Write-Host "[mineru] Installing CUDA PyTorch (cu124) for RTX GPU..."
 uv pip install --reinstall torch torchvision --index-url https://download.pytorch.org/whl/cu124 -p $Python
 
-Write-Host "[mineru] Verifying GPU..."
+Write-Host "[mineru] Installing pipeline extras (albumentations for formula OCR)..."
+uv pip install -U albumentations -p $Python
+
+Write-Host "[mineru] Verifying GPU + pipeline deps..."
 & $Python -c @"
 import torch
-print(f'torch={torch.__version__} cuda={torch.cuda.is_available()}')
+import albumentations
+print(f'torch={torch.__version__} cuda={torch.cuda.is_available()} albumentations={albumentations.__version__}')
 if torch.cuda.is_available():
     print(f'gpu={torch.cuda.get_device_name(0)}')
 else:

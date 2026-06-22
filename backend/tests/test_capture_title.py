@@ -6,10 +6,17 @@ import pytest
 
 from thread.config import Settings
 from thread.services.capture_title import (
+    document_title_from_filename,
     infer_capture_title,
     rules_infer_capture_title,
     rules_is_confident,
 )
+
+
+def test_document_title_from_filename_uses_stem_not_dump():
+    result = document_title_from_filename("18 May Training Hotel Receipt.pdf")
+    assert result.title == "18 May Training Hotel Receipt"
+    assert result.match_kind == "keyword"
 
 
 def test_rules_infer_proposal_review_repository():

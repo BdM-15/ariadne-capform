@@ -8,13 +8,20 @@ import socket
 import subprocess
 import sys
 import time
+from contextlib import suppress
+from pathlib import Path
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from typing import Callable
 from urllib.parse import urlparse
 
-from thread.bootstrap.mineru_paths import mineru_api_executable, mineru_install_hint, mineru_installed
+from thread.bootstrap.mineru_paths import (
+    mineru_api_executable,
+    mineru_install_hint,
+    mineru_installed,
+    repo_root,
+)
 from thread.config import Settings
 
 logger = logging.getLogger(__name__)
@@ -91,6 +98,12 @@ def wait_for_mineru(
     return False
 
 
+def _mineru_output_root() -> Path:
+    root = repo_root() / "output"
+    root.mkdir(parents=True, exist_ok=True)
+    return root.resolve()
+
+
 def _mineru_child_env(settings: Settings) -> dict[str, str]:
     env = os.environ.copy()
     if settings.mineru_device_mode:
@@ -99,6 +112,7 @@ def _mineru_child_env(settings: Settings) -> dict[str, str]:
         env["CUDA_VISIBLE_DEVICES"] = settings.mineru_cuda_visible_devices
     if settings.mineru_hybrid_batch_ratio > 0:
         env["MINERU_HYBRID_BATCH_RATIO"] = str(settings.mineru_hybrid_batch_ratio)
+    env["MINERU_API_OUTPUT_ROOT"] = str(_mineru_output_root())
     return env
 
 
@@ -108,6 +122,7 @@ class MineruController:
     endpoint: MineruEndpoint
     process: subprocess.Popen | None = None
     _started_by_us: bool = False
+    _stderr_log: object | None = None
     last_error: str = ""
 
     @property
@@ -146,16 +161,23 @@ class MineruController:
             "true" if self.settings.mineru_vlm_preload else "false",
         ]
         logger.debug("Starting MinerU FastAPI: %s", " ".join(cmd))
+        log_path = _mineru_output_root() / "mineru-api.log"
         try:
+            self._stderr_log = open(log_path, "a", encoding="utf-8")
             self.process = popen(
                 cmd,
                 env=_mineru_child_env(self.settings),
+                cwd=str(repo_root()),
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
+                stderr=self._stderr_log,
             )
         except OSError as exc:
             self.last_error = f"MinerU spawn failed: {exc}"
             logger.error(self.last_error)
+            if self._stderr_log is not None:
+                with suppress(Exception):
+                    self._stderr_log.close()
+                self._stderr_log = None
             return False
 
         self._started_by_us = True
@@ -215,6 +237,10 @@ class MineruController:
                 proc.wait(timeout=5.0)
         finally:
             self.process = None
+            if self._stderr_log is not None:
+                with suppress(Exception):
+                    self._stderr_log.close()
+                self._stderr_log = None
 
 
 def build_controller_from_settings(settings: Settings) -> MineruController | None:

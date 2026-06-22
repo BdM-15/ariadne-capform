@@ -10,6 +10,7 @@ import httpx
 from thread.config import Settings
 from thread.services.mineru_client import (
     call_mineru_file_parse,
+    mineru_api_filename,
     parse_staged_document,
     probe_mineru_health,
     save_parsed_markdown,
@@ -25,6 +26,13 @@ def test_probe_mineru_health_true_on_200():
         client = client_cls.return_value.__enter__.return_value
         client.get.return_value = mock_response
         assert probe_mineru_health(settings) is True
+
+
+def test_mineru_api_filename_sanitizes_spaces():
+    name = mineru_api_filename("fdba6993037d", "18 May Training Hotel Receipt.pdf")
+    assert " " not in name
+    assert name.endswith(".pdf")
+    assert name.startswith("doc-")
 
 
 def test_call_mineru_file_parse_extracts_md(tmp_path: Path):

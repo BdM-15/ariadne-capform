@@ -49,6 +49,23 @@ def test_prepare_quick_capture_requires_content():
         prepare_quick_capture("", context=ctx)
 
 
+def test_prepare_quick_capture_document_title_beats_dump_prose():
+    settings = Settings()
+    ctx = build_capture_context()
+    doc = extract_document_for_capture(
+        settings,
+        "18 May Training Hotel Receipt.pdf",
+        b"%PDF-1.4 minimal",
+    )
+    draft = prepare_quick_capture(
+        "Here is a hotel receipt example which i may use for expense reporting",
+        context=ctx,
+        document=doc,
+    )
+    assert draft.name == "18 May Training Hotel Receipt"
+    assert "hotel receipt example" in draft.body
+
+
 def test_prepare_quick_capture_with_inline_md(tmp_path: Path):
     settings = Settings(thread_state_dir=tmp_path / ".thread")
     ctx = build_capture_context()
@@ -98,6 +115,46 @@ async def test_ingest_quick_capture_survives_ollama_title_timeout(db_session, se
 
 
 @pytest.mark.asyncio
+async def test_ingest_quick_capture_document_title_survives_polish(db_session, settings, tmp_path, monkeypatch):
+    from unittest.mock import AsyncMock, patch
+
+    from thread.llm.router import CompletionResult, LlmProvider
+    from thread.services.vault_write import load_candidate_note
+
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "generated-projections" / "sandbox").mkdir(parents=True)
+    (vault / "index.md").write_text("# Index\n", encoding="utf-8")
+    (vault / "log.md").write_text("# Log\n", encoding="utf-8")
+    monkeypatch.setattr(settings, "knowledge_vault_path", vault)
+    monkeypatch.setattr(settings, "local_admin_model_enabled", True)
+    monkeypatch.setattr(settings, "mineru_enabled", False)
+
+    polish_json = (
+        '{"name": "Here Is a Hotel Receipt Example Which I", '
+        '"body": "> [!note] Candidate draft\\n\\nPolished body."}'
+    )
+    with patch("thread.services.vault_candidate_polish.complete", new_callable=AsyncMock) as mocked:
+        mocked.return_value = CompletionResult(
+            text=polish_json,
+            provider=LlmProvider.OLLAMA,
+            model="qwen3:8b",
+        )
+        result = await ingest_quick_capture(
+            settings,
+            db_session,
+            raw_dump="Here is a hotel receipt example which i may use for expense reporting",
+            context=build_capture_context(),
+            attachment_name="18 May Training Hotel Receipt.pdf",
+            attachment_bytes=b"%PDF-1.4 hotel",
+        )
+
+    assert result.inferred_title == "18 May Training Hotel Receipt"
+    loaded = load_candidate_note(settings, result.write.path)
+    assert loaded["name"] == "18 May Training Hotel Receipt"
+
+
+@pytest.mark.asyncio
 async def test_ingest_quick_capture_writes_and_polishes(db_session, settings, tmp_path, monkeypatch):
     vault = tmp_path / "vault"
     vault.mkdir()
@@ -128,9 +185,14 @@ def test_base_shell_includes_capture_fab():
 
 
 def test_format_document_status_note_mineru_parsed():
-    note = format_document_status_note(filename="trip.pdf", mineru_status="mineru")
+    note = format_document_status_note(
+        filename="trip.pdf",
+        mineru_status="mineru",
+        parse_summary="**Guest Folio** · MARTIN, BENJAMIN",
+    )
     assert "trip.pdf" in note
-    assert "MinerU" in note
+    assert "Guest Folio" in note
+    assert "MARTIN" in note
 
 
 def test_capture_fab_drawer_dump_only_form():

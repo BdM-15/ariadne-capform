@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.config import Settings
 from thread.services.mineru_stub import DocumentExtract, MineruIngestError, extract_document_for_capture
-from thread.services.capture_title import infer_capture_title
+from thread.services.capture_title import document_title_from_filename, infer_capture_title
 from thread.services.vault_candidate_polish import (
     PolishedCandidate,
     apply_polished_candidate,
@@ -70,6 +70,7 @@ class QuickCaptureResult:
     dump_snippet: str = ""
     document_name: str = ""
     mineru_status: str = ""
+    parse_summary: str = ""
 
 
 def _clean(value: str | None) -> str:
@@ -206,10 +207,10 @@ def prepare_quick_capture(
         )
 
     parts: list[str] = []
-    if dump:
-        parts.append(dump)
     if document:
         parts.append(document.markdown.strip())
+    if dump:
+        parts.append(dump)
 
     body = "\n\n".join(parts)
     footer = _context_footer(context)
@@ -227,8 +228,13 @@ def prepare_quick_capture(
         fallback_title = Path(document.filename).stem.replace("-", " ").replace("_", " ").title()
 
     infer_source = dump or (document.markdown if document else "")
-    name = infer_title_from_dump(infer_source, fallback=fallback_title)
-    page_type = infer_page_type_from_dump(infer_source, context=context)
+    if document:
+        doc_title = document_title_from_filename(document.filename)
+        name = doc_title.title
+        page_type = doc_title.page_type or infer_page_type_from_dump(infer_source, context=context)
+    else:
+        name = infer_title_from_dump(infer_source, fallback=fallback_title)
+        page_type = infer_page_type_from_dump(infer_source, context=context)
     related = infer_related_links(context)
 
     return QuickCaptureDraft(
@@ -265,14 +271,22 @@ def build_capture_citations(
     return ";".join(parts)
 
 
-def format_document_status_note(*, filename: str, mineru_status: str) -> str:
+def format_document_status_note(
+    *,
+    filename: str,
+    mineru_status: str,
+    parse_summary: str = "",
+) -> str:
     """Human-readable document line for capture FAB success flash."""
     name = filename or "document"
     status = (mineru_status or "").strip().lower()
+    summary = (parse_summary or "").strip()
+    if status == "mineru" and summary:
+        return f"{name} — {summary}"
     if status == "mineru":
-        return f"{name} — parsed with MinerU (GPU). Full markdown on disk."
+        return f"{name} — document text extracted (GPU parse)."
     if status in {"mineru_parsed", "parsed"}:
-        return f"{name} — parsed with MinerU. Full markdown on disk."
+        return f"{name} — {summary}" if summary else f"{name} — document text extracted."
     if status == "mineru_error":
         return f"{name} — staged; MinerU parse failed (file kept). Approve in Vault Inbox or re-upload."
     if status == "mineru_stub":
@@ -313,15 +327,16 @@ async def ingest_quick_capture(
             raise CaptureFabError(str(exc)) from exc
 
     draft = prepare_quick_capture(raw_dump, context=context, document=document)
-    infer_source = _clean(raw_dump) or (document.markdown if document else "")
-    document_only = bool(document) and not _clean(raw_dump)
-    inferred = await infer_capture_title(
-        settings,
-        infer_source,
-        fallback=draft.name,
-        page_type=draft.page_type,
-        quick=document_only,
-    )
+    if document:
+        inferred = document_title_from_filename(document.filename)
+    else:
+        infer_source = _clean(raw_dump)
+        inferred = await infer_capture_title(
+            settings,
+            infer_source,
+            fallback=draft.name,
+            page_type=draft.page_type,
+        )
     draft = QuickCaptureDraft(
         name=inferred.title,
         body=draft.body,
@@ -360,6 +375,14 @@ async def ingest_quick_capture(
             body=polished.body,
             related=polished.related,
         )
+    if document:
+        doc_title = document_title_from_filename(document.filename)
+        polished = PolishedCandidate(
+            name=doc_title.title,
+            page_type=doc_title.page_type or polished.page_type or draft.page_type,
+            body=polished.body,
+            related=polished.related,
+        )
     apply_polished_candidate(settings, write_result.path, polished)
 
     review_id: uuid.UUID | None = None
@@ -384,8 +407,10 @@ async def ingest_quick_capture(
             1,
         )
     mineru_status = ""
+    parse_summary = ""
     if document:
         mineru_status = "parsed" if document.mineru_ready and document.source_kind == "inline_text" else document.source_kind
+        parse_summary = document.glance_summary
 
     return QuickCaptureResult(
         write=write_result,
@@ -399,4 +424,5 @@ async def ingest_quick_capture(
         dump_snippet=extract_dump_snippet(polished.body or draft.body),
         document_name=document.filename if document else "",
         mineru_status=mineru_status,
+        parse_summary=parse_summary,
     )

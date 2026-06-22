@@ -17,6 +17,11 @@ from thread.services.mineru_client import (
     parse_staged_document,
     probe_mineru_health,
 )
+from thread.services.mineru_markdown import (
+    format_mineru_vault_document,
+    normalize_mineru_body,
+    summarize_mineru_body,
+)
 
 # MinerU 3.3 / Theseus-supported ingest types (expand when Phase 19 wires docker).
 MINERU_CAPTURE_EXTENSIONS: frozenset[str] = frozenset(
@@ -71,6 +76,7 @@ class DocumentExtract:
     markdown: str
     source_kind: str
     mineru_ready: bool
+    glance_summary: str = ""
 
 
 def mineru_ingest_status(settings: Settings) -> dict[str, Any]:
@@ -203,9 +209,13 @@ def _mineru_placeholder_markdown(staged: StagedDocument, *, settings: Settings) 
 
 
 def _mineru_parsed_markdown(staged: StagedDocument, *, parsed_rel: str, body: str) -> str:
-    lead = "Parsed via MinerU 3.3 FastAPI — full output also on disk."
-    header = _mineru_meta_block(staged, status="mineru_parsed", lead=lead, parsed_rel=parsed_rel)
-    return f"{header}\n### Extracted content\n\n{body.strip()}\n"
+    return format_mineru_vault_document(
+        filename=staged.filename,
+        ingest_id=staged.ingest_id,
+        ingest_rel=staged.rel_path,
+        parsed_rel=parsed_rel,
+        raw_body=body,
+    )
 
 
 def extract_document_for_capture(
@@ -232,13 +242,15 @@ def extract_document_for_capture(
 
     source_kind = "mineru_stub"
     mineru_ready = False
+    glance_summary = ""
     markdown = _mineru_placeholder_markdown(staged, settings=settings)
 
     if settings.mineru_enabled:
-        parsed_kind, parsed_md, ready = _run_mineru_parse(settings, staged)
+        parsed_kind, parsed_md, ready, summary = _run_mineru_parse(settings, staged)
         markdown = parsed_md
         source_kind = parsed_kind
         mineru_ready = ready
+        glance_summary = summary
 
     return DocumentExtract(
         filename=staged.filename,
@@ -247,14 +259,15 @@ def extract_document_for_capture(
         markdown=markdown,
         source_kind=source_kind,
         mineru_ready=mineru_ready,
+        glance_summary=glance_summary,
     )
 
 
 def _run_mineru_parse(
     settings: Settings,
     staged: StagedDocument,
-) -> tuple[str, str, bool]:
-    """Returns (source_kind, markdown, mineru_ready)."""
+) -> tuple[str, str, bool, str]:
+    """Returns (source_kind, markdown, mineru_ready, glance_summary)."""
     fallback = _mineru_placeholder_markdown(staged, settings=settings)
     try:
         result = parse_staged_document(
@@ -263,14 +276,13 @@ def _run_mineru_parse(
             staged_path=staged.abs_path,
             filename=staged.filename,
         )
-        return (
-            "mineru",
-            _mineru_parsed_markdown(staged, parsed_rel=result.parsed_rel, body=result.markdown),
-            True,
-        )
+        normalized = normalize_mineru_body(result.markdown)
+        summary = summarize_mineru_body(normalized, filename=staged.filename)
+        vault_md = _mineru_parsed_markdown(staged, parsed_rel=result.parsed_rel, body=result.markdown)
+        return ("mineru", vault_md, True, summary)
     except (OSError, RuntimeError, httpx.HTTPError) as exc:
         error_note = f"\n\n### Parse error\n\n`{exc}`\n"
-        return ("mineru_error", fallback + error_note, False)
+        return ("mineru_error", fallback + error_note, False, "")
 
 
 def mineru_parse_document(settings: Settings, staged_path: Path) -> str:

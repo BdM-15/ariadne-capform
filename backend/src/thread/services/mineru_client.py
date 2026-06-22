@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import mimetypes
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -71,7 +72,44 @@ def _guess_mime(filename: str) -> str:
     return guessed or "application/octet-stream"
 
 
-def call_mineru_file_parse(settings: Settings, staged_path: Path, *, filename: str) -> str:
+def mineru_api_filename(ingest_id: str, original_filename: str) -> str:
+    """ASCII-safe upload name for MinerU — spaces in originals break Windows output paths."""
+    suffix = Path(original_filename).suffix.lower()
+    if suffix not in {
+        ".pdf",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".bmp",
+        ".tif",
+        ".tiff",
+        ".webp",
+        ".doc",
+        ".docx",
+        ".ppt",
+        ".pptx",
+        ".xls",
+        ".xlsx",
+        ".html",
+        ".htm",
+        ".epub",
+        ".mobi",
+        ".txt",
+        ".md",
+        ".markdown",
+    }:
+        suffix = ".pdf"
+    token = re.sub(r"[^a-z0-9]", "", (ingest_id or "doc").lower())[:16] or "doc"
+    return f"doc-{token}{suffix}"
+
+
+def call_mineru_file_parse(
+    settings: Settings,
+    staged_path: Path,
+    *,
+    filename: str,
+    response_key: str | None = None,
+) -> str:
     """POST /file_parse to local MinerU FastAPI; return markdown body."""
     if not staged_path.is_file():
         raise FileNotFoundError(f"Staged document missing: {staged_path}")
@@ -111,7 +149,8 @@ def call_mineru_file_parse(settings: Settings, staged_path: Path, *, filename: s
         raise RuntimeError("MinerU returned ZIP — expected JSON markdown payload")
 
     data = response.json()
-    markdown = _extract_markdown_from_response(data, filename)
+    lookup = response_key or filename
+    markdown = _extract_markdown_from_response(data, lookup)
     if not markdown:
         raise RuntimeError("MinerU returned no markdown content")
     return markdown
@@ -134,7 +173,13 @@ def parse_staged_document(
     staged_path: Path,
     filename: str,
 ) -> MineruParseResult:
-    raw_md = call_mineru_file_parse(settings, staged_path, filename=filename)
+    api_name = mineru_api_filename(ingest_id, filename)
+    raw_md = call_mineru_file_parse(
+        settings,
+        staged_path,
+        filename=api_name,
+        response_key=api_name,
+    )
     parsed_rel = save_parsed_markdown(settings, ingest_id, raw_md)
     clipped = raw_md
     if len(clipped) > _PARSE_MAX_MARKDOWN_CHARS:

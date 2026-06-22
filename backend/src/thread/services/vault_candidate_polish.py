@@ -97,7 +97,7 @@ def _rules_fix_common_typos(text: str) -> str:
 def rules_polish_candidate(loaded: dict[str, Any]) -> PolishedCandidate:
     """Deterministic admin normalize when Ollama is off or unreachable."""
     body = _rules_fix_common_typos(_collapse_blank_lines(str(loaded.get("body") or "")))
-    if body and not body.lstrip().startswith(">"):
+    if body and not body.lstrip().startswith(">") and "## Document —" not in body[:240]:
         body = f"> [!note] Candidate draft\n\n{body}"
     return PolishedCandidate(
         name=_rules_fix_common_typos(str(loaded.get("name") or "").strip()),

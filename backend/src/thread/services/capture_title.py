@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 import httpx
@@ -24,6 +25,28 @@ class InferredCaptureTitle:
     page_type: str | None = None
     provider: str = "rules"
     match_kind: MatchKind = "generic"
+
+
+def document_title_from_filename(filename: str) -> InferredCaptureTitle:
+    """Vault title from uploaded filename — not operator brain-dump prose."""
+    stem = Path(filename).stem
+    cleaned = re.sub(r"[_\-]+", " ", stem)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    title = _title_case_phrase(cleaned) or cleaned[:_MAX_TITLE_CHARS]
+    low = cleaned.lower()
+    page_type = "synthesis"
+    if any(token in low for token in ("receipt", "invoice", "expense", "travel", "pnr", "itinerary")):
+        page_type = "synthesis"
+    elif any(token in low for token in ("rfp", "solicitation", "proposal")):
+        page_type = "opportunity"
+    elif any(token in low for token in ("contract", "award", "idiq")):
+        page_type = "opportunity"
+    return InferredCaptureTitle(
+        title[:_MAX_TITLE_CHARS],
+        page_type=page_type,
+        provider="rules",
+        match_kind="keyword",
+    )
 
 
 def rules_is_confident(result: InferredCaptureTitle) -> bool:

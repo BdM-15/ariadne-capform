@@ -47,7 +47,7 @@ def test_extract_pdf_when_mineru_enabled_parses(tmp_path: Path):
     with patch(
         "thread.services.mineru_stub.parse_staged_document",
         return_value=MineruParseResult(
-            markdown="# Deck\n\nParsed content.",
+            markdown="# Deck Title\n\nParsed content with enough words here.",
             parsed_rel="ingest/parsed/abc/output.md",
         ),
     ):
@@ -55,7 +55,8 @@ def test_extract_pdf_when_mineru_enabled_parses(tmp_path: Path):
     assert extracted.source_kind == "mineru"
     assert extracted.mineru_ready is True
     assert "Parsed content" in extracted.markdown
-    assert "mineru_parsed" in extracted.markdown
+    assert "[!abstract] Extracted" in extracted.markdown
+    assert extracted.glance_summary
 
 
 def test_extract_pdf_when_mineru_unreachable_falls_back(tmp_path: Path):
@@ -117,5 +118,5 @@ async def test_ingest_quick_capture_pdf_only(db_session, tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_ingest_requires_dump_or_document(db_session, settings):
-    with pytest.raises(CaptureFabError, match="Dump a thought or drop a document"):
+    with pytest.raises(CaptureFabError, match="No text or file received"):
         await ingest_quick_capture(settings, db_session, raw_dump="", context=build_capture_context())

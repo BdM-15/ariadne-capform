@@ -1255,6 +1255,7 @@ async def capture_fab_quick(
             doc_note = format_document_status_note(
                 filename=result.document_name,
                 mineru_status=result.mineru_status,
+                parse_summary=result.parse_summary,
             )
         studio_href = "/knowledge#knowledge-vault-inbox"
         if result.review_id:
