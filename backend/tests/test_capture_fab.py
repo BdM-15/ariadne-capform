@@ -11,6 +11,7 @@ from thread.services.capture_fab import (
     CaptureFabError,
     build_capture_citations,
     build_capture_context,
+    format_document_status_note,
     infer_title_from_dump,
     ingest_quick_capture,
     parse_opp_id,
@@ -126,6 +127,12 @@ def test_base_shell_includes_capture_fab():
     assert "thread_capture_fab.js" in res.text
 
 
+def test_format_document_status_note_mineru_parsed():
+    note = format_document_status_note(filename="trip.pdf", mineru_status="mineru")
+    assert "trip.pdf" in note
+    assert "MinerU" in note
+
+
 def test_capture_fab_drawer_dump_only_form():
     client = TestClient(create_app())
     res = client.get(
@@ -140,6 +147,9 @@ def test_capture_fab_drawer_dump_only_form():
     assert 'name="dump"' in res.text
     assert 'name="name"' not in res.text
     assert "Platform take it from here" in res.text
+    assert "capture-fab-dropzone" in res.text
+    assert "Drag &amp; drop" in res.text or "Drag & drop" in res.text
+    assert "Browse files" in res.text
 
 
 def test_capture_fab_template_files():
@@ -148,5 +158,7 @@ def test_capture_fab_template_files():
     assert 'id="capture-fab-form"' in drawer
     assert "capture-fab-working" in drawer
     assert 'name="attachment"' in drawer
+    assert "capture-fab-dropzone" in drawer
     assert ".pdf" in drawer
     assert "MinerU" in drawer
+    assert "Open Vault Inbox" in drawer

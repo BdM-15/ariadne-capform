@@ -2192,15 +2192,170 @@ body.capture-fab-header-mode.task-drawer-open {
   resize: vertical;
 }
 
-.capture-fab-file-label {
+.capture-fab-upload-block {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
 
-.capture-fab-file {
+.capture-fab-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 1.1rem 0.75rem;
+  border: 1.5px dashed rgba(var(--neon-cyan-rgb), 0.35);
+  border-radius: 0.65rem;
+  background: rgba(15, 23, 42, 0.45);
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+  text-align: center;
+}
+
+.capture-fab-dropzone:hover,
+.capture-fab-dropzone:focus-visible,
+.capture-fab-dropzone.is-dragover {
+  border-color: rgba(var(--neon-cyan-rgb), 0.7);
+  background: rgba(var(--neon-cyan-rgb), 0.08);
+  outline: none;
+}
+
+.capture-fab-dropzone-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--neon-cyan);
+  opacity: 0.85;
+}
+
+.capture-fab-dropzone-lead {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(226 232 240);
+}
+
+.capture-fab-dropzone-sub {
+  margin: 0;
+  font-size: 0.625rem;
+  color: var(--text-500);
+  line-height: 1.35;
+}
+
+.capture-fab-browse-link {
+  margin-top: 0.15rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.625rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--neon-cyan);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.capture-fab-browse-link:hover {
+  color: rgb(103 232 249);
+}
+
+.capture-fab-file-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.capture-fab-staged {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(var(--neon-lime-rgb), 0.35);
+  background: rgba(var(--neon-lime-rgb), 0.08);
   font-size: 0.6875rem;
+  color: rgb(226 232 240);
+}
+
+.capture-fab-staged-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.capture-fab-staged-size {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.5625rem;
+  color: var(--text-500);
+}
+
+.capture-fab-staged-clear {
+  border: 0;
+  background: transparent;
   color: var(--text-400);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.15rem;
+}
+
+.capture-fab-staged-clear:hover {
+  color: var(--neon-amber);
+}
+
+.capture-fab-file-hint {
+  margin: 0;
+  font-size: 0.625rem;
+  color: var(--neon-amber);
+}
+
+.capture-fab-flash-doc {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.6875rem;
+  color: rgb(203 213 225);
+  line-height: 1.4;
+}
+
+.capture-fab-next-step {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: rgb(148 163 184);
+  line-height: 1.45;
+}
+
+.capture-fab-success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.capture-fab-error {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.capture-fab-error-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--neon-amber);
+}
+
+.capture-fab-success-done {
+  padding: 0.35rem 0;
 }
 
 .capture-fab-submit {

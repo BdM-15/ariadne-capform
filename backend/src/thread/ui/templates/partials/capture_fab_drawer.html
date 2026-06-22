@@ -16,47 +16,53 @@
   </div>
 
   {% if flash_ok and inferred_title %}
-  <div class="capture-fab-success">
+  <div class="capture-fab-success capture-fab-success-done" id="capture-fab-result">
     <p class="capture-fab-flash is-ok">
       <span class="capture-fab-flash-kicker">
-        {% if capture_lane == 'task' %}Added to Tasks{% elif inbox_lane == 'test' %}Added to Test Inbox{% else %}Added to Vault Inbox{% endif %}
+        {% if capture_lane == 'task' %}Added to Tasks{% elif inbox_lane == 'test' %}Added to Test Inbox{% else %}Queued in Vault Inbox{% endif %}
       </span>
       {% if queue_position and queue_total %}
       <span class="capture-fab-flash-queue">#{{ queue_position }} of {{ queue_total }}</span>
       {% endif %}
     </p>
     <p class="capture-fab-flash-title">{{ inferred_title }}</p>
+    {% if doc_note %}
+    <p class="capture-fab-flash-doc" title="MinerU parse status">
+      <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+      {{ doc_note }}
+    </p>
+    {% endif %}
     {% if dump_snippet %}
     <p class="capture-fab-flash-snippet">“{{ dump_snippet }}”</p>
-    {% endif %}
-    {% if doc_note %}
-    <p class="capture-fab-flash-meta">{{ doc_note }}</p>
     {% endif %}
     <p class="capture-fab-flash-meta" title="{% if capture_lane == 'task' %}EA polish at ingest — title/description normalized for Tasks list.{% else %}Title: keyword or Ollama (≤12s). Body: ingest spellfix at dump (≤20s) or rules fallback.{% endif %}">
       {% if capture_lane == 'task' %}
       Intent ({{ title_provider }}) · polish ({{ polish_provider }}) — check off on Tasks when done.
       {% else %}
-      Title ({{ title_provider }}) · body ({{ polish_provider }}) — Approve publishes to inferred vault path.
+      Title ({{ title_provider }}) · body ({{ polish_provider }}) — review and approve to publish.
       {% endif %}
     </p>
-    {% if capture_lane == 'task' and task_href %}
-    <a href="{{ task_href }}" class="btn btn-primary btn-compact text-xs no-underline capture-fab-studio-link">Open Tasks</a>
-    <button type="button" class="btn btn-ghost btn-compact text-xs capture-fab-again" data-capture-fab-reload>Dump another</button>
-    {% elif studio_href %}
-    <a href="{{ studio_href }}" class="btn btn-primary btn-compact text-xs no-underline capture-fab-studio-link">Open in Vault Inbox</a>
-    <button
-      type="button"
-      class="btn btn-ghost btn-compact text-xs capture-fab-again"
-      data-capture-fab-reload
-    >Dump another</button>
-    {% endif %}
+    <p class="capture-fab-next-step">
+      <strong>Next:</strong>
+      {% if capture_lane == 'task' %}Open Tasks to check off when handled.{% else %}Open Vault Inbox → review candidate → Approve to publish into Knowledge.{% endif %}
+    </p>
+    <div class="capture-fab-success-actions">
+      {% if capture_lane == 'task' and task_href %}
+      <a href="{{ task_href }}" class="btn btn-primary btn-compact text-xs no-underline capture-fab-studio-link">Open Tasks</a>
+      {% elif studio_href %}
+      <a href="{{ studio_href }}" class="btn btn-primary btn-compact text-xs no-underline capture-fab-studio-link">Open Vault Inbox</a>
+      {% endif %}
+      <button type="button" class="btn btn-ghost btn-compact text-xs capture-fab-again" data-capture-fab-reload>Upload another</button>
+    </div>
   </div>
   {% elif flash %}
-  <div class="capture-fab-success">
-    <p class="capture-fab-flash {% if flash_ok %}is-ok{% else %}is-warn{% endif %}">{{ flash }}</p>
-    {% if flash_ok and studio_href %}
-    <a href="{{ studio_href }}" class="btn btn-primary btn-compact text-xs no-underline capture-fab-studio-link">Open in Vault Inbox</a>
-    {% endif %}
+  <div class="capture-fab-error" id="capture-fab-result">
+    <p class="capture-fab-error-title">{{ flash_title or "Couldn't capture that" }}</p>
+    <p class="capture-fab-flash is-warn">{{ flash }}</p>
+    <p class="capture-fab-next-step">
+      Drag a <strong>file</strong> onto the drop zone (not a folder), or use <strong>Browse files</strong>, then click <strong>Platform take it from here</strong>.
+    </p>
+    <button type="button" class="btn btn-primary btn-compact text-xs" data-capture-fab-reload>Try again</button>
   </div>
   {% else %}
   <form
@@ -80,20 +86,40 @@
       placeholder="Brain dump (optional if you upload a doc) — fragments, bullets, pasted email…"
       title="Optional when uploading a document"
     ></textarea>
-    <label class="capture-fab-file-label">
-      <span class="text-[10px] font-mono text-slate-500 uppercase tracking-wider">Document (MinerU 3.3)</span>
-      <span class="text-[10px] text-slate-600 leading-snug">PDF, Office, images, epub — or .txt/.md. Platform stages &amp; parses; you never pick title/type.</span>
+
+    <div class="capture-fab-upload-block">
+      <span class="text-[10px] font-mono text-slate-500 uppercase tracking-wider">Document (MinerU)</span>
+      <div
+        id="capture-fab-dropzone"
+        class="capture-fab-dropzone"
+        tabindex="0"
+        role="button"
+        aria-label="Drop a document to parse with MinerU"
+      >
+        <i data-lucide="upload-cloud" class="capture-fab-dropzone-icon"></i>
+        <p class="capture-fab-dropzone-lead">Drag &amp; drop a file here</p>
+        <p class="capture-fab-dropzone-sub">PDF, Office, images, epub — or .txt/.md</p>
+        <button type="button" class="capture-fab-browse-link" id="capture-fab-browse">Browse files</button>
+      </div>
       <input
         type="file"
         name="attachment"
         id="capture-fab-file"
-        class="capture-fab-file"
+        class="capture-fab-file-hidden"
         accept=".pdf,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.html,.htm,.epub,.mobi,.txt,.md,.markdown"
         title="Any MinerU-supported document type"
       />
-    </label>
+      <div id="capture-fab-staged" class="capture-fab-staged capture-fab-hidden" aria-live="polite">
+        <i data-lucide="paperclip" class="w-3.5 h-3.5"></i>
+        <span id="capture-fab-staged-name" class="capture-fab-staged-name"></span>
+        <span id="capture-fab-staged-size" class="capture-fab-staged-size"></span>
+        <button type="button" class="capture-fab-staged-clear" id="capture-fab-clear-file" title="Remove file">×</button>
+      </div>
+      <p id="capture-fab-file-hint" class="capture-fab-file-hint capture-fab-hidden"></p>
+    </div>
+
     <p id="capture-fab-working" class="capture-fab-working htmx-indicator text-[10px] font-mono text-neon-cyan">
-      Platform working — inferring title, polish, queue…
+      Platform working — staging file, MinerU parse, title, polish, queue…
     </p>
     <button type="submit" class="btn btn-primary text-xs w-full capture-fab-submit" title="Platform writes, stages docs, polishes, queues review">
       <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>

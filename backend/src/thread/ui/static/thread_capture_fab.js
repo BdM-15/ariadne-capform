@@ -59,6 +59,7 @@
         d.innerHTML = html;
         setOpen(true);
         if (window.htmx) window.htmx.process(d);
+        bindCaptureDropzone();
         if (window.lucide) window.lucide.createIcons();
       });
   }
@@ -97,6 +98,7 @@
         d.innerHTML = html;
         setOpen(true);
         if (window.htmx) window.htmx.process(d);
+        bindCaptureDropzone();
         if (window.lucide) window.lucide.createIcons();
       })
       .catch(function () {
@@ -154,6 +156,154 @@
     });
   }
 
+  var CAPTURE_ACCEPT = /\.(pdf|png|jpe?g|bmp|tiff?|webp|docx?|pptx?|xlsx?|html?|epub|mobi|txt|md|markdown)$/i;
+
+  function formatFileSize(bytes) {
+    if (!bytes) return "";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  function setCaptureFileHint(message, visible) {
+    var hint = document.getElementById("capture-fab-file-hint");
+    if (!hint) return;
+    hint.textContent = message || "";
+    hint.classList.toggle("capture-fab-hidden", !visible);
+  }
+
+  function updateStagedFilePreview(file) {
+    var staged = document.getElementById("capture-fab-staged");
+    var nameEl = document.getElementById("capture-fab-staged-name");
+    var sizeEl = document.getElementById("capture-fab-staged-size");
+    var dropzone = document.getElementById("capture-fab-dropzone");
+    if (!staged || !nameEl || !sizeEl) return;
+    if (!file) {
+      staged.classList.add("capture-fab-hidden");
+      if (dropzone) dropzone.classList.remove("capture-fab-hidden");
+      nameEl.textContent = "";
+      sizeEl.textContent = "";
+      setCaptureFileHint("", false);
+      return;
+    }
+    staged.classList.remove("capture-fab-hidden");
+    if (dropzone) dropzone.classList.add("capture-fab-hidden");
+    nameEl.textContent = file.name;
+    sizeEl.textContent = formatFileSize(file.size);
+    setCaptureFileHint("", false);
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function assignCaptureFile(file) {
+    var fileInput = document.getElementById("capture-fab-file");
+    if (!fileInput || !file) return false;
+    if (!CAPTURE_ACCEPT.test(file.name)) {
+      setCaptureFileHint("Unsupported type — use PDF, Office, images, epub, or .txt/.md", true);
+      return false;
+    }
+    var dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+    updateStagedFilePreview(file);
+    return true;
+  }
+
+  function clearCaptureFile() {
+    var fileInput = document.getElementById("capture-fab-file");
+    if (fileInput) fileInput.value = "";
+    updateStagedFilePreview(null);
+  }
+
+  function bindCaptureDropzone() {
+    var dropzone = document.getElementById("capture-fab-dropzone");
+    var fileInput = document.getElementById("capture-fab-file");
+    var browse = document.getElementById("capture-fab-browse");
+    var clearBtn = document.getElementById("capture-fab-clear-file");
+    if (!dropzone || !fileInput || dropzone.dataset.captureDropBound) return;
+    dropzone.dataset.captureDropBound = "1";
+
+    function preventDefaults(event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    ["dragenter", "dragover", "dragleave", "drop"].forEach(function (name) {
+      dropzone.addEventListener(name, preventDefaults);
+    });
+    dropzone.addEventListener("dragenter", function () {
+      dropzone.classList.add("is-dragover");
+    });
+    dropzone.addEventListener("dragleave", function () {
+      dropzone.classList.remove("is-dragover");
+    });
+    dropzone.addEventListener("drop", function (event) {
+      dropzone.classList.remove("is-dragover");
+      var files = event.dataTransfer && event.dataTransfer.files;
+      if (!files || !files.length) {
+        setCaptureFileHint("Drop a file, not a folder.", true);
+        return;
+      }
+      if (files.length > 1) {
+        setCaptureFileHint("One file at a time — using the first.", true);
+      }
+      assignCaptureFile(files[0]);
+    });
+    dropzone.addEventListener("click", function (event) {
+      if (event.target.closest("#capture-fab-browse")) return;
+      fileInput.click();
+    });
+    dropzone.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        fileInput.click();
+      }
+    });
+    if (browse) {
+      browse.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        fileInput.click();
+      });
+    }
+    fileInput.addEventListener("change", function () {
+      var file = fileInput.files && fileInput.files[0];
+      if (file) assignCaptureFile(file);
+      else updateStagedFilePreview(null);
+    });
+    if (clearBtn) {
+      clearBtn.addEventListener("click", function (event) {
+        event.preventDefault();
+        clearCaptureFile();
+      });
+    }
+  }
+
+  function bindCaptureFormValidation() {
+    if (document.body.dataset.captureFabValidateBound) return;
+    document.body.dataset.captureFabValidateBound = "1";
+    document.body.addEventListener(
+      "submit",
+      function (event) {
+        var form = event.target;
+        if (!form || form.id !== "capture-fab-form") return;
+        var fileInput = document.getElementById("capture-fab-file");
+        var dump = form.querySelector('[name="dump"]');
+        var hasFile =
+          fileInput &&
+          fileInput.files &&
+          fileInput.files.length > 0 &&
+          fileInput.files[0] &&
+          fileInput.files[0].size > 0;
+        var hasDump = dump && dump.value && dump.value.trim().length > 0;
+        if (!hasFile && !hasDump) {
+          event.preventDefault();
+          setCaptureFileHint("Add a brain dump and/or drop a document file.", true);
+        }
+      },
+      true,
+    );
+  }
+
   function bindCaptureFormEncoding() {
     document.body.addEventListener("htmx:configRequest", function (event) {
       var elt = event.detail && event.detail.elt;
@@ -193,9 +343,32 @@
       var elt = event.detail && event.detail.elt;
       if (!elt || elt.id !== "capture-fab-form") return;
       var status = event.detail.xhr && event.detail.xhr.status;
-      window.alert(
-        "Quick capture failed" + (status ? " (HTTP " + status + ")" : "") + ". Check server logs.",
-      );
+      var drawer = document.getElementById("capture-fab-drawer");
+      if (drawer) {
+        drawer.innerHTML =
+          '<div class="capture-fab-drawer-inner capture-fab-error">' +
+          '<p class="capture-fab-error-title">Capture failed</p>' +
+          '<p class="capture-fab-flash is-warn">Server error' +
+          (status ? " (HTTP " + status + ")" : "") +
+          ". Try again or check server logs.</p>" +
+          '<button type="button" class="btn btn-primary btn-compact text-xs" data-capture-fab-reload>Try again</button>' +
+          "</div>";
+      }
+    });
+
+    document.body.addEventListener("htmx:sendError", function (event) {
+      var elt = event.detail && event.detail.elt;
+      if (!elt || elt.id !== "capture-fab-form") return;
+      var drawer = document.getElementById("capture-fab-drawer");
+      if (drawer) {
+        drawer.innerHTML =
+          '<div class="capture-fab-drawer-inner capture-fab-error">' +
+          '<p class="capture-fab-error-title">Request timed out</p>' +
+          '<p class="capture-fab-flash is-warn">MinerU may still be parsing a large PDF. ' +
+          "Wait a moment, then try again — or upload a smaller file.</p>" +
+          '<button type="button" class="btn btn-primary btn-compact text-xs" data-capture-fab-reload>Try again</button>' +
+          "</div>";
+      }
     });
   }
 
@@ -233,6 +406,7 @@
     bindDelegatedOpenTriggers();
     bindClose();
     bindCaptureFormEncoding();
+    bindCaptureFormValidation();
   }
 
   if (document.readyState === "loading") {
@@ -254,7 +428,10 @@
   document.body.addEventListener("htmx:afterSwap", function (event) {
     bindOpenTriggers();
     if (event.detail && event.detail.target && event.detail.target.id === "capture-fab-drawer") {
+      bindCaptureDropzone();
       if (window.lucide) window.lucide.createIcons();
+      var result = document.getElementById("capture-fab-result");
+      if (result) result.scrollIntoView({ block: "nearest", behavior: "smooth" });
       if (document.querySelector(".capture-fab-flash-kicker")) {
         refreshVaultInboxFromFabLink();
       }

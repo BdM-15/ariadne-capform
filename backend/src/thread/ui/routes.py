@@ -30,6 +30,7 @@ from thread.services.packet_workspace import build_packet_workspace, enrich_pack
 from thread.services.capture_display import build_capture_home
 from thread.services.capture_intent import CaptureIntent, classify_capture_intent
 from thread.services.capture_fab import (
+    format_document_status_note,
     CaptureFabError,
     build_capture_context,
     ingest_quick_capture,
@@ -1242,10 +1243,10 @@ async def capture_fab_quick(
         )
         doc_note = ""
         if result.document_name:
-            if result.mineru_status in ("mineru_stub", "mineru", "mineru_error", "mineru_parsed"):
-                doc_note = f"Document {result.document_name} staged for MinerU."
-            else:
-                doc_note = f"Document {result.document_name} attached."
+            doc_note = format_document_status_note(
+                filename=result.document_name,
+                mineru_status=result.mineru_status,
+            )
         studio_href = "/knowledge#knowledge-vault-inbox"
         if result.review_id:
             studio_href = f"/knowledge?inbox={result.review_id}#knowledge-vault-inbox"
@@ -1265,6 +1266,7 @@ async def capture_fab_quick(
                 "polish_provider": result.polish_provider,
                 "title_provider": result.title_provider,
                 "doc_note": doc_note,
+                "mineru_status": result.mineru_status,
             },
         )
     except (CaptureFabError, VaultWriteError) as exc:
@@ -1275,6 +1277,7 @@ async def capture_fab_quick(
                 "context": context,
                 "flash": str(exc),
                 "flash_ok": False,
+                "flash_title": "Couldn't capture that",
                 "studio_href": None,
             },
         )
@@ -1284,8 +1287,9 @@ async def capture_fab_quick(
             "partials/capture_fab_drawer.html",
             {
                 "context": context,
-                "flash": f"Capture failed: {_capture_error_message(exc)}",
+                "flash": _capture_error_message(exc),
                 "flash_ok": False,
+                "flash_title": "Capture failed",
                 "studio_href": None,
             },
         )

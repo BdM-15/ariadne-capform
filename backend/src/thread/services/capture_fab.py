@@ -17,6 +17,7 @@ from thread.services.vault_candidate_polish import (
     PolishedCandidate,
     apply_polished_candidate,
     ingest_polish_candidate,
+    rules_polish_candidate,
 )
 from thread.services.vault_inbox_display import extract_dump_snippet
 from thread.services.vault_review_queue import build_vault_review_widget
@@ -262,6 +263,25 @@ def build_capture_citations(
     return ";".join(parts)
 
 
+def format_document_status_note(*, filename: str, mineru_status: str) -> str:
+    """Human-readable document line for capture FAB success flash."""
+    name = filename or "document"
+    status = (mineru_status or "").strip().lower()
+    if status == "mineru":
+        return f"{name} — parsed with MinerU (GPU). Full markdown on disk."
+    if status in {"mineru_parsed", "parsed"}:
+        return f"{name} — parsed with MinerU. Full markdown on disk."
+    if status == "mineru_error":
+        return f"{name} — staged; MinerU parse failed (file kept). Approve in Vault Inbox or re-upload."
+    if status == "mineru_stub":
+        return f"{name} — staged only (MinerU disabled)."
+    if status == "inline_text":
+        return f"{name} — text file attached."
+    if status:
+        return f"{name} — {status}."
+    return f"{name} — attached."
+
+
 def parse_opp_id(raw: str) -> uuid.UUID | None:
     clean = _clean(raw)
     if not clean:
@@ -292,11 +312,13 @@ async def ingest_quick_capture(
 
     draft = prepare_quick_capture(raw_dump, context=context, document=document)
     infer_source = _clean(raw_dump) or (document.markdown if document else "")
+    document_only = bool(document) and not _clean(raw_dump)
     inferred = await infer_capture_title(
         settings,
         infer_source,
         fallback=draft.name,
         page_type=draft.page_type,
+        quick=document_only,
     )
     draft = QuickCaptureDraft(
         name=inferred.title,
@@ -321,9 +343,14 @@ async def ingest_quick_capture(
         source="fabric",
     )
 
-    # Ingest polish — light typo/grammar cleanup (≤20s). Full structure polish stays in Vault Inbox.
+    # Ingest polish — light typo/grammar cleanup (≤20s). Skip LLM on large MinerU bodies.
     loaded = load_candidate_note(settings, write_result.path)
-    polished, polish_provider = await ingest_polish_candidate(settings, loaded)
+    body_len = len(str(loaded.get("body") or ""))
+    if body_len > 12_000:
+        polished = rules_polish_candidate(loaded)
+        polish_provider = "rules-large-doc"
+    else:
+        polished, polish_provider = await ingest_polish_candidate(settings, loaded)
     if not polished.name:
         polished = PolishedCandidate(
             name=draft.name,
