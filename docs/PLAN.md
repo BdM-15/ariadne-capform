@@ -932,7 +932,7 @@ flowchart TD
 
 | Concept | Definition |
 |---------|------------|
-| **Slice** | Active `InsightFacetQuery` — agency, sub_agency, recipient, naics, psc (peer facets, **zero platform defaults**) |
+| **Slice** | Active facet query — **peer dimensions, zero platform defaults** (see **Facet model** below — not limited to today's 5 UI fields) |
 | **Overview lens** | Command surface for the slice: KPI strip + “what jumped out” + top entities with **Hone** actions |
 | **Lens** | A view on the **same slice** — different question, not a new overview (Recompete, Competition, Agency mix, Trace) |
 | **Hone** | Click chart/table row → append facet dimension → re-run slice (breadcrumb shows drill path) |
@@ -948,6 +948,7 @@ flowchart TD
 | Extent competed bar | How competed is work? | `by_extent_competed` (vehicle analysis) | **P0** |
 | Top recipients bar | Who wins here? | `top_recipients` · click → Hone recipient | **P0** |
 | Top agencies bar | Who buys? | agency intensity / flows | **P1** |
+| **Capture intensity** scatter | Who is hot (high actions **and** high $)? | `get_agency_intensity` — actions × obligation, hone agency | **P1** |
 | Expiring table | What recompetes soon? | current `/insights` explore rows | **P0** (exists — move under Recompete lens) |
 | Money-flow Sankey | Recipient → agency paths | Clew `money_flow` | **P1** (link to `/clew` or embed) |
 | Geo / vehicles / combo | POP state, IDV mix, combos | capture-insights tabs | **Post-MVP** |
@@ -961,8 +962,46 @@ flowchart TD
 | **17e-c** | **Hone interactions** — click recipient/agency bar → narrow slice → refresh all lenses | “Why is Lockheed getting money?” is one click |
 | **17e-d** | **Lens tabs** — Overview · Recompete · Competition · Trace (Clew handoff) — shared slice, not duplicate bootstraps | Tabs complement Overview; each answers one follow-up question |
 | **17e-e** | **Sign-off E2E smoke** — facet → hone → Watch → Pulse → Track → packet fill one field | MVP sign-off test passes |
+| **17e-f** | **Extended facets** — office, UEI, POP state, competition/set-aside filters; advanced facet panel | Slice not limited to 5 text boxes |
 
 **Clew boundary:** `/clew` stays the deep trace workbench (Sankey, teaming, saved traces). `/insights` Overview links **Trace** lens with facets pre-filled; do not duplicate full Clew UI on Insights.
+
+**Facet model — do not limit to current search form (17e-f):**
+
+Today's UI exposes 5 text facets; **PG already has 50+ prime columns** (`bulk_fields.PRIME_TARGET_FIELDS`). `InsightFacetQuery` must grow to match **USASpending critical data elements (CDEs)** — not only agency/sub-agency.
+
+| Tier | Facet dimensions | Source | When |
+|------|------------------|--------|------|
+| **MVP (17e-f-a)** | `awarding_office_name`, `funding_office_name`, `recipient_uei`, `pop_state`, `extent_competed`, `type_of_set_aside` (filter), `award_type` / `idv_type` | PG columns already in bulk load | Extend `InsightFacetQuery` + `build_facet_sql` + advanced facet panel |
+| **MVP (17e-f-b)** | Office-level hone from charts (click office row → slice) | Same PG | With 17e-c hone |
+| **Post-MVP (17d-agency)** | Dept → sub-tier → **office** cascading selects | SAM [FH Public API](https://open.gsa.gov/api/fh-public-api/) → `intel_federal_orgs` PG | **Not built yet** — PLAN only; freeform ILIKE today |
+
+**Federal Hierarchy status (honest):** ❌ **Not implemented.** No `intel_federal_orgs` table, no FH API ingest, no cascading pickers on Insights/Clew. Deferred as **17d-agency** (post-MVP for sign-off). Until then: (1) extend freeform facets to office/UEI/PSC/competition fields; (2) optional **distinct-value autocomplete from PG** (17d) using historical strings — faster than FH for matching USAspending spellings.
+
+**Two data planes — do not conflate on one screen:**
+
+| Plane | Store | Time | Primary surface | Job |
+|-------|-------|------|---------------|-----|
+| **Historical analytics** | PG `intel_usaspending_*` | Bulk USAspending | **`/insights`** | Market picture, hone, Watch, recompete radar |
+| **Live federal** | SAM / USAspending **MCP** | Now | **`/insights` SAM panel** + **`/tools/mcp`** + workspace research | Notices, entity lookup, supplemental rows |
+| **Morning briefing** | watchlist + inbox + digest | Operator-curated | **`/pulse`** | What I already chose to watch — **not** open-ended explore |
+
+**Live Explore placement:** **USAspending historical explore stays on `/insights`** (identification lane step 1). **Pulse** shows outcomes (watchlist, hot recompete **for watched items**, digest) — not a second explore workbench. **SAM live explore** stays on Insights as explicit **Run** (cached 60m) — connects to historical slice via shared agency/recipient/NAICS facets when operator links them; does not replace PG charts.
+
+**Derived insights (combinations, not single-field charts):**
+
+Charts must **tell a story or enable Hone** — no chart-for-chart's sake. **Derived metrics** combine columns:
+
+| Insight | Formula (concept) | Story it tells | Leads to |
+|---------|-------------------|----------------|----------|
+| **Capture intensity** | agency × (`award_count`, `total_oblig`) — above-median on both axes | “High volume + high dollars” customers worth early BD | Hone agency → Recompete lens |
+| **Concentration risk** | top-3 recipient % of slice $ | Incumbent lock-in vs fragmented market | Hone recipient → Competition lens |
+| **Recompete pressure** | expiring $ / active $ in slice | Funding cliff timing | Watch rows |
+| **Small-biz lane** | set-aside % × recipient concentration | Teaming vs prime strategy | Competition lens |
+
+Register derived metrics in a small **`insight_metrics` catalog** (name, SQL fragment, narrative template, hone target) — lightweight semantic layer; not a second Superset install.
+
+**Narrative layer (optional skill, post-MVP):** After slice Run, Grok can emit 3–5 bullet **“so what”** from KPI + top anomalies (candidate until review) — inspired by data-storytelling patterns ([VisStory](https://visstory.github.io/), narrative visualization research). **Not required for MVP sign-off**; deterministic callout text on Overview (“Lockheed = 41% of slice”) ships first.
 
 ### Phase 15 — Knowledge vault browser + Capture Studio
 
