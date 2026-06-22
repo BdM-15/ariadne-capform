@@ -78,6 +78,8 @@ from thread.clew.saved_traces import (
 )
 from thread.ui.insights_guides import guide_for_clew, guide_for_explore
 from thread.services.insights_drilldown import build_drilldown
+from thread.services.insights_slice import build_slice_panel
+from thread.intel.operator_profile import save_naics_portfolio_from_text
 from thread.skills.runner import run_skill
 from thread.services.knowledge_browser import (
     build_vault_browser_context,
@@ -303,29 +305,47 @@ async def _render_insights_body(
     settings: Settings,
     *,
     flash: str | None = None,
-    radar_form: dict | None = None,
-    sam_form: dict | None = None,
+    facet_form: dict | None = None,
+    active_lens: str = "overview",
+    slice_panel: bool = False,
+    slice_ctx: dict | None = None,
 ) -> HTMLResponse:
     ctx = await build_insights_page_context(db, settings)
-    explore = await explore_radar(db, settings)
-    sam_explore = await explore_sam(settings)
-    drilldown = await build_drilldown(db, settings)
+    template_ctx: dict = {
+        "ctx": ctx,
+        "flash": flash,
+        "facet_form": facet_form,
+        "active_lens": active_lens,
+        "slice_panel": slice_panel,
+        "radar_guide": guide_for_explore("usaspending_explore"),
+        "sam_guide": guide_for_explore("sam_explore"),
+        "clew_guide": guide_for_clew(),
+    }
+    if slice_ctx:
+        template_ctx.update(slice_ctx)
     return templates.TemplateResponse(
         request,
         "partials/insights_body.html",
-        {
-            "ctx": ctx,
-            "flash": flash,
-            "explore": explore,
-            "sam_explore": sam_explore,
-            "drilldown": drilldown,
-            "radar_form": radar_form,
-            "sam_form": sam_form,
-            "radar_guide": guide_for_explore("usaspending_explore"),
-            "sam_guide": guide_for_explore("sam_explore"),
-            "clew_guide": guide_for_clew(),
-        },
+        template_ctx,
     )
+
+
+def _slice_template_ctx(panel) -> dict:
+    return {
+        "facet_form": panel.facet_form,
+        "active_lens": panel.active_lens,
+        "lens_tabs": panel.lens_tabs,
+        "query": panel.query,
+        "has_slice": panel.has_slice,
+        "overview": panel.overview,
+        "overview_ready": panel.overview_ready,
+        "overview_idle": panel.overview_idle,
+        "overview_error": panel.overview_error,
+        "explore": panel.explore,
+        "sam_explore": panel.sam_explore,
+        "sam_form": panel.sam_form,
+        "slice_panel": True,
+    }
 
 
 @router.get("/insights", response_class=HTMLResponse)
@@ -335,9 +355,6 @@ async def insights_page(
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
     ctx = await build_insights_page_context(db, settings)
-    explore = await explore_radar(db, settings)
-    sam_explore = await explore_sam(settings)
-    drilldown = await build_drilldown(db, settings)
     return templates.TemplateResponse(
         request,
         "insights.html",
@@ -346,15 +363,60 @@ async def insights_page(
             "active_nav": "insights",
             "ctx": ctx,
             "flash": None,
-            "explore": explore,
-            "sam_explore": sam_explore,
-            "drilldown": drilldown,
-            "radar_form": None,
-            "sam_form": None,
+            "facet_form": None,
+            "active_lens": "overview",
+            "slice_panel": False,
             "radar_guide": guide_for_explore("usaspending_explore"),
             "sam_guide": guide_for_explore("sam_explore"),
             "clew_guide": guide_for_clew(),
         },
+    )
+
+
+@router.get("/partials/insights/slice", response_class=HTMLResponse)
+async def insights_slice_partial(
+    request: Request,
+    lens: str = Query("overview"),
+    agency: str = Query(""),
+    sub_agency: str = Query(""),
+    recipient: str = Query(""),
+    naics_codes: str = Query(""),
+    psc_codes: str = Query(""),
+    run: int = Query(0, ge=0, le=1),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    panel = await build_slice_panel(
+        db,
+        settings,
+        lens=lens,
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        run=bool(run),
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/insights_slice_panel.html",
+        _slice_template_ctx(panel),
+    )
+
+
+@router.post("/insights/operator-naics", response_class=HTMLResponse)
+async def insights_save_operator_naics(
+    request: Request,
+    naics_portfolio: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    save_naics_portfolio_from_text(settings, naics_portfolio)
+    return await _render_insights_body(
+        request,
+        db,
+        settings,
+        flash="Operator NAICS portfolio saved.",
     )
 
 

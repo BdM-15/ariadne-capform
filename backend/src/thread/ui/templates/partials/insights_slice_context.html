@@ -1,0 +1,24 @@
+{% if has_slice and query %}
+<div class="insights-slice-bar flex flex-wrap items-center gap-2 mb-3 text-[11px]">
+  <span class="text-slate-500 font-mono uppercase tracking-wide shrink-0">Active slice</span>
+  {% if query.naics_codes %}
+  {% for code in query.naics_codes %}
+  <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">NAICS {{ code }}</span>
+  {% endfor %}
+  {% endif %}
+  {% if query.agency %}
+  <span class="pill pill-compact border border-neon-cyan/40 text-neon-cyan">Agency: {{ query.agency }}</span>
+  {% endif %}
+  {% if query.sub_agency %}
+  <span class="pill pill-compact border border-neon-cyan/30 text-neon-cyan/90">Sub: {{ query.sub_agency }}</span>
+  {% endif %}
+  {% if query.recipient %}
+  <span class="pill pill-compact border border-neon-lime/40 text-neon-lime">Recipient: {{ query.recipient }}</span>
+  {% endif %}
+  {% if query.psc_codes %}
+  {% for code in query.psc_codes %}
+  <span class="pill pill-compact border border-edge text-slate-400">PSC {{ code }}</span>
+  {% endfor %}
+  {% endif %}
+</div>
+{% endif %}

@@ -5,10 +5,10 @@
 
   <div class="settings-tip-box insights-page-tip mb-4">
     <strong class="text-slate-300">Identify</strong> —
-    live explore, <span class="text-neon-magenta">Watch</span> →
+    run a <span class="text-neon-magenta">facet slice</span>, read the Overview (capture intensity hero),
+    <span class="text-neon-magenta">Watch</span> →
     <a href="/pulse#potential-watchlist" class="text-neon-cyan no-underline hover:underline">Pulse watchlist</a>.
-    Knowledge compounds platform-wide; this page is one discovery surface.
-    Money-path tracing → <a href="/clew" class="text-neon-magenta no-underline hover:underline">Clew</a> (Tools sidebar).
+    Deep trace → <a href="/clew" class="text-neon-magenta no-underline hover:underline">Clew</a>.
   </div>
 
   <div class="insights-status-row flex flex-wrap gap-2 text-[10px] font-mono mb-4">
@@ -23,323 +23,163 @@
     </span>
   </div>
 
-  <div class="insights-split">
-    {# ── USAspending frame ── #}
-    <details
-      id="insights-usaspending"
-      class="card card-accent accent-magenta insights-frame insights-frame-collapse pulse-collapse"
-      data-insights-collapse
-      open
-    >
-      <summary class="insights-frame-head pulse-panel-head">
-        <div class="insights-frame-head-main">
-          <span class="pulse-collapse-toggle" aria-hidden="true">
-            <i data-lucide="chevron-down" class="w-3.5 h-3.5 pulse-collapse-chevron"></i>
-          </span>
-          <i data-lucide="radar" class="w-4 h-4 text-neon-magenta shrink-0"></i>
-          <div class="min-w-0">
-            <div class="insights-frame-title-row">
-              <span class="pulse-panel-kicker text-neon-magenta/80">Live explore</span>
-              <span class="pulse-panel-title text-neon-magenta">USAspending</span>
-            </div>
-            <p class="insights-frame-sub">PostgreSQL intel · historical spend &amp; expiring awards</p>
+  <details id="insights-usaspending" class="card card-accent accent-magenta insights-frame insights-frame-collapse pulse-collapse" data-insights-collapse open>
+    <summary class="insights-frame-head pulse-panel-head">
+      <div class="insights-frame-head-main">
+        <span class="pulse-collapse-toggle" aria-hidden="true">
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5 pulse-collapse-chevron"></i>
+        </span>
+        <i data-lucide="radar" class="w-4 h-4 text-neon-magenta shrink-0"></i>
+        <div class="min-w-0">
+          <div class="insights-frame-title-row">
+            <span class="pulse-panel-kicker text-neon-magenta/80">Command surface</span>
+            <span class="pulse-panel-title text-neon-magenta">Data Insights</span>
           </div>
+          <p class="insights-frame-sub">Historical USAspending · lens tabs · operator NAICS portfolio</p>
         </div>
-        <button
-          type="button"
-          class="btn btn-ghost btn-compact text-xs shrink-0"
-          onclick="event.stopPropagation(); openGuideDialog('guide-usaspending-explore')"
-        >
-          <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
-          Guide
-        </button>
-      </summary>
+      </div>
+      <button type="button" class="btn btn-ghost btn-compact text-xs shrink-0" onclick="event.stopPropagation(); openGuideDialog('guide-usaspending-explore')">
+        <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+        Guide
+      </button>
+    </summary>
 
-      <div class="insights-frame-body">
-        <p class="insights-frame-lead">{{ radar_guide.purpose }}</p>
+    <div class="insights-frame-body">
+      <p class="insights-frame-lead">{{ radar_guide.purpose }}</p>
 
-        <form
-          id="insights-radar-form"
-          class="insights-frame-form"
-          hx-get="/partials/insights/radar-explore"
-          hx-target="#insights-radar-explore"
-          hx-trigger="submit"
-          hx-include="#insights-radar-form"
-        >
-          <input type="hidden" name="run" value="1" />
+      <form
+        id="insights-radar-form"
+        class="insights-frame-form"
+        hx-get="/partials/insights/slice"
+        hx-target="#insights-slice-panel"
+        hx-trigger="submit"
+        hx-include="#insights-radar-form"
+      >
+        <input type="hidden" name="run" value="1" />
+        <input type="hidden" name="lens" id="insights-active-lens" value="{{ active_lens or 'overview' }}" />
 
-          <details
-            id="insights-radar-facets"
-            class="insights-section-collapse"
-            data-insights-collapse
-            open
-          >
-            <summary class="insights-section-summary">
-              <span class="pulse-collapse-toggle" aria-hidden="true">
-                <i data-lucide="chevron-down" class="w-3 h-3 pulse-collapse-chevron"></i>
-              </span>
-              <span class="cc-section-label text-neon-magenta mb-0">Search facets</span>
-              <span class="settings-label-tip" title="Peer dimensions — agency, sub-agency, recipient, NAICS, PSC. No platform default.">?</span>
-            </summary>
-            <div class="insights-section-body">
-              <div class="insights-form-grid">
-                <input class="thread-input" name="agency" placeholder="Agency" value="{{ radar_form.agency if radar_form else '' }}" />
-                <input class="thread-input" name="sub_agency" placeholder="Sub-agency" value="{{ radar_form.sub_agency if radar_form else '' }}" />
-                <input class="thread-input" name="recipient" placeholder="Recipient / incumbent" value="{{ radar_form.recipient if radar_form else '' }}" />
-                <input class="thread-input" name="naics_codes" placeholder="NAICS (comma-sep)" value="{{ radar_form.naics_codes if radar_form else '' }}" />
-                <input class="thread-input" name="psc_codes" placeholder="PSC (comma-sep)" value="{{ radar_form.psc_codes if radar_form else '' }}" />
-              </div>
-              <div class="insights-form-actions">
-                <button type="submit" class="btn btn-hero-magenta">Run USAspending explore</button>
-                <span class="insights-form-hint">At least one facet · results below</span>
-              </div>
-            </div>
-          </details>
-
-          <details
-            id="insights-radar-results"
-            class="insights-section-collapse"
-            data-insights-collapse
-            open
-          >
-            <summary class="insights-section-summary">
-              <span class="pulse-collapse-toggle" aria-hidden="true">
-                <i data-lucide="chevron-down" class="w-3 h-3 pulse-collapse-chevron"></i>
-              </span>
-              <span class="cc-section-label text-neon-magenta mb-0">Results</span>
-              <span class="settings-label-tip" title="Expiring awards (18 mo). Watch adds to Pulse watchlist — Track commits an opportunity.">?</span>
-            </summary>
-            <div class="insights-section-body">
-              <div class="insights-results-shell" id="insights-radar-explore">
-                {% include "partials/insights_radar_explore.html" %}
-              </div>
-            </div>
-          </details>
-        </form>
-
-        <details
-          id="insights-radar-bookmarks"
-          class="insights-section-collapse insights-bookmarks-drawer"
-          data-insights-collapse
-          {% if ctx.radar_lenses|length > 0 %}open{% endif %}
-        >
-          <summary class="insights-section-summary insights-bookmarks-summary">
+        <details id="insights-radar-facets" class="insights-section-collapse" data-insights-collapse open>
+          <summary class="insights-section-summary">
             <span class="pulse-collapse-toggle" aria-hidden="true">
               <i data-lucide="chevron-down" class="w-3 h-3 pulse-collapse-chevron"></i>
             </span>
-            <span class="pulse-panel-kicker text-neon-magenta/80">Saved bookmarks</span>
-            <span class="pill pill-compact border border-neon-magenta/30 text-neon-magenta/90 text-[10px]">{{ ctx.radar_lenses|length }}</span>
+            <span class="cc-section-label text-neon-magenta mb-0">Search facets</span>
+            <span class="settings-label-tip" title="Peer dimensions — NAICS portfolio chips, agency, recipient keyword. No platform default.">?</span>
           </summary>
-          <div class="insights-section-body insights-bookmarks-body">
-            <p class="insights-bookmarks-hint">Reopen a named search — does not control Pulse.</p>
-            <form
-              class="insights-bookmark-save"
-              hx-post="/insights/radar/save"
-              hx-target="#insights-body"
-              hx-swap="outerHTML"
-              hx-include="#insights-radar-form"
-            >
-              <div class="insights-bookmark-save-row">
-                <input class="thread-input" name="name" placeholder="Bookmark name" required />
-                <input class="thread-input" name="description" placeholder="Notes (optional)" />
-                <button type="submit" class="btn btn-primary shrink-0">Save current search</button>
-              </div>
-            </form>
-            {% if ctx.radar_lenses|length == 0 %}
-            <p class="insights-bookmarks-empty">No bookmarks yet.</p>
-            {% else %}
-            <ul class="insights-bookmark-list">
-              {% for lens in ctx.radar_lenses %}
-              <li class="insights-bookmark-item">
-                <div class="insights-bookmark-meta">
-                  <span class="insights-bookmark-name">{{ lens.query.name }}</span>
-                  <span class="insights-bookmark-facets">{{ lens.summary }}</span>
-                  {% if lens.expiring_count is not none %}
-                  <span class="insights-bookmark-stat">{{ lens.expiring_count }} expiring</span>
-                  {% endif %}
-                </div>
-                <div class="insights-bookmark-actions">
-                  <button
-                    type="button"
-                    class="btn btn-primary"
-                    hx-get="/partials/insights/radar-explore?run=1&agency={{ lens.query.agency or '' }}&sub_agency={{ lens.query.sub_agency or '' }}&recipient={{ lens.query.recipient or '' }}&naics_codes={{ lens.query.naics_codes|join(',') if lens.query.naics_codes else '' }}&psc_codes={{ lens.query.psc_codes|join(',') if lens.query.psc_codes else '' }}"
-                    hx-target="#insights-radar-explore"
-                    hx-swap="innerHTML"
-                  >Open</button>
-                  <form hx-post="/insights/radar/{{ lens.query.id }}/delete" hx-target="#insights-body" hx-swap="outerHTML" hx-confirm="Delete {{ lens.query.name }}?">
-                    <button type="submit" class="btn btn-ghost btn-compact text-[10px] text-slate-500">Delete</button>
-                  </form>
-                </div>
-              </li>
+          <div class="insights-section-body">
+            {% if ctx.naics_portfolio %}
+            <div class="insights-naics-chips flex flex-wrap gap-1 mb-3">
+              <span class="text-[10px] text-slate-500 font-mono uppercase mr-1 self-center">Portfolio</span>
+              {% for code in ctx.naics_portfolio %}
+              <button type="button" class="btn btn-ghost btn-compact text-[10px] insights-naics-chip" data-naics="{{ code }}">{{ code }}</button>
               {% endfor %}
-            </ul>
+            </div>
             {% endif %}
+            <div class="insights-form-grid">
+              <input class="thread-input" id="insights-naics-input" name="naics_codes" placeholder="NAICS (comma-sep)" value="{{ facet_form.naics_codes if facet_form else '' }}" />
+              <input class="thread-input" name="psc_codes" placeholder="PSC (comma-sep)" value="{{ facet_form.psc_codes if facet_form else '' }}" />
+              <input class="thread-input" name="agency" placeholder="Agency" value="{{ facet_form.agency if facet_form else '' }}" />
+              <input class="thread-input" name="sub_agency" placeholder="Sub-agency" value="{{ facet_form.sub_agency if facet_form else '' }}" />
+              <input class="thread-input" name="recipient" placeholder="Recipient / incumbent (keyword)" value="{{ facet_form.recipient if facet_form else '' }}" />
+            </div>
+            <div class="insights-form-actions">
+              <button type="submit" class="btn btn-hero-magenta">Run slice</button>
+              <span class="insights-form-hint">At least one facet · Overview loads charts</span>
+            </div>
+            <details class="insights-section-collapse mt-3" data-insights-collapse>
+              <summary class="insights-section-summary text-[11px] text-slate-500">Operator NAICS portfolio (~10 core codes)</summary>
+              <div class="insights-section-body">
+                <form
+                  hx-post="/insights/operator-naics"
+                  hx-target="#insights-body"
+                  hx-swap="outerHTML"
+                  class="flex flex-wrap gap-2 items-end"
+                >
+                  <input class="thread-input flex-1 min-w-[200px]" name="naics_portfolio" placeholder="541512, 541511, …" value="{{ ctx.naics_portfolio_text }}" />
+                  <button type="submit" class="btn btn-primary btn-compact">Save portfolio</button>
+                </form>
+                <p class="text-[10px] text-slate-600 mt-1">Explicit operator config — not a platform default. Chips scope charts to lanes you pursue.</p>
+              </div>
+            </details>
           </div>
         </details>
-      </div>
-    </details>
 
-    {# ── SAM.gov frame ── #}
-    <details
-      id="insights-sam"
-      class="card card-accent accent-cyan insights-frame insights-frame-collapse pulse-collapse"
-      data-insights-collapse
-      open
-    >
-      <summary class="insights-frame-head pulse-panel-head">
-        <div class="insights-frame-head-main">
-          <span class="pulse-collapse-toggle" aria-hidden="true">
-            <i data-lucide="chevron-down" class="w-3.5 h-3.5 pulse-collapse-chevron"></i>
-          </span>
-          <i data-lucide="bell-ring" class="w-4 h-4 text-neon-cyan shrink-0"></i>
-          <div class="min-w-0">
-            <div class="insights-frame-title-row">
-              <span class="pulse-panel-kicker text-neon-cyan/80">Live explore</span>
-              <span class="pulse-panel-title text-neon-cyan">SAM.gov</span>
-            </div>
-            <p class="insights-frame-sub">Live MCP · solicitations &amp; notices</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          class="btn btn-ghost btn-compact text-xs shrink-0"
-          onclick="event.stopPropagation(); openGuideDialog('guide-sam-explore')"
-        >
-          <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
-          Guide
-        </button>
-      </summary>
-
-      <div class="insights-frame-body">
-        <p class="insights-frame-lead">{{ sam_guide.purpose }}</p>
-
-        <form
-          id="insights-sam-form"
-          class="insights-frame-form"
-          hx-get="/partials/insights/sam-explore"
-          hx-target="#insights-sam-explore"
-          hx-trigger="submit"
-          hx-include="#insights-sam-form"
-        >
-          <input type="hidden" name="run" value="1" />
-
-          <details
-            id="insights-sam-facets"
-            class="insights-section-collapse"
-            data-insights-collapse
-            open
-          >
-            <summary class="insights-section-summary">
-              <span class="pulse-collapse-toggle" aria-hidden="true">
-                <i data-lucide="chevron-down" class="w-3 h-3 pulse-collapse-chevron"></i>
-              </span>
-              <span class="cc-section-label text-neon-cyan mb-0">Search facets</span>
-              <span class="settings-label-tip" title="Live MCP fetch. ~1000 req/day; 60m cache. At least one facet besides days back.">?</span>
-            </summary>
-            <div class="insights-section-body">
-              <div class="insights-form-grid">
-                <input class="thread-input" name="title" placeholder="Title keyword" value="{{ sam_form.title if sam_form else '' }}" />
-                <input class="thread-input" name="agency_keyword" placeholder="Agency keyword" value="{{ sam_form.agency_keyword if sam_form else '' }}" />
-                <input class="thread-input" name="naics_code" placeholder="NAICS" value="{{ sam_form.naics_code if sam_form else '' }}" />
-                <input class="thread-input" name="psc_code" placeholder="PSC" value="{{ sam_form.psc_code if sam_form else '' }}" />
-                <select class="thread-input" name="notice_type">
-                  <option value="">Notice type (any)</option>
-                  <option value="o" {% if sam_form and sam_form.notice_type == 'o' %}selected{% endif %}>Solicitation</option>
-                  <option value="k" {% if sam_form and sam_form.notice_type == 'k' %}selected{% endif %}>Combined</option>
-                  <option value="p" {% if sam_form and sam_form.notice_type == 'p' %}selected{% endif %}>Presolicitation</option>
-                  <option value="r" {% if sam_form and sam_form.notice_type == 'r' %}selected{% endif %}>Sources sought</option>
-                </select>
-                <input class="thread-input" name="set_aside" placeholder="Set-aside" value="{{ sam_form.set_aside if sam_form else '' }}" />
-                <input class="thread-input" name="days_back" type="number" min="1" max="90" value="{{ sam_form.days_back if sam_form else 14 }}" placeholder="Days back" title="Days back" />
-              </div>
-              <div class="insights-form-actions">
-                <button type="submit" class="btn btn-hero-cyan">Run SAM.gov explore</button>
-                <span class="insights-form-hint">Cached 60m · explicit fetch</span>
-              </div>
-            </div>
-          </details>
-
-          <details
-            id="insights-sam-results"
-            class="insights-section-collapse"
-            data-insights-collapse
-            open
-          >
-            <summary class="insights-section-summary">
-              <span class="pulse-collapse-toggle" aria-hidden="true">
-                <i data-lucide="chevron-down" class="w-3 h-3 pulse-collapse-chevron"></i>
-              </span>
-              <span class="cc-section-label text-neon-cyan mb-0">Results</span>
-              <span class="settings-label-tip" title="Live notices. Watch → Pulse watchlist with provenance on Track.">?</span>
-            </summary>
-            <div class="insights-section-body">
-              <div class="insights-results-shell" id="insights-sam-explore">
-                {% with explore=sam_explore %}
-                {% include "partials/insights_sam_explore.html" %}
-                {% endwith %}
-              </div>
-            </div>
-          </details>
-        </form>
-
-        <details
-          id="insights-sam-bookmarks"
-          class="insights-section-collapse insights-bookmarks-drawer"
-          data-insights-collapse
-          {% if ctx.sam_lenses|length > 0 %}open{% endif %}
-        >
-          <summary class="insights-section-summary insights-bookmarks-summary">
+        <details id="insights-radar-results" class="insights-section-collapse" data-insights-collapse open>
+          <summary class="insights-section-summary">
             <span class="pulse-collapse-toggle" aria-hidden="true">
               <i data-lucide="chevron-down" class="w-3 h-3 pulse-collapse-chevron"></i>
             </span>
-            <span class="pulse-panel-kicker text-neon-cyan/80">Saved bookmarks</span>
-            <span class="pill pill-compact border border-neon-cyan/30 text-neon-cyan/90 text-[10px]">{{ ctx.sam_lenses|length }}</span>
+            <span class="cc-section-label text-neon-magenta mb-0">Lenses</span>
           </summary>
-          <div class="insights-section-body insights-bookmarks-body">
-            <p class="insights-bookmarks-hint">Reopen a named search — Run still required (API quota).</p>
-            <form
-              class="insights-bookmark-save"
-              hx-post="/insights/sam/save"
-              hx-target="#insights-body"
-              hx-swap="outerHTML"
-              hx-include="#insights-sam-form"
-            >
-              <div class="insights-bookmark-save-row">
-                <input class="thread-input" name="name" placeholder="Bookmark name" required />
-                <button type="submit" class="btn btn-primary shrink-0">Save current search</button>
-              </div>
-            </form>
-            {% if ctx.sam_lenses|length == 0 %}
-            <p class="insights-bookmarks-empty">No bookmarks yet.</p>
+          <div class="insights-section-body">
+            {% if slice_panel %}
+            {% include "partials/insights_slice_panel.html" %}
             {% else %}
-            <ul class="insights-bookmark-list">
-              {% for lens in ctx.sam_lenses %}
-              <li class="insights-bookmark-item">
-                <div class="insights-bookmark-meta">
-                  <span class="insights-bookmark-name">{{ lens.query.name }}</span>
-                  <span class="insights-bookmark-facets">{{ lens.summary }}</span>
-                </div>
-                <div class="insights-bookmark-actions">
-                  <button
-                    type="button"
-                    class="btn btn-primary"
-                    hx-get="/partials/insights/sam-explore?run=1&title={{ lens.query.title or '' }}&agency_keyword={{ lens.query.agency_keyword or '' }}&naics_code={{ lens.query.naics_code or '' }}&psc_code={{ lens.query.psc_code or '' }}&notice_type={{ lens.query.notice_type or '' }}&set_aside={{ lens.query.set_aside or '' }}&days_back={{ lens.query.days_back }}"
-                    hx-target="#insights-sam-explore"
-                    hx-swap="innerHTML"
-                  >Open</button>
-                  <form hx-post="/insights/sam/{{ lens.query.id }}/delete" hx-target="#insights-body" hx-swap="outerHTML" hx-confirm="Delete {{ lens.query.name }}?">
-                    <button type="submit" class="btn btn-ghost btn-compact text-[10px] text-slate-500">Delete</button>
-                  </form>
-                </div>
-              </li>
-              {% endfor %}
-            </ul>
+            <div id="insights-slice-panel" class="insights-slice-panel">
+              <nav class="insights-lens-tabs flex flex-wrap gap-1 mb-3" aria-label="Insight lenses">
+                <span class="btn btn-compact text-xs btn-primary" aria-current="page">Overview</span>
+                <span class="btn btn-compact text-xs btn-ghost opacity-60">Recompete</span>
+                <span class="btn btn-compact text-xs btn-ghost opacity-60">Competition</span>
+                <span class="btn btn-compact text-xs btn-ghost opacity-60">Trace</span>
+                <span class="btn btn-compact text-xs btn-ghost opacity-60">Live (SAM)</span>
+              </nav>
+              <p class="insights-idle-hint">Set facets above, then run slice.</p>
+            </div>
             {% endif %}
           </div>
         </details>
-      </div>
-    </details>
-  </div>
+      </form>
+
+      <details id="insights-radar-bookmarks" class="insights-section-collapse insights-bookmarks-drawer" data-insights-collapse {% if ctx.radar_lenses|length > 0 %}open{% endif %}>
+        <summary class="insights-section-summary insights-bookmarks-summary">
+          <span class="pulse-collapse-toggle" aria-hidden="true">
+            <i data-lucide="chevron-down" class="w-3 h-3 pulse-collapse-chevron"></i>
+          </span>
+          <span class="pulse-panel-kicker text-neon-magenta/80">Saved bookmarks</span>
+          <span class="pill pill-compact border border-neon-magenta/30 text-neon-magenta/90 text-[10px]">{{ ctx.radar_lenses|length }}</span>
+        </summary>
+        <div class="insights-section-body insights-bookmarks-body">
+          <p class="insights-bookmarks-hint">Reopen a named search — does not control Pulse.</p>
+          <form class="insights-bookmark-save" hx-post="/insights/radar/save" hx-target="#insights-body" hx-swap="outerHTML" hx-include="#insights-radar-form">
+            <div class="insights-bookmark-save-row">
+              <input class="thread-input" name="name" placeholder="Bookmark name" required />
+              <input class="thread-input" name="description" placeholder="Notes (optional)" />
+              <button type="submit" class="btn btn-primary shrink-0">Save current search</button>
+            </div>
+          </form>
+          {% if ctx.radar_lenses|length == 0 %}
+          <p class="insights-bookmarks-empty">No bookmarks yet.</p>
+          {% else %}
+          <ul class="insights-bookmark-list">
+            {% for lens in ctx.radar_lenses %}
+            <li class="insights-bookmark-item">
+              <div class="insights-bookmark-meta">
+                <span class="insights-bookmark-name">{{ lens.query.name }}</span>
+                <span class="insights-bookmark-facets">{{ lens.summary }}</span>
+                {% if lens.expiring_count is not none %}
+                <span class="insights-bookmark-stat">{{ lens.expiring_count }} expiring</span>
+                {% endif %}
+              </div>
+              <div class="insights-bookmark-actions">
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  hx-get="/partials/insights/slice?run=1&lens=overview&agency={{ lens.query.agency or '' }}&sub_agency={{ lens.query.sub_agency or '' }}&recipient={{ lens.query.recipient or '' }}&naics_codes={{ lens.query.naics_codes|join(',') if lens.query.naics_codes else '' }}&psc_codes={{ lens.query.psc_codes|join(',') if lens.query.psc_codes else '' }}"
+                  hx-target="#insights-slice-panel"
+                  hx-swap="outerHTML"
+                >Open</button>
+                <form hx-post="/insights/radar/{{ lens.query.id }}/delete" hx-target="#insights-body" hx-swap="outerHTML" hx-confirm="Delete {{ lens.query.name }}?">
+                  <button type="submit" class="btn btn-ghost btn-compact text-[10px] text-slate-500">Delete</button>
+                </form>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+      </details>
+    </div>
+  </details>
 
   {% set guide_id = "usaspending-explore" %}
   {% set guide = radar_guide %}
@@ -348,21 +188,18 @@
   {% set guide = sam_guide %}
   {% include "partials/insights_guide_dialog.html" %}
 </div>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" defer></script>
+<script src="/static/scripts/clew_charts.js" defer></script>
+<script src="/static/scripts/insights_charts.js" defer></script>
 <script>
 (function () {
   var KEY = "insights-collapse-v1";
-  function panels() {
-    return document.querySelectorAll("[data-insights-collapse]");
-  }
+  function panels() { return document.querySelectorAll("[data-insights-collapse]"); }
   function loadState() {
     var saved = {};
-    try {
-      saved = JSON.parse(localStorage.getItem(KEY) || "{}");
-    } catch (_) {}
+    try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (_) {}
     panels().forEach(function (el) {
-      if (el.id && Object.prototype.hasOwnProperty.call(saved, el.id)) {
-        el.open = !!saved[el.id];
-      }
+      if (el.id && Object.prototype.hasOwnProperty.call(saved, el.id)) el.open = !!saved[el.id];
     });
   }
   function bindState() {
@@ -372,25 +209,40 @@
       el.addEventListener("toggle", function () {
         if (!el.id) return;
         var saved = {};
-        try {
-          saved = JSON.parse(localStorage.getItem(KEY) || "{}");
-        } catch (_) {}
+        try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (_) {}
         saved[el.id] = el.open;
         localStorage.setItem(KEY, JSON.stringify(saved));
       });
     });
   }
-  function initInsightsCollapse() {
+  function bindNaicsChips() {
+    document.querySelectorAll(".insights-naics-chip").forEach(function (btn) {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", function () {
+        var input = document.getElementById("insights-naics-input");
+        if (!input) return;
+        var code = btn.getAttribute("data-naics");
+        var parts = input.value.split(/[,;\s]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+        if (parts.indexOf(code) < 0) parts.push(code);
+        input.value = parts.join(", ");
+      });
+    });
+  }
+  function initInsightsPage() {
     loadState();
     bindState();
+    bindNaicsChips();
+    if (window.initClewCharts) window.initClewCharts();
+    if (window.initInsightsHone) window.initInsightsHone();
     if (window.lucide) window.lucide.createIcons();
   }
-  initInsightsCollapse();
+  initInsightsPage();
   document.body.addEventListener("htmx:afterSwap", function (e) {
     var t = e.detail && e.detail.target;
     if (!t) return;
-    if (t.id === "insights-body" || (t.closest && t.closest("#insights-body"))) {
-      initInsightsCollapse();
+    if (t.id === "insights-body" || t.id === "insights-slice-panel" || (t.closest && (t.closest("#insights-body") || t.closest("#insights-slice-panel")))) {
+      initInsightsPage();
     }
   });
 })();

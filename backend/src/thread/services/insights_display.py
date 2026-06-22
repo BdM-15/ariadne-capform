@@ -19,6 +19,7 @@ from thread.intel.sam_query import (
     describe_sam_query,
     load_sam_queries,
 )
+from thread.intel.operator_profile import load_operator_profile
 from thread.mcp.service import MCPService
 
 
@@ -42,6 +43,8 @@ class InsightsPageContext:
     radar_lenses: tuple[RadarLensCard, ...]
     sam_lenses: tuple[SamLensCard, ...]
     sam_configured: bool
+    naics_portfolio: tuple[str, ...]
+    naics_portfolio_text: str
 
 
 async def build_insights_page_context(
@@ -78,10 +81,13 @@ async def build_insights_page_context(
     sam_srv = next((s for s in mcp.list_servers() if s["id"] == "sam_gov"), None)
     sam_configured = bool(sam_srv and sam_srv["configured"])
 
+    profile = load_operator_profile(settings)
     return InsightsPageContext(
         intel_stats=stats,
         intel_live=intel_live,
         radar_lenses=tuple(radar_lenses),
         sam_lenses=tuple(sam_lenses),
         sam_configured=sam_configured,
+        naics_portfolio=profile.naics_portfolio,
+        naics_portfolio_text=", ".join(profile.naics_portfolio),
     )

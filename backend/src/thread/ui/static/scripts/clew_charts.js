@@ -26,7 +26,8 @@
         };
       }
     });
-    if (option._clew && option._clew.tooltipTemplate === "year_value_actions") {
+    var intelMeta = option._intel || option._clew || {};
+    if (intelMeta.tooltipTemplate === "year_value_actions") {
       option.tooltip = option.tooltip || {};
       option.tooltip.formatter = function (params) {
         var p = params[0];
@@ -76,6 +77,7 @@
       console.warn("Clew chart JSON parse failed", e);
       return;
     }
+    if (!option || !option.series) return;
     var existing = window.echarts.getInstanceByDom(host);
     if (existing) existing.dispose();
     var chart = window.echarts.init(host, null, { renderer: "canvas" });
@@ -101,7 +103,11 @@
   document.body.addEventListener("htmx:afterSwap", function (e) {
     var t = e.detail && e.detail.target;
     if (!t) return;
-    if (t.id === "clew-results-panel" || (t.closest && t.closest("#clew-results-panel"))) {
+    if (
+      t.id === "clew-results-panel" ||
+      t.id === "insights-slice-panel" ||
+      (t.closest && (t.closest("#clew-results-panel") || t.closest("#insights-slice-panel")))
+    ) {
       window.initClewCharts();
     }
   });

@@ -65,6 +65,22 @@ async def test_build_insights_page_context(db_session, settings, tmp_path, monke
     ctx = await build_insights_page_context(db_session, settings)
     assert len(ctx.radar_lenses) == 1
     assert ctx.radar_lenses[0].summary.startswith("Agency:")
+    assert ctx.naics_portfolio == ()
+
+
+def test_insights_slice_partial_idle():
+    client = TestClient(create_app())
+    res = client.get("/partials/insights/slice?lens=overview&run=0")
+    assert res.status_code == 200
+    assert "insights-slice-panel" in res.text
+    assert "insights-lens-tabs" in res.text
+
+
+def test_insights_slice_partial_requires_facets():
+    client = TestClient(create_app())
+    res = client.get("/partials/insights/slice?lens=overview&run=1")
+    assert res.status_code == 200
+    assert "at least one facet" in res.text.lower() or "Set at least one facet" in res.text
 
 
 @pytest.fixture(autouse=True)
@@ -84,20 +100,20 @@ def test_insights_page_renders_live_explore():
     assert "Data Insights" in html
     assert "insights-frame" in html
     assert "insights-radar-form" in html
-    assert "Run USAspending explore" in html
-    assert "Run SAM.gov explore" in html
+    assert "Run slice" in html
+    assert "Live (SAM)" in html
     assert "Activate" not in html
     assert "Save current search" in html
     assert "guide-modal" in html
     assert "openGuideDialog" in html
     assert "insights-frame" in html
     assert "btn-hero-magenta" in html
-    assert "btn-hero-cyan" in html
     assert "insights-bookmarks-drawer" in html
     assert "Clew" in html
     assert "data-insights-collapse" in html
     assert 'id="insights-usaspending"' in html
-    assert 'id="insights-sam"' in html
+    assert 'id="insights-slice-panel"' in html
+    assert "Operator NAICS portfolio" in html
     assert "Add at least one facet" not in html
     assert "Shell stub" not in html
     assert "peer facets" in html.lower() or "peer facet" in html.lower() or "peer dimensions" in html.lower()

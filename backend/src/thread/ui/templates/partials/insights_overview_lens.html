@@ -1,0 +1,63 @@
+<div class="insights-overview-lens">
+  {% if overview_idle %}
+  <p class="insights-idle-hint">Pick facets (or a NAICS portfolio chip), then <strong>Run slice</strong>.</p>
+  {% elif overview_error %}
+  <p class="insights-explore-msg insights-explore-msg-warn">{{ overview_error }}</p>
+  {% elif overview_ready %}
+  {% set kpis = overview.kpis or {} %}
+  {% set intensity = overview.agency_intensity or {} %}
+  {% set charts = overview.charts or {} %}
+  <div class="insights-kpi-strip flex flex-wrap gap-2 mb-4">
+    <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">${{ "%.1f"|format(kpis.millions or 0) }}M obligated</span>
+    <span class="pill pill-compact border border-edge text-slate-400">{{ "{:,}".format(kpis.award_count or 0) }} actions</span>
+    <span class="pill pill-compact border border-edge text-slate-400">{{ kpis.agency_count or 0 }} agencies</span>
+    <span class="pill pill-compact border border-edge text-slate-400">{{ kpis.recipient_count or 0 }} recipients</span>
+  </div>
+  {% if intensity.hot_agencies %}
+  <p class="insights-hot-callout text-[11px] text-neon-lime mb-3">
+    Above the line:
+    {% for ag in intensity.hot_agencies[:5] %}
+    <button type="button" class="insights-hone-chip btn btn-ghost btn-compact text-[10px] text-neon-lime" data-hone-field="agency" data-hone-value="{{ ag }}">{{ ag }}</button>{% if not loop.last %} · {% endif %}
+    {% endfor %}
+  </p>
+  {% endif %}
+  <div class="insights-overview-grid">
+    {% if charts.intensity %}
+    <div class="clew-echarts-host insights-echarts-hero" data-chart-key="intensity" data-chart-option="{{ charts.intensity | tojson | e }}"></div>
+    {% endif %}
+    <div class="insights-overview-secondary">
+      {% if charts.sub_flow %}
+      <div class="clew-echarts-host insights-echarts-sub" data-chart-key="sub_flow" data-chart-option="{{ charts.sub_flow | tojson | e }}"></div>
+      {% endif %}
+      {% if charts.spend_trend %}
+      <div class="clew-echarts-host insights-echarts-sub" data-chart-key="spend_trend" data-chart-option="{{ charts.spend_trend | tojson | e }}"></div>
+      {% endif %}
+    </div>
+    <div class="insights-overview-tertiary">
+      {% if charts.set_aside %}
+      <div class="clew-echarts-host insights-echarts-compact" data-chart-key="set_aside" data-chart-option="{{ charts.set_aside | tojson | e }}"></div>
+      {% endif %}
+      {% if charts.extent_competed %}
+      <div class="clew-echarts-host insights-echarts-compact" data-chart-key="extent_competed" data-chart-option="{{ charts.extent_competed | tojson | e }}"></div>
+      {% endif %}
+      {% if charts.top_recipients %}
+      <div class="clew-echarts-host insights-echarts-compact" data-chart-key="top_recipients" data-chart-option="{{ charts.top_recipients | tojson | e }}"></div>
+      {% endif %}
+    </div>
+  </div>
+  {% if overview.top_recipients %}
+  <div class="insights-recipient-uei-table mt-3 text-[10px] font-mono text-slate-500">
+    {% for row in overview.top_recipients[:5] %}
+    <div class="flex flex-wrap gap-2 py-1 border-b border-edge/40">
+      <span class="text-slate-300">{{ row.recipient }}</span>
+      {% if row.recipient_uei %}<span class="text-neon-cyan">UEI {{ row.recipient_uei }}</span>{% endif %}
+      <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
+      <button type="button" class="insights-hone-chip btn btn-ghost btn-compact text-[10px]" data-hone-field="recipient" data-hone-value="{{ row.recipient }}">Hone</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% else %}
+  <p class="insights-idle-hint">Run slice to load Overview charts.</p>
+  {% endif %}
+</div>

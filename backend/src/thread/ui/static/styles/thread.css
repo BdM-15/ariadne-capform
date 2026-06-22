@@ -816,6 +816,52 @@ body {
   max-width: 88rem;
 }
 
+.insights-overview-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.insights-echarts-hero {
+  min-height: 320px;
+  width: 100%;
+}
+
+.insights-overview-secondary {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 900px) {
+  .insights-overview-secondary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.insights-overview-tertiary {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 900px) {
+  .insights-overview-tertiary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.insights-echarts-sub {
+  min-height: 240px;
+}
+
+.insights-echarts-compact {
+  min-height: 220px;
+}
+
+.insights-lens-tabs .btn-primary {
+  box-shadow: 0 0 12px rgba(255, 43, 214, 0.25);
+}
+
 .insights-split {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

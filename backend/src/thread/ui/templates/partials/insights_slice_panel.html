@@ -1,0 +1,75 @@
+<div id="insights-slice-panel" class="insights-slice-panel">
+  {% include "partials/insights_slice_context.html" %}
+
+  <nav class="insights-lens-tabs flex flex-wrap gap-1 mb-3" role="tablist">
+    {% set facet_qs = "agency=" ~ (facet_form.agency or '') ~ "&sub_agency=" ~ (facet_form.sub_agency or '') ~ "&recipient=" ~ (facet_form.recipient or '') ~ "&naics_codes=" ~ (facet_form.naics_codes or '') ~ "&psc_codes=" ~ (facet_form.psc_codes or '') ~ "&run=1" %}
+    {% for tab in lens_tabs %}
+    <button
+      type="button"
+      class="btn btn-compact text-xs {% if tab.id == active_lens %}btn-primary{% else %}btn-ghost{% endif %}"
+      role="tab"
+      aria-selected="{{ 'true' if tab.id == active_lens else 'false' }}"
+      hx-get="/partials/insights/slice?lens={{ tab.id }}&{{ facet_qs }}"
+      hx-target="#insights-slice-panel"
+      hx-swap="outerHTML"
+      hx-include="#insights-radar-form"
+    >{{ tab.label }}</button>
+    {% endfor %}
+  </nav>
+
+  <div class="insights-lens-body" role="tabpanel">
+    {% if active_lens == 'overview' %}
+    {% include "partials/insights_overview_lens.html" %}
+    {% elif active_lens == 'recompete' %}
+    <div id="insights-radar-explore">
+      {% include "partials/insights_radar_explore.html" %}
+    </div>
+    {% elif active_lens == 'competition' %}
+    <div class="insights-competition-lens">
+      <p class="text-[11px] text-slate-500 mb-3">Set-aside and competition mix for the active slice.</p>
+      {% if overview and overview.charts %}
+      <div class="insights-overview-tertiary">
+        <div class="clew-echarts-host insights-echarts-compact" data-chart-option="{{ overview.charts.set_aside | tojson | e }}"></div>
+        <div class="clew-echarts-host insights-echarts-compact" data-chart-option="{{ overview.charts.extent_competed | tojson | e }}"></div>
+      </div>
+      {% else %}
+      <p class="insights-idle-hint">Run slice on Overview first.</p>
+      {% endif %}
+    </div>
+    {% elif active_lens == 'trace' %}
+    <div class="insights-trace-lens space-y-3">
+      <p class="text-[11px] text-slate-500">Deep money-path tracing lives on Clew — facets pre-filled from this slice.</p>
+      {% if query %}
+      {% with recipient=query.recipient or '', agency=query.agency or '', naics_codes=query.naics_codes|join(',') if query.naics_codes else '', mode='money_flow', run='1', extra_class='btn-hero-magenta' %}
+      {% include "partials/clew_link.html" %}
+      {% endwith %}
+      {% else %}
+      <p class="insights-idle-hint">Run a slice first, then open Trace.</p>
+      {% endif %}
+    </div>
+    {% elif active_lens == 'sam' %}
+    <div class="insights-sam-lens">
+      <form
+        id="insights-sam-form"
+        hx-get="/partials/insights/sam-explore"
+        hx-target="#insights-sam-explore"
+        hx-trigger="submit"
+        hx-include="#insights-sam-form"
+      >
+        <input type="hidden" name="run" value="1" />
+        <div class="insights-form-grid mb-3">
+          <input class="thread-input" name="title" placeholder="Title keyword" value="{{ sam_form.title if sam_form else '' }}" />
+          <input class="thread-input" name="agency_keyword" placeholder="Agency keyword" value="{{ sam_form.agency_keyword if sam_form else (facet_form.agency if facet_form else '') }}" />
+          <input class="thread-input" name="naics_code" placeholder="NAICS" value="{{ sam_form.naics_code if sam_form else (facet_form.naics_codes.split(',')[0] if facet_form and facet_form.naics_codes else '') }}" />
+          <input class="thread-input" name="psc_code" placeholder="PSC" value="{{ sam_form.psc_code if sam_form else '' }}" />
+          <input class="thread-input" name="days_back" type="number" min="1" max="90" value="{{ sam_form.days_back if sam_form else 14 }}" />
+        </div>
+        <button type="submit" class="btn btn-hero-cyan">Run SAM.gov explore</button>
+      </form>
+      <div class="insights-results-shell mt-3" id="insights-sam-explore">
+        {% include "partials/insights_sam_explore.html" %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>

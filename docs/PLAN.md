@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-22 (MVP reprioritize — Data Insights command surface; defer Incubator 21b+ / intel ETL polish)
+**Last updated:** 2026-06-22 (Phase 17e design locked — operator NAICS portfolio, shared viz layer, entity profile tabs, SAM lens tab)
 
 ---
 
@@ -63,7 +63,7 @@ Lanes overlap on one **opportunity record** — identification feeds capture; ca
 | [capture-insights](https://github.com/BdM-15/capture-insights) | USAspending intel, Karpathy vault, skill runtime | Vite/React UI stack |
 | [proj-theseus](https://github.com/BdM-15/proj-theseus) | **Skin only:** `theseus.css`, shell UX patterns; MCP manifest pattern | Graph/RAG/LightRAG plumbing |
 | [1102 MCP tools](https://github.com/1102tools/federal-contracting-mcps) | Deterministic federal data | — |
-| [DataRepublican](https://github.com/DataRepublican/datarepublican) · [datarepublican.com](https://datarepublican.com) | Connect-the-dots / follow-the-money **methods** (graphs, flows, cross-entity tracing) via **Clew** (`clew_intel`) + Insights drill-down; `?path=` deep-link pattern (**17b.1**) | NGO/990 charity product surface, Jekyll app, client-side full-graph load, DR pdfparser (use **MinerU 3.3**) |
+| [DataRepublican](https://github.com/DataRepublican/datarepublican) · [datarepublican.com](https://datarepublican.com) | Connect-the-dots / follow-the-money **methods** (graphs, flows, cross-entity tracing) via **shared intel viz layer** on `/insights` + **Clew** (`clew_intel`); `?path=` deep-link (**17b.1**) | NGO/990 charity product surface, Jekyll app, client-side full-graph load, DR pdfparser (use **MinerU 3.3**) |
 | [deer-flow](https://github.com/bytedance/deer-flow) | LangGraph sub-agent harness **patterns** — progressive `SKILL.md` load, fan-out → converge, context offload to filesystem/vault | Full harness import, sandbox shell, IM channels (Telegram/Slack), autonomous busywork |
 | [Odysseus](https://github.com/pewdiepie-archdaemon/odysseus) | Single-launcher shell validation; **Deep Research → report** UX model for `research/` runs → candidate → `/review` | Email/calendar/notes/tasks productivity sprawl; **AGPL code vendoring** (patterns only) |
 | [Apache Superset](https://github.com/apache/superset) | ECharts chart **recipes** (Sankey, mixed time-series, treemap); semantic-layer thinking for saved lenses | Second platform install, RBAC/multi-tenant BI, Superset as primary Insights surface |
@@ -91,7 +91,7 @@ Lanes overlap on one **opportunity record** — identification feeds capture; ca
 10. **Web research enrichment** — bounded, approval-gated; free/local providers first.
 11. **Server-owned truth** — UI renders and commands; domain rules live in Python `services/`, never in the client.
 12. **Command & control ≠ metrics dump** — Dashboard is for **visibility + efficient action** under limited time and resources; deep analytics belong on **Data Insights**, not vanity counters on `/`.
-13. **No default search dimension** — NAICS, agency, sub-agency, recipient/incumbent, PSC are **peer facets**. Operator defines explicit queries; platform never silently filters on `default_naics` or baked-in presets.
+13. **No default search dimension** — NAICS, agency, sub-agency, recipient/incumbent, PSC are **peer facets**. Operator defines explicit queries; platform never silently filters on `default_naics` or baked-in presets. **Exception:** operator-maintained **NAICS portfolio** (~10 core codes) is explicit config — chips on Insights, not a repo-shipped default.
 
 ---
 
@@ -158,9 +158,10 @@ USAspending PG intel supports **multi-facet search** — any combination the ope
 - **Storage:** `.thread/insight_queries.json` + `.thread/sam_queries.json` — **saved bookmarks only** (reopen analysis). `.thread/watchlist.json` — explicit potential on Pulse.
 - **Deprecated:** `active_insight_query.json` / `active_sam_query.json` remote-controlling Pulse — removed. Insights does not push feeds to Pulse.
 - **Operator presets yes; platform presets no** — you save named facet queries you create; Thread ships with **zero** hardcoded search presets.
+- **Operator NAICS portfolio** — operator-maintained list of **~10 core NAICS** (from `domain_intel`/Settings, not baked into repo). Surfaces as one-click chips on Insights to scope charts to lanes you actually pursue — **not** a silent `default_naics`; empty slice still allowed.
 - **No `default_naics` fallback** for explore, Pulse, or `/api/intel/expiring`.
 - **Data Insights (`/insights`)** — **live HTMX explore** (no save required); **Watch** promotes rows to Pulse watchlist; saved lenses = bookmarks.
-- **Anti-pattern:** NAICS-only presets, single-code defaults, Activate→Pulse coupling, or implying NAICS is the primary search key.
+- **Anti-pattern:** Platform-shipped NAICS defaults, single-code silent filters, Activate→Pulse coupling, or implying NAICS is the only search key. **Not** anti-pattern: operator's own NAICS portfolio as explicit scope accelerator.
 
 ---
 
@@ -598,7 +599,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 | Step | MVP must prove | Current gap |
 |------|----------------|-------------|
-| **Find** | Run facet slice on `/insights`, see **market picture** (not just expiring rows), spot agency/competitor worth pursuing | `/insights` = expiring list + SAM; charts live on `/clew` only; no capture-insights-style overview KPIs |
+| **Find** | Run facet slice on `/insights`, see **market picture** (capture intensity hero + charts), spot agency/competitor worth pursuing | **17e 🟡** — Overview + lens tabs shipped; **17e-e** E2E smoke + **17e-g** entity tabs remain |
 | **Watch** | One-click Watch from Insights row → Pulse watchlist with provenance | ✅ wired |
 | **Track** | Pulse watchlist → Track form → opportunity `pursuing` | ✅ wired — needs E2E smoke |
 | **Open packet** | `/capture/{id}` slide workspace loads | ✅ wired |
@@ -653,7 +654,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 |--------|------------|-------------|
 | Command Center (`/`) | Attention widgets, compact nav, pursuit rail — **not** analytics home | Widget row (12c–12h): reviews, phase band, hot signals, health strip, **quick actions**; anti-pattern: metrics dump |
 | Portfolio Pulse (`/pulse`) | Morning briefing: **watchlist** + inbox + digest + capture snapshot | Identify-only; Track → `/capture/{id}`; not packet home |
-| Data Insights (`/insights`) | 🟡 Facet explore + Watch + bookmarks; Clew on separate `/clew` | **17e** command surface — overview KPIs + charts + drill-down lenses (capture-insights visuals, Thread facet model) |
+| Data Insights (`/insights`) | 🟡 Overview + lens tabs + hone (17e-a–d ✅/🟡) | **17e-e** E2E smoke · **17e-f** advanced facets · **17e-g** entity profile tabs |
 | **Filament** (`/capture`) | ✅ Post-identify pursuit list; nav **Filament** (connected packets, not hand-jammed decks) | CRM pipeline board (deferred) |
 | Filament workspace (`/capture/{id}`) | ✅ Slide canvas + **connected fill routes** (14j/20a/20b) + evidence inspector; MS pills | Phase 20c ranked routing matrix + optional Grok advisor |
 | Sidebar nav | Command / Identify / **Filament** (home first) / **Tools** / Win / System | Studio route (Phase 21) |
@@ -775,6 +776,18 @@ Note: facets today use `ILIKE '%text%'` substring match — not exact equality. 
 
 **Skill:** `clew_intel` — modes `spend_trend`, `money_flow`, `teaming`, `recipient_landscape` (+ legacy snapshot/expiring/market). Outputs → `candidate` until `/review`. Surface: standalone `/clew` (Tools sidebar).
 
+**Shared viz layer (Insights + Clew — operator 2026-06-22):** DR-style analytics are **not Clew-exclusive**. Clew today is the first consumer of `thread/clew/analyze.py` + `InsightFacetQuery` + PG intel; **17e** adds the same query/chart primitives on `/insights` via a shared **`thread/intel/charts.py`** (or equivalent) so both surfaces call one implementation:
+
+| DR / Clew method | Shared query primitive | Insights use | Clew use |
+|------------------|------------------------|--------------|----------|
+| Follow-the-money paths | `money_flow` rollups | Overview agency→sub bars; agency profile | Full Sankey |
+| Teaming edges | `teaming` prime→sub | Competitor profile subs | Sankey + MCP supplement |
+| Recipient landscape | `recipient_landscape` | Top recipients, adjacent competitors | Bar + table |
+| Spend trend | `spend_trend` | Overview FY trend | Clew chart |
+| BFS subgraph / relations | deferred **17c-graph** | Entity profile heat maps | expose-style canvas |
+
+**Rule:** New chart modes land in the **shared intel layer** first; Clew and Insights are thin HTMX/ECharts shells — no duplicate SQL per surface.
+
 ### GovDash inspiration (captured 2026-06)
 
 Competitor review ([GovDash](https://www.govdash.com/) marketing + capture dashboard videos). **Adopt patterns, not enterprise CRM scope** — solo operator, review-gated, no team assignees / SharePoint / post-award.
@@ -858,7 +871,7 @@ GovDash Proposal Cloud maps here. Route `/studio` deferred to Phase 21.
 
 #### Data Insights — live explore + bookmarks (Discover pattern)
 
-**Home for USAspending historical analytics** — live facet explore (HTMX, no save required), SAM explore on explicit Run, **Watch** per row → Pulse watchlist. Saved lenses = **bookmarks** to reopen analysis — not Pulse remote control. Phase 17 primary. Insights actions may invoke MCP/skill chains; results stay `candidate` until review.
+**Home for USAspending historical analytics** — live facet slice (HTMX), **Overview lens** with charts, complementary lens tabs (Recompete · Competition · Trace · **Live SAM**), **Watch** per row → Pulse watchlist. Saved lenses = **bookmarks** only. Phase 17e primary.
 
 ### Phase 14 — Living Briefing Packet (slide deck UX)
 
@@ -916,14 +929,17 @@ Central artifact — not “parallel afterthought.”
 flowchart TD
   Facets[Operator defines facet slice] --> Run[Run slice]
   Run --> Overview[Overview lens — C&C for THIS slice]
-  Overview -->|click recipient| NarrowR[Slice + recipient locked]
-  Overview -->|click agency| NarrowA[Slice + agency locked]
-  NarrowR --> Lenses[Lenses share same slice context]
-  NarrowA --> Lenses
+  Overview -->|click recipient| CompetitorTab[Competitor profile tab]
+  Overview -->|click agency| AgencyTab[Agency profile tab]
+  Overview -->|hone| Narrow[Slice + facet locked — breadcrumb]
+  CompetitorTab -->|jump agency| AgencyTab
+  AgencyTab -->|jump contractor| CompetitorTab
+  Narrow --> Lenses[Lenses share same slice context]
+  CompetitorTab --> Watch[Watch → Pulse]
+  AgencyTab --> Watch
   Lenses --> Recompete[Recompete — expiring in slice]
   Lenses --> Competition[Competition — set-aside + extent competed]
   Lenses --> Trace[Trace — Clew pre-filled]
-  Lenses --> Watch[Watch row → Pulse]
   Watch --> Track[Track → Capture]
   Track --> Fill[Packet fill from award_key]
 ```
@@ -934,8 +950,9 @@ flowchart TD
 |---------|------------|
 | **Slice** | Active facet query — **peer dimensions, zero platform defaults** (see **Facet model** below — not limited to today's 5 UI fields) |
 | **Overview lens** | Command surface for the slice: KPI strip + “what jumped out” + top entities with **Hone** actions |
-| **Lens** | A view on the **same slice** — different question, not a new overview (Recompete, Competition, Agency mix, Trace) |
-| **Hone** | Click chart/table row → append facet dimension → re-run slice (breadcrumb shows drill path) |
+| **Lens** | A view on the **same slice** — different question, not a new overview (Recompete, Competition, Trace, Live SAM) |
+| **Entity profile tab** | **Entity-centric dossier** opened from chart click — Competitor or Agency — not a new slice bootstrap; cross-links to other entities |
+| **Hone** | Narrow active slice (breadcrumb) — lighter than full entity tab; use when refining market picture |
 | **Saved lens** | Bookmark to reopen slice + optional lens tab — not Pulse remote control |
 
 **Visual inventory (reuse capture-insights queries + ECharts; mine Superset recipes, no Superset install):**
@@ -946,25 +963,85 @@ flowchart TD
 | FY spend trend | Growing or shrinking? | `fy_trends` / Clew `spend_trend` | **P0** |
 | Set-aside donut | Small biz vs full & open? | `get_set_aside_breakdown` · use `set_aside_chart_bucket` view | **P0** |
 | Extent competed bar | How competed is work? | `by_extent_competed` (vehicle analysis) | **P0** |
-| Top recipients bar | Who wins here? | `top_recipients` · click → Hone recipient | **P0** |
-| Top agencies bar | Who buys? | agency intensity / flows | **P1** |
-| **Capture intensity** scatter | Who is hot (high actions **and** high $)? | `get_agency_intensity` — actions × obligation, hone agency | **P1** |
+| Top recipients bar | Who wins here? | `top_recipients` · click → Hone recipient; show resolved **UEI** on hover/row | **P0** |
+| **Capture intensity** scatter (**hero**) | Where to focus BD first? High actions **and** high $ | `get_agency_intensity` — quadrant + median lines, hone agency | **P0** |
+| Agency → sub-agency flow | Who buys, and through which sub-tiers? | Clew `money_flow` / stacked bars — **hone path before office** | **P0** |
+| Top agencies bar | Who buys? (supporting) | agency rollups | **P1** |
 | Expiring table | What recompetes soon? | current `/insights` explore rows | **P0** (exists — move under Recompete lens) |
-| Money-flow Sankey | Recipient → agency paths | Clew `money_flow` | **P1** (link to `/clew` or embed) |
+| Money-flow Sankey (full) | Deep recipient → agency paths | Clew `money_flow` | **P1** (Trace lens → `/clew`; Overview gets simplified flow bars) |
 | Geo / vehicles / combo | POP state, IDV mix, combos | capture-insights tabs | **Post-MVP** |
 
 **17e slices (implementation order):**
 
 | Slice | Scope | Done when |
 |-------|--------|-----------|
-| **17e-a** | **Slice context bar** — show active facets + breadcrumbs after Hone; persist in HTMX form hidden fields | Operator always knows what data means |
-| **17e-b** | **Overview lens** — KPI + FY trend + set-aside + extent competed + top recipients (ECharts on `/insights`) | Run facet → see market picture in &lt;30s cached |
-| **17e-c** | **Hone interactions** — click recipient/agency bar → narrow slice → refresh all lenses | “Why is Lockheed getting money?” is one click |
-| **17e-d** | **Lens tabs** — Overview · Recompete · Competition · Trace (Clew handoff) — shared slice, not duplicate bootstraps | Tabs complement Overview; each answers one follow-up question |
+| **17e-a** ✅ | **Slice context bar** + **operator NAICS portfolio** (`.thread/operator_profile.json` chips) | Operator always knows what data means |
+| **17e-b** ✅ | **Overview lens** — KPI strip + **capture intensity scatter (hero)** + agency→sub flow + FY trend + set-aside + extent competed + top recipients + UEI rows | `thread/intel/charts.py` + `/partials/insights/slice` |
+| **17e-c** 🟡 | **Hone interactions** — scatter/flow/recipient click + hone chips → re-run slice | Agency/sub/recipient wired; office hone awaits **17e-f** |
+| **17e-d** ✅ | **Lens tabs** — Overview · Recompete · Competition · Trace · **Live (SAM)** | SAM moved off always-visible panel |
 | **17e-e** | **Sign-off E2E smoke** — facet → hone → Watch → Pulse → Track → packet fill one field | MVP sign-off test passes |
-| **17e-f** | **Extended facets** — office, UEI, POP state, competition/set-aside filters; advanced facet panel | Slice not limited to 5 text boxes |
+| **17e-f** | **Extended facets** — office, UEI, POP state, competition/set-aside filters; **advanced** facet panel (collapsed) | Precision filters when known or after hone — not primary entry |
+| **17e-g** | **Entity profile tabs** — Competitor + Agency dossiers from chart click; shared DR/Clew chart primitives | Click Lockheed → UEI, $, top NAICS/agencies/subs, adjacent competitors, relationship heat map |
 
 **Clew boundary:** `/clew` stays the deep trace workbench (Sankey, teaming, saved traces). `/insights` Overview links **Trace** lens with facets pre-filled; do not duplicate full Clew UI on Insights.
+
+**Facet UX — peer SQL, tiered prominence (operator 2026-06-22):**
+
+All facets remain **peer dimensions in SQL** (no platform defaults). **UI prominence** follows how operators actually find pursuits — not “whatever column is most precise.”
+
+| UX tier | Facets | Why |
+|---------|--------|-----|
+| **Primary slice bar** | **Operator NAICS portfolio chips** (~10 core codes), PSC, agency, sub-agency, **recipient keyword** (`ILIKE` — USAspending name search) | Scope charts to lanes you pursue — avoids charting all 64M rows when you only care about your markets |
+| **Overview hone path** | Agency → sub-agency → office (from **capture intensity** + **money-flow** charts) | Office filter is meaningless without agency/sub context — charts teach the strings |
+| **Advanced panel** | `awarding_office_name`, `funding_office_name`, `recipient_uei`, `pop_state`, `extent_competed`, `type_of_set_aside`, `award_type` / `idv_type` | Precision when operator already knows value, or after hone locks context |
+| **Platform intel (not input)** | **UEI resolution** — show UEI on recipient matches; optional SAM entity confirm on **Live** tab | Thread helps discover UEI; operator does not need UEI to start |
+
+**Default identification journey (happy path):**
+
+1. Pick **operator NAICS portfolio** chip(s) and/or recipient keyword — **no required UEI or office**
+2. Run slice → **capture intensity scatter** surfaces hot agencies (above-median actions × obligation)
+3. Click agency → **Agency profile tab** (subs, offices, top contractors in your NAICS, relationship heat map) — or hone to narrow slice
+4. Click competitor on chart → **Competitor profile tab** (UEI, market $, top NAICS/agencies, subs, adjacent competitors)
+5. Cross-jump profiles (competitor → agency → another competitor) → Recompete lens → Watch
+6. **Live (SAM)** tab for entity certs / open notices — linked to active entity or slice
+
+#### Entity profile tabs (17e-g — post sign-off or stretch if time)
+
+**Not duplicate Overview bootstraps** — entity tabs answer “tell me everything about *this* org” while Overview answers “what does *this slice* look like?” Both use the **shared viz layer** (same SQL as Clew).
+
+**Competitor profile** (seed: `recipient_name` or `recipient_uei` from chart click):
+
+| Section | Source primitive | Notes |
+|---------|------------------|-------|
+| Identity | PG + SAM MCP | UEI, DUNS, cage — platform resolves UEI if only name known |
+| Market position | `recipient_landscape` | Total obligation, award count, FY trend |
+| Top NAICS | PG group-by | Highlight codes in **operator NAICS portfolio** |
+| Top agencies | PG + heat map | Relationship strength (award count × $) — capture-insights-style heat |
+| Top subcontractors | `teaming` | Prime→sub edges where entity is prime |
+| Adjacent competitors | PG co-occurrence | Same agencies + overlapping NAICS; not full BFS yet |
+| Actions | — | Watch, Research → vault `entities/competitors/`, hone slice, open Agency tab |
+
+**Agency profile** (seed: `agency` / `sub_agency` from scatter or flow chart):
+
+| Section | Source primitive | Notes |
+|---------|------------------|-------|
+| Hierarchy | PG distinct + future FH | Sub-agencies, awarding/funding offices |
+| Top contractors | `recipient_landscape` | **Filtered to operator NAICS portfolio** when set |
+| Capture intensity | `get_agency_intensity` | In-context for this agency vs slice medians |
+| Relationship heat map | agency × recipient matrix | Strong ties — many contracts / high $ |
+| Money flow | `money_flow` | Sub-tier and office breakdown |
+| Actions | — | Hone slice, Research → vault `entities/agencies/`, open Competitor tab |
+
+**MVP boundary:** Sign-off needs Overview + hone + Watch path. **17e-g lite** (competitor/agency tab with KPI + top lists, no heat map) is acceptable stretch; full heat maps + adjacent-competitor graph ship in **17e-g** proper or **17c-graph**.
+
+**Capture intensity — better than capture-insights Overview:**
+
+| Improvement | capture-insights | Thread 17e |
+|-------------|------------------|------------|
+| Context | Global NAICS-defaulted market | **Slice-relative** medians — quadrants mean something for *this* query |
+| Action | View-only scatter | Click quadrant point → **Hone agency** → breadcrumb |
+| Companion | Separate Agency tab re-bootstrap | Same slice; flow chart + Recompete lens inherit hone |
+| Callout | None | Deterministic “above the line” agencies list (Grok bullets post-MVP) |
 
 **Facet model — do not limit to current search form (17e-f):**
 
@@ -972,9 +1049,10 @@ Today's UI exposes 5 text facets; **PG already has 50+ prime columns** (`bulk_fi
 
 | Tier | Facet dimensions | Source | When |
 |------|------------------|--------|------|
-| **MVP (17e-f-a)** | `awarding_office_name`, `funding_office_name`, `recipient_uei`, `pop_state`, `extent_competed`, `type_of_set_aside` (filter), `award_type` / `idv_type` | PG columns already in bulk load | Extend `InsightFacetQuery` + `build_facet_sql` + advanced facet panel |
-| **MVP (17e-f-b)** | Office-level hone from charts (click office row → slice) | Same PG | With 17e-c hone |
-| **Post-MVP (17d-agency)** | Dept → sub-tier → **office** cascading selects | SAM [FH Public API](https://open.gsa.gov/api/fh-public-api/) → `intel_federal_orgs` PG | **Not built yet** — PLAN only; freeform ILIKE today |
+| **MVP (17e-f-a)** | `awarding_office_name`, `funding_office_name`, `recipient_uei`, `pop_state`, `extent_competed`, `type_of_set_aside` (filter), `award_type` / `idv_type` | PG columns already in bulk load | **Advanced panel only** — extend `InsightFacetQuery` + `build_facet_sql` |
+| **MVP (17e-f-b)** | Office-level hone from charts (click office row → slice) | Same PG | With 17e-c hone — **preferred** over typing office name |
+| **MVP (17e-f-c)** | Recipient keyword → distinct `recipient_uei` on match rows / typeahead | PG `recipient_name` + `recipient_uei` | Platform discovers UEI for operator |
+| **Post-MVP (17d-agency)** | Dept → sub-tier → **office** cascading selects | SAM [FH Public API](https://open.gsa.gov/api/fh-public-api/) → `intel_federal_orgs` PG | **Not built yet** — PLAN only; freeform ILIKE + chart hone until then |
 
 **Federal Hierarchy status (honest):** ❌ **Not implemented.** No `intel_federal_orgs` table, no FH API ingest, no cascading pickers on Insights/Clew. Deferred as **17d-agency** (post-MVP for sign-off). Until then: (1) extend freeform facets to office/UEI/PSC/competition fields; (2) optional **distinct-value autocomplete from PG** (17d) using historical strings — faster than FH for matching USAspending spellings.
 
@@ -982,11 +1060,11 @@ Today's UI exposes 5 text facets; **PG already has 50+ prime columns** (`bulk_fi
 
 | Plane | Store | Time | Primary surface | Job |
 |-------|-------|------|---------------|-----|
-| **Historical analytics** | PG `intel_usaspending_*` | Bulk USAspending | **`/insights`** | Market picture, hone, Watch, recompete radar |
-| **Live federal** | SAM / USAspending **MCP** | Now | **`/insights` SAM panel** + **`/tools/mcp`** + workspace research | Notices, entity lookup, supplemental rows |
+| **Historical analytics** | PG `intel_usaspending_*` | Bulk USAspending | **`/insights`** Overview + lenses | Market picture, hone, Watch, recompete radar |
+| **Live federal** | SAM / USAspending **MCP** | Now | **`/insights` Live (SAM) tab** + **`/tools/mcp`** + workspace research | Notices, entity lookup, UEI confirm — **tab**, not always-visible panel |
 | **Morning briefing** | watchlist + inbox + digest | Operator-curated | **`/pulse`** | What I already chose to watch — **not** open-ended explore |
 
-**Live Explore placement:** **USAspending historical explore stays on `/insights`** (identification lane step 1). **Pulse** shows outcomes (watchlist, hot recompete **for watched items**, digest) — not a second explore workbench. **SAM live explore** stays on Insights as explicit **Run** (cached 60m) — connects to historical slice via shared agency/recipient/NAICS facets when operator links them; does not replace PG charts.
+**Live Explore placement:** **USAspending historical explore stays on `/insights`** (identification lane step 1). **Pulse** shows outcomes (watchlist, hot recompete **for watched items**, digest) — not a second explore workbench. **SAM live explore** moves to a **Live (SAM) lens tab** (explicit Run, cached 60m) — shares agency/recipient/NAICS from active slice when operator links them; does **not** sit beside Overview charts competing for attention.
 
 **Derived insights (combinations, not single-field charts):**
 
@@ -1420,17 +1498,17 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 
 | Priority | Work | Why |
 |----------|------|-----|
-| **P0** | **17e-b** Overview lens — KPI + charts on `/insights` after facet Run | Lane 1 “find” is broken without market picture |
-| **P0** | **17e-c** Hone — click agency/recipient → narrow slice | Fixes capture-insights “tabs don’t complement overview” failure |
-| **P0** | **17e-d** Lens tabs (Overview · Recompete · Competition · Trace) sharing one slice | Complementary lenses, not duplicate NAICS overviews |
-| **P0** | **17e-e** E2E sign-off smoke script | Proves funnel end-to-end |
+| **P0** | **17e-e** E2E sign-off smoke — facet → hone → Watch → Pulse → Track → packet fill | MVP blocker — Overview path exists, needs proof |
+| **P0** | **17e-c** finish hone — office from chart (needs **17e-f** facet field) | Sub-agency/recipient/agency wired |
+| **P1** | **17e-f** Extended facets (advanced panel) | Office/UEI precision when known |
+| **P1** | **17e-g** Entity profile tabs (Competitor · Agency) | Full dossier + heat maps |
 | **P1** | Query cache / limits on 64M PG (bootstrap TTL like capture-insights) | UX — Clew queries 45–70s today |
 | **Defer** | 21b–21d Incubator Develop/Publish | Capture ingest polish |
 | **Defer** | 23b dedup matview, more analytics view rules | Chart accuracy polish |
 | **Defer** | 17b-interact, 17d-agency, 17c vectors | Clew/Insights UX depth |
 | **Defer** | 20c-b/c, 22 education, DOX | Post-MVP operator mastery |
 
-**Done recently:** Intel migration ✅ · 21a Incubator hold ✅ · 23a analytics views ✅ (raw tables untouched)
+**Done recently:** **17e-a–d** Insights command surface (shared `intel/charts.py`, Overview hero, lens tabs, NAICS portfolio, hone partial) · Intel migration ✅ · 23a analytics views ✅
 
 **Done (2026-06-18):** Phase 14k — Milestone deck alignment (private refs gitignored); reference slides in navigator; workspace tabs retired in favor of utilities bar + action drawer.
 
@@ -1451,6 +1529,13 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 - [x] Intel analytics SQL views (Phase 23a — views over raw PG)
 - [x] Phase 21a — Incubator capture hold (seed, edit, reject, parse preview)
 - [ ] **Phase 17e** — Data Insights command surface (MVP blocker)
+  - [x] 17e-a — slice context bar + operator NAICS portfolio
+  - [x] 17e-b — Overview lens (intensity hero + charts)
+  - [ ] 17e-c — Hone interactions (agency/sub/recipient ✅; office → 17e-f)
+  - [x] 17e-d — Lens tabs (incl. Live SAM)
+  - [ ] 17e-e — E2E sign-off smoke
+  - [ ] 17e-f — Extended facets (advanced panel)
+  - [ ] 17e-g — Entity profile tabs (P1 stretch)
 - [ ] MVP sign-off E2E (find → watch → track → packet fill)
 - [ ] Incubator Develop → Publish (Phase 21b–21d — deferred)
 - [x] `pg_queries` intel layer
