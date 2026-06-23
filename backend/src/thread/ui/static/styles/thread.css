@@ -830,6 +830,155 @@ body {
   display: block;
 }
 
+/* Compact facet command bar — minimal vertical space */
+.insights-facet-toolbar {
+  padding: 0.5rem 0.75rem 0.4rem;
+  overflow: hidden;
+}
+
+.insights-facet-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.insights-facet-primary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.insights-facet-label {
+  font-size: 0.625rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex: 0 0 auto;
+}
+
+.insights-naics-chips-inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  max-width: 100%;
+}
+
+.insights-naics-chips-inline .insights-naics-chip {
+  padding: 0.15rem 0.4rem;
+  font-size: 0.625rem;
+  line-height: 1.2;
+  min-height: 0;
+}
+
+.insights-facet-input {
+  flex: 1 1 6.5rem;
+  min-width: 5rem;
+  max-width: 10rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.insights-facet-input-naics {
+  max-width: 7.5rem;
+}
+
+.insights-facet-input-wide {
+  flex: 1.4 1 9rem;
+  max-width: 14rem;
+}
+
+.insights-facet-run {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.insights-facet-guide {
+  flex: 0 0 auto;
+  padding: 0.3rem 0.45rem;
+  min-height: 0;
+}
+
+.insights-facet-hint {
+  margin: 0;
+  font-size: 0.5625rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.insights-facet-more {
+  border-top: 1px solid var(--edge);
+  margin-top: 0.15rem;
+  padding-top: 0.25rem;
+}
+
+.insights-facet-more > summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.625rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  color: #64748b;
+  padding: 0.15rem 0;
+  user-select: none;
+}
+
+.insights-facet-more > summary::-webkit-details-marker,
+.insights-facet-more > summary::marker {
+  display: none;
+}
+
+.insights-facet-more[open] > summary {
+  color: #94a3b8;
+  margin-bottom: 0.35rem;
+}
+
+.insights-facet-more-body {
+  padding-bottom: 0.15rem;
+}
+
+.insights-facet-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: 0.35rem 0.5rem;
+}
+
+.insights-facet-secondary-grid .insights-facet-input {
+  max-width: none;
+  min-width: 0;
+}
+
+.insights-facet-portfolio {
+  margin-top: 0.4rem;
+}
+
+.insights-facet-portfolio > summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.625rem;
+  color: #64748b;
+}
+
+.insights-facet-portfolio > summary::-webkit-details-marker,
+.insights-facet-portfolio > summary::marker {
+  display: none;
+}
+
+.insights-facet-portfolio-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+.insights-facet-portfolio-form .insights-facet-input-wide {
+  flex: 1 1 12rem;
+  max-width: none;
+}
+
 .insights-overview-grid {
   display: grid;
   gap: 1rem;

@@ -110,10 +110,12 @@ def test_insights_page_renders_live_explore():
     assert "Clew" in html
     assert "data-insights-collapse" in html
     assert 'id="insights-facet-card"' in html
+    assert "insights-facet-toolbar" in html
+    assert "insights-facet-primary" in html
     assert 'id="insights-lenses-card"' in html
     assert 'id="insights-slice-panel"' in html
     assert "hx-swap=\"outerHTML\"" in html
-    assert "Operator NAICS portfolio" in html
+    assert "NAICS portfolio config" in html
     assert "Add at least one facet" not in html
     assert "Shell stub" not in html
     assert "peer facets" in html.lower() or "peer facet" in html.lower() or "peer dimensions" in html.lower()

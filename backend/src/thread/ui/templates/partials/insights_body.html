@@ -24,94 +24,69 @@
   </div>
 
   <div class="insights-stack space-y-4">
-    <details id="insights-facet-card" class="card card-accent accent-magenta insights-frame insights-frame-collapse pulse-collapse" data-insights-collapse open>
-      <summary class="insights-frame-head pulse-panel-head">
-        <div class="insights-frame-head-main">
-          <span class="pulse-collapse-toggle" aria-hidden="true">
-            <i data-lucide="chevron-down" class="w-3.5 h-3.5 pulse-collapse-chevron"></i>
-          </span>
-          <i data-lucide="filter" class="w-4 h-4 text-neon-magenta shrink-0"></i>
-          <div class="min-w-0">
-            <div class="insights-frame-title-row">
-              <span class="pulse-panel-kicker text-neon-magenta/80">Slice</span>
-              <span class="pulse-panel-title text-neon-magenta">Search facets</span>
-            </div>
-            <p class="insights-frame-sub">NAICS portfolio · agency · recipient · advanced filters</p>
-          </div>
-        </div>
-        <button type="button" class="btn btn-ghost btn-compact text-xs shrink-0" onclick="event.stopPropagation(); openGuideDialog('guide-usaspending-explore')">
-          <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
-          Guide
-        </button>
-      </summary>
+    <div id="insights-facet-card" class="card card-accent accent-magenta insights-facet-toolbar">
+      <form
+        id="insights-radar-form"
+        class="insights-facet-form"
+        hx-get="/partials/insights/slice"
+        hx-target="#insights-slice-panel"
+        hx-swap="outerHTML"
+        hx-trigger="submit"
+        hx-indicator="#insights-slice-working"
+      >
+        <input type="hidden" name="run" value="1" />
+        <input type="hidden" name="lens" id="insights-active-lens" value="{{ active_lens or 'overview' }}" />
 
-      <div class="insights-frame-body">
-        <p class="insights-frame-lead">{{ radar_guide.purpose }}</p>
-
-        <form
-          id="insights-radar-form"
-          class="insights-frame-form"
-          hx-get="/partials/insights/slice"
-          hx-target="#insights-slice-panel"
-          hx-swap="outerHTML"
-          hx-trigger="submit"
-          hx-indicator="#insights-slice-working"
-        >
-          <input type="hidden" name="run" value="1" />
-          <input type="hidden" name="lens" id="insights-active-lens" value="{{ active_lens or 'overview' }}" />
-
+        <div class="insights-facet-primary">
+          <span class="insights-facet-label text-neon-magenta/80">Slice</span>
           {% if ctx.naics_portfolio %}
-          <div class="insights-naics-chips flex flex-wrap gap-1 mb-3">
-            <span class="text-[10px] text-slate-500 font-mono uppercase mr-1 self-center">Portfolio</span>
+          <div class="insights-naics-chips insights-naics-chips-inline">
             {% for code in ctx.naics_portfolio %}
-            <button type="button" class="btn btn-ghost btn-compact text-[10px] insights-naics-chip" data-naics="{{ code }}">{{ code }}</button>
+            <button type="button" class="btn btn-ghost btn-compact insights-naics-chip" data-naics="{{ code }}">{{ code }}</button>
             {% endfor %}
           </div>
           {% endif %}
-          <div class="insights-form-grid">
-            <input class="thread-input" id="insights-naics-input" name="naics_codes" placeholder="NAICS (comma-sep)" value="{{ facet_form.naics_codes if facet_form else '' }}" />
-            <input class="thread-input" name="psc_codes" placeholder="PSC (comma-sep)" value="{{ facet_form.psc_codes if facet_form else '' }}" />
-            <input class="thread-input" name="agency" placeholder="Agency" value="{{ facet_form.agency if facet_form else '' }}" />
-            <input class="thread-input" name="sub_agency" placeholder="Sub-agency" value="{{ facet_form.sub_agency if facet_form else '' }}" />
-            <input class="thread-input" name="recipient" placeholder="Recipient / incumbent (keyword)" value="{{ facet_form.recipient if facet_form else '' }}" />
-          </div>
-          <details class="insights-section-collapse mt-2" data-insights-collapse>
-            <summary class="insights-section-summary text-[11px] text-slate-500">Advanced facets (office, UEI, POP, competition)</summary>
-            <div class="insights-section-body">
-              <div class="insights-form-grid">
-                <input class="thread-input" name="awarding_office" placeholder="Awarding office" value="{{ facet_form.awarding_office if facet_form else '' }}" />
-                <input class="thread-input" name="funding_office" placeholder="Funding office" value="{{ facet_form.funding_office if facet_form else '' }}" />
-                <input class="thread-input" name="recipient_uei" placeholder="Recipient UEI" value="{{ facet_form.recipient_uei if facet_form else '' }}" />
-                <input class="thread-input" name="pop_state" placeholder="POP state (e.g. VA)" value="{{ facet_form.pop_state if facet_form else '' }}" />
-                <input class="thread-input" name="extent_competed" placeholder="Extent competed (keyword)" value="{{ facet_form.extent_competed if facet_form else '' }}" />
-                <input class="thread-input" name="type_of_set_aside" placeholder="Set-aside (keyword)" value="{{ facet_form.type_of_set_aside if facet_form else '' }}" />
-              </div>
-              <p class="text-[10px] text-slate-600 mt-1">Precision filters — use after hone or when you know the value.</p>
-            </div>
-          </details>
-          <div class="insights-form-actions flex flex-wrap items-center gap-3 mt-3">
-            <button type="submit" class="btn btn-hero-magenta">Run slice</button>
-            <span class="insights-form-hint">At least one facet · first run can take 30–90s on full PG</span>
-          </div>
-        </form>
+          <input class="thread-input insights-facet-input insights-facet-input-naics" id="insights-naics-input" name="naics_codes" placeholder="NAICS" value="{{ facet_form.naics_codes if facet_form else '' }}" title="NAICS codes (comma-separated)" />
+          <input class="thread-input insights-facet-input" name="agency" placeholder="Agency" value="{{ facet_form.agency if facet_form else '' }}" />
+          <input class="thread-input insights-facet-input insights-facet-input-wide" name="recipient" placeholder="Recipient" value="{{ facet_form.recipient if facet_form else '' }}" />
+          <button type="submit" class="btn btn-hero-magenta btn-compact insights-facet-run">Run slice</button>
+          <button type="button" class="btn btn-ghost btn-compact insights-facet-guide" title="Explore guide" onclick="openGuideDialog('guide-usaspending-explore')">
+            <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
 
-        <details class="insights-section-collapse mt-4" data-insights-collapse>
-          <summary class="insights-section-summary text-[11px] text-slate-500">Operator NAICS portfolio (~10 core codes)</summary>
-          <div class="insights-section-body">
-            <form
-              hx-post="/insights/operator-naics"
-              hx-target="#insights-body"
-              hx-swap="outerHTML"
-              class="flex flex-wrap gap-2 items-end"
-            >
-              <input class="thread-input flex-1 min-w-[200px]" name="naics_portfolio" placeholder="541512, 541511, …" value="{{ ctx.naics_portfolio_text }}" />
-              <button type="submit" class="btn btn-primary btn-compact">Save portfolio</button>
-            </form>
-            <p class="text-[10px] text-slate-600 mt-1">Explicit operator config — not a platform default.</p>
+        <details id="insights-facet-more" class="insights-facet-more" data-insights-collapse>
+          <summary class="insights-facet-more-summary">More facets · PSC · sub-agency · office · UEI</summary>
+          <div class="insights-facet-more-body">
+            <div class="insights-facet-secondary-grid">
+              <input class="thread-input insights-facet-input" name="psc_codes" placeholder="PSC" value="{{ facet_form.psc_codes if facet_form else '' }}" />
+              <input class="thread-input insights-facet-input" name="sub_agency" placeholder="Sub-agency" value="{{ facet_form.sub_agency if facet_form else '' }}" />
+              <input class="thread-input insights-facet-input" name="awarding_office" placeholder="Awarding office" value="{{ facet_form.awarding_office if facet_form else '' }}" />
+              <input class="thread-input insights-facet-input" name="funding_office" placeholder="Funding office" value="{{ facet_form.funding_office if facet_form else '' }}" />
+              <input class="thread-input insights-facet-input" name="recipient_uei" placeholder="UEI" value="{{ facet_form.recipient_uei if facet_form else '' }}" />
+              <input class="thread-input insights-facet-input" name="pop_state" placeholder="POP state" value="{{ facet_form.pop_state if facet_form else '' }}" />
+              <input class="thread-input insights-facet-input" name="extent_competed" placeholder="Competition" value="{{ facet_form.extent_competed if facet_form else '' }}" />
+              <input class="thread-input insights-facet-input" name="type_of_set_aside" placeholder="Set-aside" value="{{ facet_form.type_of_set_aside if facet_form else '' }}" />
+            </div>
           </div>
         </details>
-      </div>
-    </details>
+        <p class="insights-facet-hint">One facet minimum · PG query ~30–90s</p>
+      </form>
+      <details class="insights-facet-portfolio" data-insights-collapse>
+        <summary>NAICS portfolio config</summary>
+        <div class="insights-facet-portfolio-body">
+          <form
+            hx-post="/insights/operator-naics"
+            hx-target="#insights-body"
+            hx-swap="outerHTML"
+            class="insights-facet-portfolio-form"
+          >
+            <input class="thread-input insights-facet-input insights-facet-input-wide" name="naics_portfolio" placeholder="541512, 541511, …" value="{{ ctx.naics_portfolio_text }}" />
+            <button type="submit" class="btn btn-primary btn-compact">Save</button>
+          </form>
+        </div>
+      </details>
+    </div>
 
     <details id="insights-lenses-card" class="card card-accent accent-cyan insights-frame insights-frame-collapse pulse-collapse" data-insights-collapse open>
       <summary class="insights-frame-head pulse-panel-head">
