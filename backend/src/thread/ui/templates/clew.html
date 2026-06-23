@@ -23,6 +23,7 @@
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" defer></script>
 <script src="/static/scripts/clew_charts.js" defer></script>
+<script src="/static/thread_clew_session.js?v={{ asset_v() }}"></script>
 {% include "partials/clew_body.html" %}
 {% set guide_id = "clew" %}
 {% set guide = clew_guide %}

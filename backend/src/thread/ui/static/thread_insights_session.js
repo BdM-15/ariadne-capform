@@ -13,6 +13,41 @@
     return document.getElementById("insights-entity-state");
   }
 
+  function isInsightsClewLink(anchor) {
+    if (!anchor || anchor.tagName !== "A") return false;
+    if (anchor.classList.contains("insights-clew-link")) return true;
+    try {
+      var href = anchor.getAttribute("href") || "";
+      return href.indexOf("/clew") >= 0 && href.indexOf("from=insights") >= 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  window.enhanceInsightsClewHref = function (anchor) {
+    if (!isInsightsClewLink(anchor)) return;
+    var form = insightsForm();
+    if (!form) return;
+    try {
+      var url = new URL(anchor.href, window.location.origin);
+      new FormData(form).forEach(function (value, key) {
+        if (value != null && String(value).length && !url.searchParams.has(key)) {
+          url.searchParams.set(key, String(value));
+        }
+      });
+      var state = entityState();
+      if (state) {
+        new FormData(state).forEach(function (value, key) {
+          if (value != null && String(value).length && !url.searchParams.has(key)) {
+            url.searchParams.set(key, String(value));
+          }
+        });
+      }
+      if (!url.searchParams.has("from")) url.searchParams.set("from", "insights");
+      anchor.href = url.pathname + url.search;
+    } catch (_) {}
+  };
+
   window.persistInsightsSession = function () {
     var form = insightsForm();
     if (!form) return;
@@ -32,6 +67,10 @@
         if (value != null && String(value).length) session[key] = String(value);
       });
     }
+    var drawer = document.getElementById("insights-award-panel");
+    if (drawer && drawer.getAttribute("data-award-key")) {
+      session.award_key = drawer.getAttribute("data-award-key");
+    }
     try {
       localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     } catch (_) {}
@@ -41,7 +80,7 @@
     var form = insightsForm();
     if (!form || !session) return;
     Object.keys(session).forEach(function (key) {
-      if (key === "lens" || key === "run" || key === "saved_at") return;
+      if (key === "lens" || key === "run" || key === "saved_at" || key === "award_key") return;
       var input = form.querySelector('[name="' + key + '"]');
       if (input) input.value = session[key];
     });
@@ -80,40 +119,48 @@
       session = null;
     }
     if (!session || !session.run) return;
+    if (!window.htmx) return;
 
     window._insightsSessionRestored = true;
     fillFormFromSession(session);
-    if (!window.htmx) return;
-
     window.htmx.ajax("GET", "/partials/insights/slice?" + sliceParamsFromSession(session).toString(), {
       target: "#insights-slice-panel",
       swap: "outerHTML",
     });
     var card = document.getElementById("insights-lenses-card");
     if (card) card.open = true;
+    if (session.award_key && window.openInsightsAwardDrawer) {
+      window.setTimeout(function () {
+        window.openInsightsAwardDrawer(session.award_key);
+      }, 400);
+    }
   };
 
-  function bindClewDepartLinks() {
-    document.querySelectorAll("a.insights-clew-link, a[href*='/clew'][href*='from=insights']").forEach(function (anchor) {
-      if (anchor.dataset.insightsClewBound) return;
-      anchor.dataset.insightsClewBound = "1";
-      anchor.addEventListener("click", function () {
-        window.persistInsightsSession();
-        var form = insightsForm();
-        if (!form) return;
-        try {
-          var url = new URL(anchor.href, window.location.origin);
-          new FormData(form).forEach(function (value, key) {
-            if (value != null && String(value).length && !url.searchParams.has(key)) {
-              url.searchParams.set(key, String(value));
-            }
-          });
-          if (!url.searchParams.has("from")) url.searchParams.set("from", "insights");
-          anchor.href = url.pathname + url.search;
-        } catch (_) {}
-      });
-    });
+  function scheduleInsightsRestore() {
+    var attempts = 0;
+    function attempt() {
+      if (window._insightsSessionRestored) return;
+      if (window.location.pathname !== "/insights") return;
+      if (window.htmx) {
+        window.restoreInsightsSessionIfIdle();
+        return;
+      }
+      attempts += 1;
+      if (attempts < 40) window.setTimeout(attempt, 50);
+    }
+    attempt();
   }
+
+  document.body.addEventListener(
+    "click",
+    function (event) {
+      var anchor = event.target.closest("a");
+      if (!isInsightsClewLink(anchor)) return;
+      window.persistInsightsSession();
+      window.enhanceInsightsClewHref(anchor);
+    },
+    true
+  );
 
   document.body.addEventListener("htmx:afterSwap", function (e) {
     var t = e.detail && e.detail.target;
@@ -121,16 +168,8 @@
     if (t.id === "insights-slice-panel" || (t.closest && t.closest("#insights-slice-panel"))) {
       window.persistInsightsSession();
     }
-    bindClewDepartLinks();
   });
 
-  document.addEventListener("DOMContentLoaded", function () {
-    bindClewDepartLinks();
-    window.restoreInsightsSessionIfIdle();
-  });
-
-  if (document.readyState !== "loading") {
-    bindClewDepartLinks();
-    window.restoreInsightsSessionIfIdle();
-  }
+  document.addEventListener("DOMContentLoaded", scheduleInsightsRestore);
+  if (document.readyState !== "loading") scheduleInsightsRestore();
 })();

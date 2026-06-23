@@ -143,6 +143,22 @@ Same pattern for: `award_key` → prime award detail → facet query → Pulse a
 
 **Implementation rule:** New dashboard/Pulse regions must document **feed capability** (which MCP/skill/query) and support **drill-down into chain** (e.g. signal row → open workspace Research with context pre-filled). Phase 12 widgets are scaffolding until wired; wire them before adding more counters.
 
+### Cross-lane context handoff (Command · Identify · Capture · Tools · Win · Systems)
+
+Operators move between lanes with **intent**, not cold navigation. Sidebar clicks to a lane root (`/insights`, `/clew`, `/pulse`, `/capture`, …) must not wipe in-progress work unless the operator explicitly starts fresh.
+
+| Pattern | Rule |
+|---------|------|
+| **Depart link** | Lane-to-lane action links carry `from=<source_lane>` (e.g. Insights → Clew `from=insights`) and merge current facet/entity context into query params. |
+| **Return link** | Destination page header shows `← <Source>` when `from=` is present (server-rendered). |
+| **Session restore** | Each lane with HTMX-driven state persists a `localStorage` key (`insights-session-v1`, `clew-session-v1`, …). Bare sidebar revisit restores last run when the page loads idle. |
+| **Fetch-loaded UI** | Drawers/modals loaded outside HTMX use event delegation for depart links — never one-time `querySelector` bind. |
+| **URL vs session** | Explicit URL handoff (`run=1`, facet params, `from=`) wins over session restore. Sidebar-only revisit uses session. |
+
+**Lanes to extend (MVP+):** Identify (`/insights`), Tools/Clew (`/clew`), Command (`/pulse`), Capture (`/capture/{id}`), Win artifacts, Systems/Settings. New surfaces that accept pre-filled context from another lane must follow the same trio: **carry params · persist session · show return path**.
+
+**Anti-pattern:** Sidebar nav as full page reset with no restore; Clew/Insights links that omit `from=` when the operator drilled from another lane; bind-once click handlers on fetch-injected HTML.
+
 ### Insight facet queries (no NAICS-default)
 
 USAspending PG intel supports **multi-facet search** — any combination the operator needs:

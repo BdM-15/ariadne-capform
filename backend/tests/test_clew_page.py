@@ -28,6 +28,7 @@ def test_clew_page_loads():
     assert "openGuideDialog('guide-clew')" in res.text
     assert "echarts.min.js" in res.text
     assert "clew_charts.js" in res.text
+    assert "thread_clew_session.js" in res.text
     assert 'name="include_mcp"' in res.text
     assert "Live MCP supplement" in res.text
     assert "How to use" in res.text

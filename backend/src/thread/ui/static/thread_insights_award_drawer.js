@@ -62,6 +62,10 @@
   function afterDrawerSwap() {
     if (window.initInsightsHone) window.initInsightsHone();
     if (window.lucide) window.lucide.createIcons();
+    if (window.persistInsightsSession) window.persistInsightsSession();
+    document.querySelectorAll("a.insights-clew-link").forEach(function (anchor) {
+      if (window.enhanceInsightsClewHref) window.enhanceInsightsClewHref(anchor);
+    });
     syncTitle();
   }
 
@@ -83,6 +87,7 @@
       showDrawerError("Contract drawer shell missing — hard refresh /insights (Ctrl+Shift+R).");
       return;
     }
+    if (window.persistInsightsSession) window.persistInsightsSession();
     r.classList.remove("task-drawer-hidden");
     r.setAttribute("aria-hidden", "false");
     document.body.classList.add("task-drawer-open");
