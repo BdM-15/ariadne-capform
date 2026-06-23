@@ -32,9 +32,10 @@
         hx-target="#insights-slice-panel"
         hx-swap="outerHTML"
         hx-indicator="#insights-slice-working"
+        hx-vals='{"lens": "overview"}'
       >
         <input type="hidden" name="run" value="1" />
-        <input type="hidden" name="lens" id="insights-active-lens" value="{{ active_lens or 'overview' }}" />
+        <input type="hidden" id="insights-active-lens" value="{{ active_lens or 'overview' }}" />
 
         <div class="insights-facet-primary">
           <span class="insights-facet-label text-neon-magenta/80">Slice</span>

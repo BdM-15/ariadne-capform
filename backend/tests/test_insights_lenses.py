@@ -68,6 +68,42 @@ async def test_build_insights_page_context(db_session, settings, tmp_path, monke
     assert ctx.naics_portfolio == ()
 
 
+def test_insights_lens_tab_not_stuck_on_prior_lens():
+    """Duplicate lens params (tab + stale form field) let the last value win — must not stick on agency."""
+    client = TestClient(create_app())
+    stuck = client.get(
+        "/partials/insights/slice",
+        params={
+            "run": 1,
+            "lens": ["recompete", "agency"],
+            "naics_codes": "561210",
+        },
+    )
+    assert stuck.status_code == 200
+    assert "insights-agency-lens" in stuck.text
+    assert "insights-radar-explore" not in stuck.text
+
+    recompete = client.get(
+        "/partials/insights/slice",
+        params={"run": 1, "lens": "recompete", "naics_codes": "561210"},
+    )
+    assert recompete.status_code == 200
+    assert 'data-active-lens="recompete"' in recompete.text
+    assert "insights-radar-explore" in recompete.text
+
+
+def test_insights_agency_tab_browse_mode_after_slice():
+    client = TestClient(create_app())
+    res = client.get(
+        "/partials/insights/slice",
+        params={"run": 1, "lens": "agency", "naics_codes": "561210"},
+    )
+    assert res.status_code == 200
+    html = res.text
+    assert "Top agencies in the active slice" in html or "insights-idle-hint" in html
+    assert 'name="lens"' not in html
+
+
 def test_insights_slice_partial_idle():
     client = TestClient(create_app())
     res = client.get("/partials/insights/slice?lens=overview&run=0")
@@ -147,6 +183,8 @@ def test_insights_page_renders_live_explore():
     assert 'id="insights-slice-panel"' in html
     assert "hx-swap=\"outerHTML\"" in html
     assert 'action="/partials/insights/slice"' not in html
+    assert 'name="lens"' not in html
+    assert 'hx-vals=\'{"lens": "overview"}\'' in html
     assert "slicePanelHasResults" in html
     assert "openLensesCard" in html
     assert "NAICS portfolio config" in html

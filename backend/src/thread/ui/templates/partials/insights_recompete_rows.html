@@ -4,10 +4,17 @@
   <li class="insights-result-row">
     <div class="insights-result-main">
       <span class="insights-result-title">{{ row.recipient or 'Unknown recipient' }}</span>
-      <span class="insights-result-sub">{{ row.agency or 'Unknown agency' }}</span>
+      {% if row.description %}
+      <span class="insights-result-desc" title="{{ row.description }}">{{ row.description[:160] }}{% if row.description|length > 160 %}…{% endif %}</span>
+      {% endif %}
+      <span class="insights-result-sub">{{ row.agency or 'Unknown agency' }}{% if row.piid %} · PIID {{ row.piid }}{% endif %}</span>
       <span class="insights-result-mono">
         {{ row.end_date|datefmt }} · {{ row.months_to_end|urgency }} · {{ row.obligation|money }}
-        {% if row.naics_code %} · {{ row.naics_code }}{% endif %}
+        {% if row.naics_code %}
+        · NAICS {{ row.naics_code }}{% if row.naics_description %} — {{ row.naics_description }}{% endif %}
+        {% endif %}
+        {% if row.psc_code %} · PSC {{ row.psc_code }}{% endif %}
+        {% if row.pop_state %} · POP {{ row.pop_state }}{% endif %}
       </span>
     </div>
     <div class="flex flex-col gap-1 shrink-0">

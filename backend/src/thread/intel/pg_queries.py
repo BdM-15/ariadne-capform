@@ -314,6 +314,7 @@ async def get_expiring_contracts_for_query(
     sql = f"""
         SELECT
             contract_award_unique_key AS award_key,
+            award_id_piid AS piid,
             recipient_name AS recipient,
             federal_action_obligation AS obligation,
             period_of_performance_current_end_date AS end_date,
@@ -322,7 +323,13 @@ async def get_expiring_contracts_for_query(
             COALESCE(NULLIF(type_of_contract_pricing, ''), 'Unknown') AS pricing,
             {PRICING_BUCKET_EXPR} AS pricing_bucket,
             {MONTHS_TO_END_EXPR} AS months_to_end,
-            naics_code
+            naics_code,
+            naics_description,
+            product_or_service_code AS psc_code,
+            COALESCE(
+                NULLIF(TRIM(prime_award_base_transaction_description), ''),
+                NULLIF(TRIM(transaction_description), '')
+            ) AS description
         FROM {PRIME_TABLE}
         WHERE period_of_performance_current_end_date IS NOT NULL
           AND period_of_performance_current_end_date <= CURRENT_DATE + (:months_ahead || ' months')::interval
@@ -336,6 +343,7 @@ async def get_expiring_contracts_for_query(
     return [
         {
             "award_key": r.award_key,
+            "piid": r.piid,
             "recipient": r.recipient,
             "obligation": float(r.obligation) if r.obligation is not None else None,
             "end_date": str(r.end_date) if r.end_date else None,
@@ -345,6 +353,9 @@ async def get_expiring_contracts_for_query(
             "pricing_bucket": r.pricing_bucket,
             "months_to_end": int(r.months_to_end or 0),
             "naics_code": r.naics_code,
+            "naics_description": r.naics_description,
+            "psc_code": r.psc_code,
+            "description": r.description,
         }
         for r in rows
     ]

@@ -6,7 +6,8 @@
     hx-get="/partials/insights/slice?lens=overview&run=1"
     hx-target="#insights-slice-panel"
     hx-swap="outerHTML"
-    hx-include="#insights-radar-form"
+    hx-include="#insights-radar-form, #insights-entity-state"
+    hx-vals='{"lens": "overview", "run": "1", "entity_kind": "", "entity_value": "", "entity_scope": ""}'
   >← Back to Overview</button>
   <span class="text-slate-600" aria-hidden="true">›</span>
   <span class="pill pill-compact border {% if entity.kind == 'competitor' %}border-neon-lime/40 text-neon-lime{% else %}border-neon-cyan/40 text-neon-cyan{% endif %}">

@@ -13,7 +13,8 @@
       hx-get="/partials/insights/slice?lens={{ tab.id }}&{{ facet_qs }}"
       hx-target="#insights-slice-panel"
       hx-swap="outerHTML"
-      hx-include="#insights-radar-form"
+      hx-include="#insights-radar-form, #insights-entity-state"
+      hx-vals='{"lens": "{{ tab.id }}", "run": "1"}'
     >{{ tab.label }}</button>
     {% endfor %}
   </nav>

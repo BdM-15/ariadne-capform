@@ -1,6 +1,24 @@
 <div class="insights-agency-lens">
-  {% if entity_idle %}
-  <p class="insights-idle-hint">Click an agency on the <strong>capture intensity</strong> scatter or flow chart on Overview to open an agency profile — slice facets stay unchanged.</p>
+  {% if entity_idle and overview_ready %}
+  {% set intensity = overview.agency_intensity or {} %}
+  {% set points = intensity.points or [] %}
+  <p class="text-[11px] text-slate-500 mb-3">Top agencies in the active slice — open a profile without changing facets.</p>
+  {% if points|length > 0 %}
+  <div class="insights-entity-list text-[10px] font-mono text-slate-500">
+    {% for row in points[:12] %}
+    <div class="flex flex-wrap items-center gap-2 py-1 border-b border-edge/40">
+      <span class="text-slate-300">{{ row.agency }}</span>
+      {% if row.hot %}<span class="pill pill-compact border border-neon-lime/30 text-neon-lime text-[9px]">hot</span>{% endif %}
+      <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
+      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-cyan" data-drill-field="agency" data-drill-value="{{ row.agency }}">Profile →</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="insights-idle-hint">No agency breakdown for this slice.</p>
+  {% endif %}
+  {% elif entity_idle %}
+  <p class="insights-idle-hint">Run a facet slice on <strong>Overview</strong>, then pick an agency here or from the capture intensity chart.</p>
   {% elif entity_error %}
   <p class="insights-explore-msg insights-explore-msg-warn">{{ entity_error }}</p>
   {% elif entity_ready and entity_profile %}
