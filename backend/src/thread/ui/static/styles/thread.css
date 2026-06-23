@@ -816,6 +816,20 @@ body {
   max-width: 88rem;
 }
 
+.insights-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.insights-slice-working.htmx-indicator {
+  display: none;
+}
+
+.insights-slice-working.htmx-indicator.htmx-request {
+  display: block;
+}
+
 .insights-overview-grid {
   display: grid;
   gap: 1rem;

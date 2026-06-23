@@ -97,7 +97,6 @@ def test_insights_page_renders_live_explore():
     res = client.get("/insights")
     html = res.text
     assert res.status_code == 200
-    assert "Data Insights" in html
     assert "insights-frame" in html
     assert "insights-radar-form" in html
     assert "Run slice" in html
@@ -106,13 +105,14 @@ def test_insights_page_renders_live_explore():
     assert "Save current search" in html
     assert "guide-modal" in html
     assert "openGuideDialog" in html
-    assert "insights-frame" in html
     assert "btn-hero-magenta" in html
     assert "insights-bookmarks-drawer" in html
     assert "Clew" in html
     assert "data-insights-collapse" in html
-    assert 'id="insights-usaspending"' in html
+    assert 'id="insights-facet-card"' in html
+    assert 'id="insights-lenses-card"' in html
     assert 'id="insights-slice-panel"' in html
+    assert "hx-swap=\"outerHTML\"" in html
     assert "Operator NAICS portfolio" in html
     assert "Add at least one facet" not in html
     assert "Shell stub" not in html
