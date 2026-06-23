@@ -28,6 +28,8 @@
       <form
         id="insights-radar-form"
         class="insights-facet-form"
+        method="get"
+        action="/partials/insights/slice"
         hx-get="/partials/insights/slice"
         hx-target="#insights-slice-panel"
         hx-swap="outerHTML"
@@ -50,6 +52,9 @@
           <input class="thread-input insights-facet-input" name="agency" placeholder="Agency" value="{{ facet_form.agency if facet_form else '' }}" />
           <input class="thread-input insights-facet-input insights-facet-input-wide" name="recipient" placeholder="Recipient" value="{{ facet_form.recipient if facet_form else '' }}" />
           <button type="submit" class="btn btn-hero-magenta btn-compact insights-facet-run">Run slice</button>
+          <p id="insights-slice-working" class="insights-slice-working htmx-indicator text-[10px] font-mono text-neon-cyan m-0" aria-live="polite">
+            Running…
+          </p>
           <button type="button" class="btn btn-ghost btn-compact insights-facet-guide" title="Explore guide" onclick="openGuideDialog('guide-usaspending-explore')">
             <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
           </button>
@@ -102,9 +107,6 @@
       </summary>
 
       <div class="insights-frame-body">
-        <p id="insights-slice-working" class="insights-slice-working htmx-indicator text-[11px] font-mono text-neon-cyan mb-3" aria-live="polite">
-          Running slice against Postgres intel…
-        </p>
         {% if slice_panel %}
         {% include "partials/insights_slice_panel.html" %}
         {% else %}
@@ -227,16 +229,11 @@
     var form = document.getElementById("insights-radar-form");
     if (!form || form.dataset.runResetBound) return;
     form.dataset.runResetBound = "1";
-    form.addEventListener("htmx:configRequest", function (evt) {
+    form.addEventListener("submit", function () {
       var lens = document.getElementById("insights-active-lens");
       if (lens) lens.value = "overview";
-      var detail = evt.detail;
-      if (detail && detail.parameters) {
-        detail.parameters.lens = "overview";
-        detail.parameters.entity_kind = "";
-        detail.parameters.entity_value = "";
-        detail.parameters.entity_scope = "";
-      }
+      var card = document.getElementById("insights-lenses-card");
+      if (card) card.open = true;
     });
   }
   function initInsightsPage() {

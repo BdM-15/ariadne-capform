@@ -824,10 +824,15 @@ body {
 
 .insights-slice-working.htmx-indicator {
   display: none;
+  flex: 0 0 auto;
 }
 
 .insights-slice-working.htmx-indicator.htmx-request {
-  display: block;
+  display: inline-block;
+}
+
+.insights-facet-primary .insights-slice-working.htmx-request {
+  animation: pulse 1.2s ease-in-out infinite;
 }
 
 /* Compact facet command bar — minimal vertical space */
