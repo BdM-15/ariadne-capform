@@ -1535,7 +1535,7 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 |----------|------|-----|
 | **P0** | **17e-e** ✅ E2E sign-off smoke — facet → hone → Watch → Pulse → Track → packet fill | `pytest test_insights_signoff_e2e` + `smoke_insights_signoff.py` |
 | **P1** | **17e-g** Entity profile tabs (Competitor · Agency) | **17e-g lite ✅** + entity→Recompete→Watch glue ✅; heat maps deferred |
-| **P1** | **17e-i** Query cache / limits on 64M PG (bootstrap TTL like capture-insights) | UX — slice queries 30–90s today |
+| **P1** | **17e-i** ✅ Query cache — disk-backed 10m TTL for overview + explore + entity profiles (`.thread/insights_slice_cache/`) | Tab switch / drill-back without re-querying PG |
 | **Defer** | **17e-h** Profile exports (docx/pptx/vault) + schema registry | Storytelling doctrine locked; build after cache + 17e-g depth |
 | **Defer** | 21b–21d Incubator Develop/Publish | Capture ingest polish |
 | **Defer** | 23b dedup matview, more analytics view rules | Chart accuracy polish |
@@ -1572,7 +1572,7 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
   - [x] 17e-g lite — Entity profile tabs + entity-scoped Recompete/Watch
   - [ ] 17e-g — Heat maps + adjacent competitors (depth)
   - [ ] 17e-h — Profile schema registry + docx/pptx/vault export (deferred)
-  - [ ] 17e-i — Slice query cache (P1)
+  - [x] 17e-i — Slice query cache (10m disk TTL + Cached pill in slice bar)
 - [x] MVP sign-off E2E (find → watch → track → packet fill)
 - [ ] Incubator Develop → Publish (Phase 21b–21d — deferred)
 - [x] `pg_queries` intel layer

@@ -1,6 +1,11 @@
 {% if has_slice and query %}
 <div class="insights-slice-bar flex flex-wrap items-center gap-2 mb-3 text-[11px]">
   <span class="text-slate-500 font-mono uppercase tracking-wide shrink-0">Active slice</span>
+  {% if cache_hit and cache_age_seconds is not none %}
+  <span class="pill pill-compact border border-neon-lime/30 text-neon-lime/90 text-[10px]" title="Slice results served from cache — avoids re-querying PG">
+    Cached · {{ cache_age_seconds|round(0)|int }}s ago
+  </span>
+  {% endif %}
   {% if query.naics_codes %}
   {% for code in query.naics_codes %}
   <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">NAICS {{ code }}</span>

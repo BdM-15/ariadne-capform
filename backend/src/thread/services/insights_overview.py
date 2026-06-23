@@ -12,6 +12,7 @@ from thread.config import Settings
 from thread.intel import pg_queries as intel_queries
 from thread.intel.charts import run_slice_overview
 from thread.intel.echarts_options import attach_overview_echarts
+from thread.intel.slice_cache import get_cached_overview, store_cached_overview
 from thread.intel.facet_query import InsightFacetQuery, describe_query
 from thread.services.insights_explore import _facet_from_params
 
@@ -24,6 +25,8 @@ class OverviewResult:
     intel_live: bool
     status: str
     error: str | None = None
+    cache_hit: bool = False
+    cache_age_seconds: float | None = None
 
 
 def overview_charts_json(overview: dict[str, Any]) -> str:
@@ -93,7 +96,20 @@ async def build_overview(
             error="PG intel not ready — resume migration.",
         )
 
-    raw = await run_slice_overview(session, query)
+    cache = get_cached_overview(settings, query)
+    if cache and cache.overview:
+        overview = attach_overview_echarts(dict(cache.overview))
+        return OverviewResult(
+            query=query,
+            summary=describe_query(query),
+            overview=overview,
+            intel_live=True,
+            status="ready",
+            cache_hit=True,
+            cache_age_seconds=cache.age_seconds,
+        )
+
+    raw = await run_slice_overview(session, query, use_cache=False)
     if raw.get("error"):
         return OverviewResult(
             query=query,
@@ -104,6 +120,7 @@ async def build_overview(
             error=str(raw["error"]),
         )
 
+    store_cached_overview(settings, query, raw)
     overview = attach_overview_echarts(raw)
     return OverviewResult(
         query=query,

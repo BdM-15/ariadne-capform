@@ -349,6 +349,8 @@ def _slice_template_ctx(panel, *, slice_flash: str | None = None) -> dict:
         "entity_ready": panel.entity_ready,
         "entity_idle": panel.entity_idle,
         "entity_error": panel.entity_error,
+        "cache_hit": panel.cache_hit,
+        "cache_age_seconds": panel.cache_age_seconds,
         "slice_flash": slice_flash,
         "slice_panel": True,
     }

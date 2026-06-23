@@ -43,6 +43,8 @@ class SlicePanelContext:
     entity_ready: bool
     entity_idle: bool
     entity_error: str | None
+    cache_hit: bool
+    cache_age_seconds: float | None
 
 
 def facet_form_from_params(
@@ -172,6 +174,7 @@ async def build_slice_panel(
 
     entity_result: EntityProfileResult = await build_entity_profile(
         session,
+        settings,
         query,
         entity,
         lens=lens,
@@ -182,6 +185,18 @@ async def build_slice_panel(
             profile={"idle": True},
             status="idle",
         )
+
+    cache_ages = [
+        age
+        for hit, age in (
+            (overview_result.cache_hit, overview_result.cache_age_seconds),
+            (explore.cache_hit, explore.cache_age_seconds),
+            (entity_result.cache_hit, entity_result.cache_age_seconds),
+        )
+        if hit and age is not None
+    ]
+    cache_hit = bool(cache_ages)
+    cache_age_seconds = max(cache_ages) if cache_ages else None
 
     return SlicePanelContext(
         facet_form=facet_form,
@@ -201,4 +216,6 @@ async def build_slice_panel(
         entity_ready=entity_result.status == "ready",
         entity_idle=entity_result.status == "idle",
         entity_error=entity_result.error,
+        cache_hit=cache_hit,
+        cache_age_seconds=cache_age_seconds,
     )

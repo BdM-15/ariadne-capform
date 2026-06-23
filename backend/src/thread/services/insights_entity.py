@@ -8,7 +8,9 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from thread.config import Settings
 from thread.intel.charts import agency_sub_flow, spend_trend, teaming, top_recipients
+from thread.intel.slice_cache import get_cached_entity_profile, store_cached_entity_profile
 from thread.intel.echarts_options import attach_entity_echarts
 from thread.intel.facet_query import InsightFacetQuery, build_facet_sql
 from thread.intel import pg_queries as intel_queries
@@ -81,10 +83,13 @@ class EntityProfileResult:
     profile: dict[str, Any]
     status: str
     error: str | None = None
+    cache_hit: bool = False
+    cache_age_seconds: float | None = None
 
 
 async def build_entity_profile(
     session: AsyncSession,
+    settings: Settings,
     slice_query: InsightFacetQuery | None,
     entity: EntityContext | None,
     *,
@@ -111,6 +116,23 @@ async def build_entity_profile(
             error="PG intel not ready — resume migration.",
         )
 
+    cache = get_cached_entity_profile(
+        settings,
+        slice_query,
+        kind=entity.kind,
+        scope=entity.scope,
+        value=entity.value,
+    )
+    if cache and cache.entity_profile:
+        profile = attach_entity_echarts(dict(cache.entity_profile), entity.kind)
+        return EntityProfileResult(
+            entity=entity,
+            profile=profile,
+            status="ready",
+            cache_hit=True,
+            cache_age_seconds=cache.age_seconds,
+        )
+
     scoped = scoped_slice_query(slice_query, entity)
     try:
         if entity.kind == "competitor":
@@ -134,6 +156,14 @@ async def build_entity_profile(
         )
 
     raw["recompete_rows"] = await fetch_entity_recompete(session, slice_query, entity)
+    store_cached_entity_profile(
+        settings,
+        slice_query,
+        kind=entity.kind,
+        scope=entity.scope,
+        value=entity.value,
+        profile=raw,
+    )
     profile = attach_entity_echarts(raw, entity.kind)
     return EntityProfileResult(entity=entity, profile=profile, status="ready")
 

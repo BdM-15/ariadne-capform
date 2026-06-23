@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.config import Settings
+from thread.intel.slice_cache import get_cached_explore_rows, store_cached_explore_rows
 from thread.intel import pg_queries as intel_queries
 from thread.intel.facet_query import ADVANCED_FACET_FIELDS, InsightFacetQuery, describe_query, query_from_dict
 from thread.intel.sam_query import SamMonitorQuery, describe_sam_query, query_from_dict as sam_from_dict
@@ -30,6 +31,8 @@ class RadarExploreResult:
     intel_live: bool
     status: str = "idle"
     error: str | None = None
+    cache_hit: bool = False
+    cache_age_seconds: float | None = None
 
 
 @dataclass(frozen=True)
@@ -188,6 +191,29 @@ async def explore_radar(
         entity_value=entity_value,
         entity_scope=entity_scope,
     )
+    if run:
+        cache = get_cached_explore_rows(
+            settings,
+            query,
+            entity_kind=entity.kind if entity else "",
+            entity_scope=entity.scope if entity else "",
+            entity_value=entity.value if entity else "",
+        )
+        if cache and cache.explore_rows is not None:
+            summary = describe_query(query)
+            if entity and entity.is_active():
+                summary = f"{entity.display_label} · {summary}"
+            status = "ready" if cache.explore_rows else "empty"
+            return RadarExploreResult(
+                query=query,
+                summary=summary,
+                rows=cache.explore_rows,
+                intel_live=True,
+                status=status,
+                cache_hit=True,
+                cache_age_seconds=cache.age_seconds,
+            )
+
     explore_query = explore_query_for_entity(query, entity)
     assert explore_query is not None
     rows = await intel_queries.get_expiring_contracts_for_query(
@@ -196,6 +222,15 @@ async def explore_radar(
         months_ahead=18,
         limit=limit,
     )
+    if run:
+        store_cached_explore_rows(
+            settings,
+            query,
+            rows,
+            entity_kind=entity.kind if entity else "",
+            entity_scope=entity.scope if entity else "",
+            entity_value=entity.value if entity else "",
+        )
     status = "ready" if rows else "empty"
     summary = describe_query(query)
     if entity and entity.is_active():
