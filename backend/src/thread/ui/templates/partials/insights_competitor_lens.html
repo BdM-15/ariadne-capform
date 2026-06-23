@@ -1,0 +1,67 @@
+<div class="insights-competitor-lens">
+  {% if entity_idle %}
+  <p class="insights-idle-hint">Click a recipient on the <strong>top recipients</strong> chart or table on Overview to open a competitor dossier — your slice facets are preserved.</p>
+  {% elif entity_error %}
+  <p class="insights-explore-msg insights-explore-msg-warn">{{ entity_error }}</p>
+  {% elif entity_ready and entity_profile %}
+  {% set kpis = entity_profile.kpis or {} %}
+  {% set identity = entity_profile.identity or {} %}
+  {% set charts = entity_profile.charts or {} %}
+  <div class="insights-entity-header mb-3">
+    <h3 class="text-sm font-semibold text-neon-lime m-0">{{ entity.display_label }}</h3>
+    <div class="flex flex-wrap gap-2 mt-1 text-[10px] font-mono">
+      {% if identity.recipient_uei %}
+      <span class="pill pill-compact border border-neon-cyan/40 text-neon-cyan">UEI {{ identity.recipient_uei }}</span>
+      {% endif %}
+      <span class="text-slate-500">{{ "{:,}".format(identity.actions or kpis.award_count or 0) }} actions in slice</span>
+    </div>
+  </div>
+  <div class="insights-kpi-strip flex flex-wrap gap-2 mb-4">
+    <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">${{ "%.1f"|format(kpis.millions or 0) }}M obligated</span>
+    <span class="pill pill-compact border border-edge text-slate-400">{{ kpis.agency_count or 0 }} agencies</span>
+    <span class="pill pill-compact border border-edge text-slate-400">{{ "{:,}".format(kpis.award_count or 0) }} actions</span>
+  </div>
+  <div class="insights-overview-grid">
+    {% if charts.spend_trend %}
+    <div class="clew-echarts-host insights-echarts-sub" data-chart-key="spend_trend" data-chart-option='{{ charts.spend_trend | tojson }}'></div>
+    {% endif %}
+    {% if charts.top_agencies %}
+    <div class="clew-echarts-host insights-echarts-sub" data-chart-key="top_agencies" data-chart-option='{{ charts.top_agencies | tojson }}'></div>
+    {% endif %}
+    {% if charts.top_naics %}
+    <div class="clew-echarts-host insights-echarts-compact" data-chart-key="top_naics" data-chart-option='{{ charts.top_naics | tojson }}'></div>
+    {% endif %}
+  </div>
+  {% if entity_profile.top_agencies %}
+  <div class="insights-entity-list mt-3 text-[10px] font-mono text-slate-500">
+    <p class="text-[10px] uppercase tracking-wide text-slate-600 mb-2">Top agencies — click to open agency profile</p>
+    {% for row in entity_profile.top_agencies[:8] %}
+    <div class="flex flex-wrap items-center gap-2 py-1 border-b border-edge/40">
+      <span class="text-slate-300">{{ row.agency }}</span>
+      <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
+      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-cyan" data-drill-field="agency" data-drill-value="{{ row.agency }}">Agency →</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if entity_profile.teaming %}
+  <div class="insights-entity-list mt-3 text-[10px] font-mono text-slate-500">
+    <p class="text-[10px] uppercase tracking-wide text-slate-600 mb-2">Subcontractors (teaming)</p>
+    {% for edge in entity_profile.teaming[:6] %}
+    <div class="flex flex-wrap gap-2 py-1 border-b border-edge/40">
+      <span class="text-slate-400">{{ edge.sub }}</span>
+      <span>${{ "%.2f"|format(edge.millions) }}M</span>
+      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px]" data-drill-field="recipient" data-drill-value="{{ edge.sub }}">Competitor →</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% elif entity_profile.teaming_error %}
+  <p class="text-[10px] text-slate-600 mt-3">{{ entity_profile.teaming_error }}</p>
+  {% endif %}
+  {% with recompete_rows=entity_profile.recompete_rows or [], active_lens=active_lens %}
+  {% include "partials/insights_entity_recompete.html" %}
+  {% endwith %}
+  {% else %}
+  <p class="insights-idle-hint">Run slice on Overview, then drill into a competitor.</p>
+  {% endif %}
+</div>

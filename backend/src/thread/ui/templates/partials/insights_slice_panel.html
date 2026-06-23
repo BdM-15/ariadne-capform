@@ -1,5 +1,6 @@
-<div id="insights-slice-panel" class="insights-slice-panel">
+<div id="insights-slice-panel" class="insights-slice-panel" data-active-lens="{{ active_lens }}">
   {% include "partials/insights_slice_context.html" %}
+  {% include "partials/insights_entity_breadcrumb.html" %}
 
   <nav class="insights-lens-tabs flex flex-wrap gap-1 mb-3" role="tablist">
     {% set facet_qs = "agency=" ~ (facet_form.agency or '') ~ "&sub_agency=" ~ (facet_form.sub_agency or '') ~ "&recipient=" ~ (facet_form.recipient or '') ~ "&naics_codes=" ~ (facet_form.naics_codes or '') ~ "&psc_codes=" ~ (facet_form.psc_codes or '') ~ "&run=1" %}
@@ -17,9 +18,17 @@
     {% endfor %}
   </nav>
 
+  {% if slice_flash %}
+  <div class="card card-accent accent-lime p-2 text-[11px] text-neon-lime mb-3">{{ slice_flash }}</div>
+  {% endif %}
+
   <div class="insights-lens-body" role="tabpanel">
     {% if active_lens == 'overview' %}
     {% include "partials/insights_overview_lens.html" %}
+    {% elif active_lens == 'agency' %}
+    {% include "partials/insights_agency_lens.html" %}
+    {% elif active_lens == 'competitor' %}
+    {% include "partials/insights_competitor_lens.html" %}
     {% elif active_lens == 'recompete' %}
     <div id="insights-radar-explore">
       {% include "partials/insights_radar_explore.html" %}

@@ -223,10 +223,27 @@
       });
     });
   }
+  function bindRunSliceReset() {
+    var form = document.getElementById("insights-radar-form");
+    if (!form || form.dataset.runResetBound) return;
+    form.dataset.runResetBound = "1";
+    form.addEventListener("htmx:configRequest", function (evt) {
+      var lens = document.getElementById("insights-active-lens");
+      if (lens) lens.value = "overview";
+      var detail = evt.detail;
+      if (detail && detail.parameters) {
+        detail.parameters.lens = "overview";
+        detail.parameters.entity_kind = "";
+        detail.parameters.entity_value = "";
+        detail.parameters.entity_scope = "";
+      }
+    });
+  }
   function initInsightsPage() {
     loadState();
     bindState();
     bindNaicsChips();
+    bindRunSliceReset();
     if (window.initClewCharts) window.initClewCharts();
     if (window.initInsightsHone) window.initInsightsHone();
     if (window.lucide) window.lucide.createIcons();

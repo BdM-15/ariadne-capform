@@ -1,0 +1,28 @@
+{% if entity and entity.value %}
+<nav class="insights-entity-crumb flex flex-wrap items-center gap-2 mb-3 text-[11px]" aria-label="Drill-down context">
+  <button
+    type="button"
+    class="btn btn-ghost btn-compact text-neon-cyan insights-crumb-back"
+    hx-get="/partials/insights/slice?lens=overview&run=1"
+    hx-target="#insights-slice-panel"
+    hx-swap="outerHTML"
+    hx-include="#insights-radar-form"
+  >← Back to Overview</button>
+  <span class="text-slate-600" aria-hidden="true">›</span>
+  <span class="pill pill-compact border {% if entity.kind == 'competitor' %}border-neon-lime/40 text-neon-lime{% else %}border-neon-cyan/40 text-neon-cyan{% endif %}">
+    {% if entity.kind == 'competitor' %}Competitor{% else %}Agency{% endif %}: {{ entity.display_label }}
+  </span>
+  <span class="text-slate-600 hidden sm:inline">· slice unchanged</span>
+</nav>
+<div id="insights-entity-state" class="hidden" aria-hidden="true">
+  <input type="hidden" name="entity_kind" value="{{ entity.kind }}" />
+  <input type="hidden" name="entity_value" value="{{ entity.value }}" />
+  <input type="hidden" name="entity_scope" value="{{ entity.scope }}" />
+</div>
+{% else %}
+<div id="insights-entity-state" class="hidden" aria-hidden="true">
+  <input type="hidden" name="entity_kind" value="" />
+  <input type="hidden" name="entity_value" value="" />
+  <input type="hidden" name="entity_scope" value="" />
+</div>
+{% endif %}

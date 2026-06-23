@@ -12,6 +12,7 @@ from thread.intel import pg_queries as intel_queries
 from thread.intel.facet_query import ADVANCED_FACET_FIELDS, InsightFacetQuery, describe_query, query_from_dict
 from thread.intel.sam_query import SamMonitorQuery, describe_sam_query, query_from_dict as sam_from_dict
 from thread.mcp.service import MCPService
+from thread.services.insights_entity import EntityContext, entity_from_params, explore_query_for_entity
 from thread.services.sam_monitor import build_sam_explore_results
 
 
@@ -124,6 +125,9 @@ async def explore_radar(
     type_of_set_aside: str = "",
     limit: int = 15,
     run: bool = False,
+    entity_kind: str = "",
+    entity_value: str = "",
+    entity_scope: str = "",
 ) -> RadarExploreResult:
     stats = await intel_queries.get_intel_stats(session)
     intel_live = bool(stats.get("prime_awards_ready") and stats.get("prime_award_count", 0) > 0)
@@ -179,16 +183,26 @@ async def explore_radar(
             status="loading",
             error="PG intel not ready — resume migration.",
         )
+    entity: EntityContext | None = entity_from_params(
+        entity_kind=entity_kind,
+        entity_value=entity_value,
+        entity_scope=entity_scope,
+    )
+    explore_query = explore_query_for_entity(query, entity)
+    assert explore_query is not None
     rows = await intel_queries.get_expiring_contracts_for_query(
         session,
-        query,
+        explore_query,
         months_ahead=18,
         limit=limit,
     )
     status = "ready" if rows else "empty"
+    summary = describe_query(query)
+    if entity and entity.is_active():
+        summary = f"{entity.display_label} · {summary}"
     return RadarExploreResult(
         query=query,
-        summary=describe_query(query),
+        summary=summary,
         rows=tuple(rows),
         intel_live=True,
         status=status,

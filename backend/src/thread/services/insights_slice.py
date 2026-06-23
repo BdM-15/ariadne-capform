@@ -9,11 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.config import Settings
 from thread.intel.facet_query import ADVANCED_FACET_FIELDS, InsightFacetQuery
+from thread.services.insights_entity import EntityContext, EntityProfileResult, build_entity_profile, entity_from_params
 from thread.services.insights_explore import RadarExploreResult, SamExploreResult, explore_radar, explore_sam
 from thread.services.insights_overview import OverviewResult, build_overview
 
 INSIGHTS_LENS_TABS: tuple[dict[str, str], ...] = (
     {"id": "overview", "label": "Overview"},
+    {"id": "agency", "label": "Agency"},
+    {"id": "competitor", "label": "Competitor"},
     {"id": "recompete", "label": "Recompete"},
     {"id": "competition", "label": "Competition"},
     {"id": "trace", "label": "Trace"},
@@ -35,6 +38,11 @@ class SlicePanelContext:
     explore: RadarExploreResult
     sam_explore: SamExploreResult
     sam_form: dict[str, str]
+    entity: EntityContext | None
+    entity_profile: dict[str, Any]
+    entity_ready: bool
+    entity_idle: bool
+    entity_error: str | None
 
 
 def facet_form_from_params(
@@ -86,6 +94,9 @@ async def build_slice_panel(
     sam_psc_code: str = "",
     sam_days_back: int = 14,
     sam_run: bool = False,
+    entity_kind: str = "",
+    entity_value: str = "",
+    entity_scope: str = "",
 ) -> SlicePanelContext:
     if lens not in {t["id"] for t in INSIGHTS_LENS_TABS}:
         lens = "overview"
@@ -124,10 +135,18 @@ async def build_slice_panel(
         **facet_kwargs,
     )
 
+    entity = entity_from_params(
+        entity_kind=entity_kind,
+        entity_value=entity_value,
+        entity_scope=entity_scope,
+    )
     explore = await explore_radar(
         session,
         settings,
         run=run,
+        entity_kind=entity_kind,
+        entity_value=entity_value,
+        entity_scope=entity_scope,
         **facet_kwargs,
     )
 
@@ -151,6 +170,19 @@ async def build_slice_panel(
     query = overview_result.query
     has_slice = bool(query and query.has_filters())
 
+    entity_result: EntityProfileResult = await build_entity_profile(
+        session,
+        query,
+        entity,
+        lens=lens,
+    )
+    if lens in {"agency", "competitor"} and entity is None:
+        entity_result = EntityProfileResult(
+            entity=EntityContext(kind=lens, value="", scope="agency"),
+            profile={"idle": True},
+            status="idle",
+        )
+
     return SlicePanelContext(
         facet_form=facet_form,
         active_lens=lens,
@@ -164,4 +196,9 @@ async def build_slice_panel(
         explore=explore,
         sam_explore=sam_explore,
         sam_form=sam_form,
+        entity=entity_result.entity if entity_result.entity and entity_result.entity.is_active() else entity,
+        entity_profile=entity_result.profile,
+        entity_ready=entity_result.status == "ready",
+        entity_idle=entity_result.status == "idle",
+        entity_error=entity_result.error,
     )

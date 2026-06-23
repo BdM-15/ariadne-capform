@@ -17,7 +17,7 @@
   <p class="insights-hot-callout text-[11px] text-neon-lime mb-3">
     Above the line:
     {% for ag in intensity.hot_agencies[:5] %}
-    <button type="button" class="insights-hone-chip btn btn-ghost btn-compact text-[10px] text-neon-lime" data-hone-field="agency" data-hone-value="{{ ag }}">{{ ag }}</button>{% if not loop.last %} · {% endif %}
+    <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-lime" data-drill-field="agency" data-drill-value="{{ ag }}">{{ ag }}</button>{% if not loop.last %} · {% endif %}
     {% endfor %}
   </p>
   {% endif %}
@@ -52,7 +52,7 @@
       <span class="text-slate-300">{{ row.recipient }}</span>
       {% if row.recipient_uei %}<span class="text-neon-cyan">UEI {{ row.recipient_uei }}</span>{% endif %}
       <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
-      <button type="button" class="insights-hone-chip btn btn-ghost btn-compact text-[10px]" data-hone-field="recipient" data-hone-value="{{ row.recipient }}">Hone</button>
+      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px]" data-drill-field="recipient" data-drill-value="{{ row.recipient }}">Profile →</button>
     </div>
     {% endfor %}
   </div>

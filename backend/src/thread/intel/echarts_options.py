@@ -35,6 +35,44 @@ def attach_echarts_option(analysis: dict[str, Any]) -> dict[str, Any]:
     return analysis
 
 
+def attach_entity_echarts(profile: dict[str, Any], kind: str) -> dict[str, Any]:
+    if profile.get("error"):
+        return profile
+    charts: dict[str, Any] = {}
+    spend = _spend_trend_chart({"bars": profile.get("spend_trend") or [], "mode": "spend_trend"})
+    if spend:
+        charts["spend_trend"] = spend
+    if kind == "agency":
+        sub_flow = _agency_sub_flow_chart(profile.get("agency_sub_flow") or [], profile)
+        if sub_flow:
+            charts["sub_flow"] = sub_flow
+        contractors = _horizontal_bar_chart(
+            profile.get("top_contractors") or [],
+            title="Top contractors in slice",
+            name_key="recipient",
+        )
+        if contractors:
+            charts["top_contractors"] = contractors
+    else:
+        agencies = _horizontal_bar_chart(
+            profile.get("top_agencies") or [],
+            title="Top agencies",
+            name_key="agency",
+        )
+        if agencies:
+            charts["top_agencies"] = agencies
+        naics_rows = [
+            {"recipient": r["naics"], "millions": r["millions"]}
+            for r in profile.get("top_naics") or []
+        ]
+        naics_chart = _horizontal_bar_chart(naics_rows, title="Top NAICS", name_key="recipient")
+        if naics_chart:
+            charts["top_naics"] = naics_chart
+    if charts:
+        profile["charts"] = charts
+    return profile
+
+
 def attach_overview_echarts(overview: dict[str, Any]) -> dict[str, Any]:
     if overview.get("error"):
         return overview
@@ -159,6 +197,8 @@ def _agency_intensity_scatter(intensity: dict[str, Any]) -> dict[str, Any] | Non
         "_intel": {
             "mode": "agency_intensity",
             "honeField": "agency",
+            "drillLens": "agency",
+            "entityScope": "agency",
             "tooltipFields": ["agency", "actions", "millions"],
         },
     }
@@ -200,7 +240,12 @@ def _agency_sub_flow_chart(rows: list[dict[str, Any]], overview: dict[str, Any])
                 "barMaxWidth": 16,
             }
         ],
-        "_intel": {"mode": "sub_flow", "honeField": hone_field},
+        "_intel": {
+            "mode": "sub_flow",
+            "honeField": hone_field,
+            "drillLens": "agency",
+            "entityScope": group,
+        },
     }
 
 
@@ -243,7 +288,7 @@ def _horizontal_bar_chart(
         return None
     names = [_truncate(str(r.get(name_key) or "?"), 36) for r in rows]
     values = [r.get("millions", 0) for r in rows]
-    hone_field = "recipient" if name_key == "recipient" else None
+    hone_field = "recipient" if name_key == "recipient" else ("agency" if name_key == "agency" else None)
     chart: dict[str, Any] = {
         "backgroundColor": "transparent",
         "textStyle": {"color": TEXT},
@@ -273,6 +318,10 @@ def _horizontal_bar_chart(
     }
     if hone_field:
         chart["_intel"]["honeField"] = hone_field
+        chart["_intel"]["drillLens"] = "competitor" if hone_field == "recipient" else "agency"
+        chart["_intel"]["entityScope"] = (
+            "recipient" if hone_field == "recipient" else ("agency" if hone_field == "agency" else hone_field)
+        )
     return chart
 
 
