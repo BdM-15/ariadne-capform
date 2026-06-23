@@ -654,7 +654,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 |--------|------------|-------------|
 | Command Center (`/`) | Attention widgets, compact nav, pursuit rail — **not** analytics home | Widget row (12c–12h): reviews, phase band, hot signals, health strip, **quick actions**; anti-pattern: metrics dump |
 | Portfolio Pulse (`/pulse`) | Morning briefing: **watchlist** + inbox + digest + capture snapshot | Identify-only; Track → `/capture/{id}`; not packet home |
-| Data Insights (`/insights`) | 🟡 Overview + lens tabs + hone (17e-a–d ✅/🟡) | **17e-e** ✅ · **17e-f** advanced facets · **17e-g** entity profile tabs |
+| Data Insights (`/insights`) | 🟡 Overview + lens tabs + hone (17e-a–f ✅) | **17e-g** entity profile tabs · query cache |
 | **Filament** (`/capture`) | ✅ Post-identify pursuit list; nav **Filament** (connected packets, not hand-jammed decks) | CRM pipeline board (deferred) |
 | Filament workspace (`/capture/{id}`) | ✅ Slide canvas + **connected fill routes** (14j/20a/20b) + evidence inspector; MS pills | Phase 20c ranked routing matrix + optional Grok advisor |
 | Sidebar nav | Command / Identify / **Filament** (home first) / **Tools** / Win / System | Studio route (Phase 21) |
@@ -1532,7 +1532,7 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
   - [x] 17e-c — Hone interactions (agency/sub/recipient/office)
   - [x] 17e-d — Lens tabs (incl. Live SAM)
   - [x] 17e-e — E2E sign-off smoke
-  - [ ] 17e-f — Extended facets (advanced panel)
+  - [x] 17e-f — Extended facets (advanced panel)
   - [ ] 17e-g — Entity profile tabs (P1 stretch)
 - [x] MVP sign-off E2E (find → watch → track → packet fill)
 - [ ] Incubator Develop → Publish (Phase 21b–21d — deferred)
