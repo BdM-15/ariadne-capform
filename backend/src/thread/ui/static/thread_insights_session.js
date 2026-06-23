@@ -178,7 +178,7 @@
     function attempt() {
       if (window._insightsSessionRestored) return;
       if (window.location.pathname !== "/insights") return;
-      if (window.htmx) {
+      if (window.htmx && window.initInsightsHone) {
         window.restoreInsightsSessionIfIdle();
         return;
       }

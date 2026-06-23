@@ -9,7 +9,7 @@
       <span class="text-slate-300">{{ row.recipient }}</span>
       {% if row.recipient_uei %}<span class="text-neon-cyan">UEI {{ row.recipient_uei }}</span>{% endif %}
       <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-lime" data-drill-field="recipient" data-drill-value="{{ row.recipient }}">Profile →</button>
+      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-lime" data-drill-field="recipient" data-drill-value="{{ row.recipient|e }}">Profile →</button>
     </div>
     {% endfor %}
   </div>
@@ -56,7 +56,7 @@
     <div class="flex flex-wrap items-center gap-2 py-1 border-b border-edge/40">
       <span class="text-slate-300">{{ row.agency }}</span>
       <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-cyan" data-drill-field="agency" data-drill-value="{{ row.agency }}">Agency →</button>
+      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-cyan" data-drill-field="agency" data-drill-value="{{ row.agency|e }}">Agency →</button>
     </div>
     {% endfor %}
   </div>
@@ -68,7 +68,7 @@
     <div class="flex flex-wrap gap-2 py-1 border-b border-edge/40">
       <span class="text-slate-400">{{ edge.sub }}</span>
       <span>${{ "%.2f"|format(edge.millions) }}M</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px]" data-drill-field="recipient" data-drill-value="{{ edge.sub }}">Competitor →</button>
+      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px]" data-drill-field="recipient" data-drill-value="{{ edge.sub|e }}">Competitor →</button>
     </div>
     {% endfor %}
   </div>

@@ -10,7 +10,7 @@
       <span class="text-slate-300">{{ row.agency }}</span>
       {% if row.hot %}<span class="pill pill-compact border border-neon-lime/30 text-neon-lime text-[9px]">hot</span>{% endif %}
       <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-cyan" data-drill-field="agency" data-drill-value="{{ row.agency }}">Profile →</button>
+      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-cyan" data-drill-field="agency" data-drill-value="{{ row.agency|e }}">Profile →</button>
     </div>
     {% endfor %}
   </div>
@@ -52,7 +52,7 @@
       <span class="text-slate-300">{{ row.recipient }}</span>
       {% if row.recipient_uei %}<span class="text-neon-cyan">UEI {{ row.recipient_uei }}</span>{% endif %}
       <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-lime" data-drill-field="recipient" data-drill-value="{{ row.recipient }}">Competitor →</button>
+      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-lime" data-drill-field="recipient" data-drill-value="{{ row.recipient|e }}">Competitor →</button>
     </div>
     {% endfor %}
   </div>

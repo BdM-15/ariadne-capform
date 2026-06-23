@@ -39,26 +39,21 @@
     return params;
   }
 
-  function entityKindForField(field) {
-    var map = DRILL_MAP[field];
-    return map ? map.lens : "agency";
-  }
-
-  function entityScopeForField(field, meta) {
-    if (meta && meta.entityScope) return meta.entityScope;
-    var map = DRILL_MAP[field];
-    return map ? map.scope : field;
+  function openLensesCard() {
+    var card = document.getElementById("insights-lenses-card");
+    if (card) card.open = true;
   }
 
   function navigateEntityDrill(field, value, meta) {
     var form = document.getElementById("insights-radar-form");
+    value = (value || "").trim();
     if (!form || !value) return;
     if (window.closeInsightsAwardDrawer) window.closeInsightsAwardDrawer();
     var map = DRILL_MAP[field];
     if (!map && !(meta && meta.drillLens)) return;
 
     var lens = (meta && meta.drillLens) || (map && map.lens) || "overview";
-    var scope = entityScopeForField(field, meta);
+    var scope = (meta && meta.entityScope) || (map && map.scope) || field;
     var kind = lens === "competitor" ? "competitor" : "agency";
 
     var params = formParams(form);
@@ -70,6 +65,9 @@
 
     var lensInput = document.getElementById("insights-active-lens");
     if (lensInput) lensInput.value = lens;
+    openLensesCard();
+
+    if (window.persistInsightsSession) window.persistInsightsSession();
 
     if (window.htmx) {
       window.htmx.ajax("GET", "/partials/insights/slice?" + params.toString(), {
@@ -101,31 +99,6 @@
     navigateEntityDrill(field, value, meta);
   }
 
-  function bindDrillChips() {
-    document.querySelectorAll(".insights-drill-chip").forEach(function (btn) {
-      if (btn.dataset.drillBound) return;
-      btn.dataset.drillBound = "1";
-      btn.addEventListener("click", function () {
-        navigateEntityDrill(
-          btn.getAttribute("data-drill-field"),
-          btn.getAttribute("data-drill-value"),
-          null
-        );
-      });
-    });
-    document.querySelectorAll(".insights-hone-chip").forEach(function (btn) {
-      if (btn.dataset.drillBound) return;
-      btn.dataset.drillBound = "1";
-      btn.addEventListener("click", function () {
-        navigateEntityDrill(
-          btn.getAttribute("data-hone-field"),
-          btn.getAttribute("data-hone-value"),
-          null
-        );
-      });
-    });
-  }
-
   function bindChartDrill() {
     if (!window.echarts) return;
     document.querySelectorAll(".clew-echarts-host").forEach(function (host) {
@@ -139,10 +112,24 @@
   }
 
   window.initInsightsHone = function () {
-    bindDrillChips();
     patchIntensityCharts();
     bindChartDrill();
   };
+
+  if (!document.body.dataset.insightsDrillDelegated) {
+    document.body.dataset.insightsDrillDelegated = "1";
+    document.body.addEventListener("click", function (event) {
+      var chip = event.target.closest(".insights-drill-chip, .insights-hone-chip");
+      if (!chip) return;
+      event.preventDefault();
+      event.stopPropagation();
+      navigateEntityDrill(
+        chip.getAttribute("data-drill-field") || chip.getAttribute("data-hone-field"),
+        chip.getAttribute("data-drill-value") || chip.getAttribute("data-hone-value"),
+        null
+      );
+    });
+  }
 
   document.body.addEventListener("htmx:afterSwap", function (e) {
     var t = e.detail && e.detail.target;
@@ -157,4 +144,9 @@
       window.initInsightsHone();
     }
   });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    window.initInsightsHone();
+  });
+  if (document.readyState !== "loading") window.initInsightsHone();
 })();
