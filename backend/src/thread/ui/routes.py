@@ -330,7 +330,7 @@ async def _render_insights_body(
     )
 
 
-def _slice_template_ctx(panel) -> dict:
+def _slice_template_ctx(panel, *, slice_flash: str | None = None) -> dict:
     return {
         "facet_form": panel.facet_form,
         "active_lens": panel.active_lens,
@@ -344,6 +344,12 @@ def _slice_template_ctx(panel) -> dict:
         "explore": panel.explore,
         "sam_explore": panel.sam_explore,
         "sam_form": panel.sam_form,
+        "entity": panel.entity,
+        "entity_profile": panel.entity_profile,
+        "entity_ready": panel.entity_ready,
+        "entity_idle": panel.entity_idle,
+        "entity_error": panel.entity_error,
+        "slice_flash": slice_flash,
         "slice_panel": True,
     }
 
@@ -389,6 +395,9 @@ async def insights_slice_partial(
     extent_competed: str = Query(""),
     type_of_set_aside: str = Query(""),
     run: int = Query(0, ge=0, le=1),
+    entity_kind: str = Query(""),
+    entity_value: str = Query(""),
+    entity_scope: str = Query(""),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
@@ -397,6 +406,9 @@ async def insights_slice_partial(
         settings,
         lens=lens,
         run=bool(run),
+        entity_kind=entity_kind,
+        entity_value=entity_value,
+        entity_scope=entity_scope,
         **_advanced_facet_kwargs(
             agency=agency,
             sub_agency=sub_agency,
@@ -2625,11 +2637,26 @@ async def watchlist_add_recompete(
     request: Request,
     award_key: str = Form(...),
     title: str = Form(""),
-    agency: str = Form(""),
+    watch_agency: str = Form(""),
     naics_code: str = Form(""),
     end_date: str = Form(""),
     obligation: str = Form(""),
     months_to_end: str = Form(""),
+    return_lens: str = Form("recompete"),
+    agency: str = Form(""),
+    sub_agency: str = Form(""),
+    recipient: str = Form(""),
+    naics_codes: str = Form(""),
+    psc_codes: str = Form(""),
+    awarding_office: str = Form(""),
+    funding_office: str = Form(""),
+    recipient_uei: str = Form(""),
+    pop_state: str = Form(""),
+    extent_competed: str = Form(""),
+    type_of_set_aside: str = Form(""),
+    entity_kind: str = Form(""),
+    entity_value: str = Form(""),
+    entity_scope: str = Form(""),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
@@ -2648,18 +2675,49 @@ async def watchlist_add_recompete(
     item = new_recompete_watch_item(
         award_key=award_key,
         title=title,
-        agency=agency,
+        agency=watch_agency,
         naics_code=naics_code.strip() or None,
         end_date=end_date.strip() or None,
         obligation=obl,
         months_to_end=months,
     )
     add_watchlist_item(settings, item)
+    flash = f"Watching {item.title} — see Pulse watchlist."
+    hx_target = (request.headers.get("HX-Target") or "").strip()
+    if hx_target == "insights-slice-panel":
+        lens = (return_lens or "recompete").strip() or "recompete"
+        panel = await build_slice_panel(
+            db,
+            settings,
+            lens=lens,
+            run=True,
+            entity_kind=entity_kind,
+            entity_value=entity_value,
+            entity_scope=entity_scope,
+            **_advanced_facet_kwargs(
+                agency=agency,
+                sub_agency=sub_agency,
+                recipient=recipient,
+                naics_codes=naics_codes,
+                psc_codes=psc_codes,
+                awarding_office=awarding_office,
+                funding_office=funding_office,
+                recipient_uei=recipient_uei,
+                pop_state=pop_state,
+                extent_competed=extent_competed,
+                type_of_set_aside=type_of_set_aside,
+            ),
+        )
+        return templates.TemplateResponse(
+            request,
+            "partials/insights_slice_panel.html",
+            _slice_template_ctx(panel, slice_flash=flash),
+        )
     return await _render_insights_body(
         request,
         db,
         settings,
-        flash=f"Watching {item.title} — see Pulse watchlist.",
+        flash=flash,
     )
 
 

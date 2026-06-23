@@ -6,38 +6,15 @@
   {% elif explore.status == 'loading' %}
   <p class="insights-explore-msg">{{ explore.error or 'Intel loading…' }}</p>
   {% elif explore.rows|length > 0 %}
+  {% if entity and entity.value %}
+  <p class="text-[10px] text-slate-500 mb-2 font-mono">Scoped to <span class="text-neon-cyan">{{ entity.display_label }}</span> within active slice</p>
+  {% endif %}
   <p class="insights-explore-meta">{{ explore.summary }} · {{ explore.rows|length }} expiring (18 mo)</p>
-  <ul class="insights-result-list">
-    {% for row in explore.rows %}
-    <li class="insights-result-row">
-      <div class="insights-result-main">
-        <span class="insights-result-title">{{ row.recipient or 'Unknown recipient' }}</span>
-        <span class="insights-result-sub">{{ row.agency or 'Unknown agency' }}</span>
-        <span class="insights-result-mono">
-          {{ row.end_date|datefmt }} · {{ row.months_to_end|urgency }} · {{ row.obligation|money }}
-          {% if row.naics_code %} · {{ row.naics_code }}{% endif %}
-        </span>
-      </div>
-      <div class="flex flex-col gap-1 shrink-0">
-      {% with recipient=row.recipient or '', agency=row.agency or '', naics_codes=row.naics_code or '', mode='teaming', run='1', extra_class='' %}
-      {% include "partials/clew_link.html" %}
-      {% endwith %}
-      <form hx-post="/watchlist/add/recompete" hx-target="#insights-body" hx-swap="outerHTML">
-        <input type="hidden" name="award_key" value="{{ row.award_key }}" />
-        <input type="hidden" name="title" value="{{ row.recipient or '' }}" />
-        <input type="hidden" name="agency" value="{{ row.agency or '' }}" />
-        <input type="hidden" name="naics_code" value="{{ row.naics_code or '' }}" />
-        <input type="hidden" name="end_date" value="{{ row.end_date or '' }}" />
-        <input type="hidden" name="obligation" value="{{ row.obligation if row.obligation is not none else '' }}" />
-        <input type="hidden" name="months_to_end" value="{{ row.months_to_end if row.months_to_end is not none else '' }}" />
-        <button type="submit" class="btn btn-primary" title="Add to Pulse watchlist">Watch</button>
-      </form>
-      </div>
-    </li>
-    {% endfor %}
-  </ul>
+  {% with rows=explore.rows, active_lens=active_lens %}
+  {% include "partials/insights_recompete_rows.html" %}
+  {% endwith %}
   {% elif explore.status == 'empty' %}
   <p class="insights-explore-meta">{{ explore.summary }}</p>
-  <p class="insights-idle-hint">No expiring contracts in 18 mo window.</p>
+  <p class="insights-idle-hint">No expiring contracts in 18 mo window{% if entity and entity.value %} for {{ entity.display_label }}{% endif %}.</p>
   {% endif %}
 </div>

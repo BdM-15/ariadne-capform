@@ -1,0 +1,24 @@
+<div class="insights-entity-recompete mt-4 pt-3 border-t border-edge/50">
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+    <p class="text-[10px] uppercase tracking-wide text-slate-600 m-0">
+      Expiring in slice (18 mo)
+      {% if entity %} · {{ entity.display_label }}{% endif %}
+    </p>
+    <button
+      type="button"
+      class="btn btn-ghost btn-compact text-[10px] text-neon-magenta"
+      hx-get="/partials/insights/slice?lens=recompete&run=1"
+      hx-target="#insights-slice-panel"
+      hx-swap="outerHTML"
+      hx-include="#insights-radar-form, #insights-entity-state"
+    >Recompete lens →</button>
+  </div>
+  {% if recompete_rows|length > 0 %}
+  <p class="insights-explore-meta text-[10px] mb-2">{{ recompete_rows|length }} expiring row{{ 's' if recompete_rows|length != 1 else '' }}</p>
+  {% with rows=recompete_rows, active_lens=active_lens %}
+  {% include "partials/insights_recompete_rows.html" %}
+  {% endwith %}
+  {% else %}
+  <p class="insights-idle-hint text-[10px]">No expiring contracts for this entity in the next 18 months.</p>
+  {% endif %}
+</div>
