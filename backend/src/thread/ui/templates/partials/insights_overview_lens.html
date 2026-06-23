@@ -23,25 +23,25 @@
   {% endif %}
   <div class="insights-overview-grid">
     {% if charts.intensity %}
-    <div class="clew-echarts-host insights-echarts-hero" data-chart-key="intensity" data-chart-option="{{ charts.intensity | tojson | e }}"></div>
+    <div class="clew-echarts-host insights-echarts-hero" data-chart-key="intensity" data-chart-option='{{ charts.intensity | tojson }}'></div>
     {% endif %}
     <div class="insights-overview-secondary">
       {% if charts.sub_flow %}
-      <div class="clew-echarts-host insights-echarts-sub" data-chart-key="sub_flow" data-chart-option="{{ charts.sub_flow | tojson | e }}"></div>
+      <div class="clew-echarts-host insights-echarts-sub" data-chart-key="sub_flow" data-chart-option='{{ charts.sub_flow | tojson }}'></div>
       {% endif %}
       {% if charts.spend_trend %}
-      <div class="clew-echarts-host insights-echarts-sub" data-chart-key="spend_trend" data-chart-option="{{ charts.spend_trend | tojson | e }}"></div>
+      <div class="clew-echarts-host insights-echarts-sub" data-chart-key="spend_trend" data-chart-option='{{ charts.spend_trend | tojson }}'></div>
       {% endif %}
     </div>
     <div class="insights-overview-tertiary">
       {% if charts.set_aside %}
-      <div class="clew-echarts-host insights-echarts-compact" data-chart-key="set_aside" data-chart-option="{{ charts.set_aside | tojson | e }}"></div>
+      <div class="clew-echarts-host insights-echarts-compact" data-chart-key="set_aside" data-chart-option='{{ charts.set_aside | tojson }}'></div>
       {% endif %}
       {% if charts.extent_competed %}
-      <div class="clew-echarts-host insights-echarts-compact" data-chart-key="extent_competed" data-chart-option="{{ charts.extent_competed | tojson | e }}"></div>
+      <div class="clew-echarts-host insights-echarts-compact" data-chart-key="extent_competed" data-chart-option='{{ charts.extent_competed | tojson }}'></div>
       {% endif %}
       {% if charts.top_recipients %}
-      <div class="clew-echarts-host insights-echarts-compact" data-chart-key="top_recipients" data-chart-option="{{ charts.top_recipients | tojson | e }}"></div>
+      <div class="clew-echarts-host insights-echarts-compact" data-chart-key="top_recipients" data-chart-option='{{ charts.top_recipients | tojson }}'></div>
       {% endif %}
     </div>
   </div>

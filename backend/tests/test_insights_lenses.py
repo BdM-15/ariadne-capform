@@ -76,6 +76,37 @@ def test_insights_slice_partial_idle():
     assert "insights-lens-tabs" in res.text
 
 
+def test_insights_slice_chart_options_valid_json():
+    """Chart options must use single-quoted attrs — double-quoted tojson breaks HTML."""
+    import json
+    import re
+    import socket
+    from urllib.parse import urlparse
+
+    from thread.config import Settings
+
+    try:
+        url = Settings().database_url
+        host = urlparse(url.replace("+asyncpg", "")).hostname or "127.0.0.1"
+        port = urlparse(url.replace("+asyncpg", "")).port or 5432
+        with socket.create_connection((host, port), timeout=2):
+            pass
+    except OSError:
+        pytest.skip("Postgres not ready")
+
+    client = TestClient(create_app())
+    res = client.get(
+        "/partials/insights/slice",
+        params={"run": 1, "lens": "overview", "naics_codes": "561210"},
+    )
+    assert res.status_code == 200
+    hosts = re.findall(r"data-chart-option='([^']*)'", res.text)
+    assert len(hosts) >= 3
+    for raw in hosts:
+        option = json.loads(raw)
+        assert option.get("series")
+
+
 def test_insights_slice_partial_requires_facets():
     client = TestClient(create_app())
     res = client.get("/partials/insights/slice?lens=overview&run=1")
@@ -100,7 +131,7 @@ def test_insights_page_renders_live_explore():
     assert "insights-frame" in html
     assert "insights-radar-form" in html
     assert "Run slice" in html
-    assert "Live (SAM)" in html
+    assert "Lens results" in html
     assert "Activate" not in html
     assert "Save current search" in html
     assert "guide-modal" in html

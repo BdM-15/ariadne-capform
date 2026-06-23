@@ -29,8 +29,8 @@
       <p class="text-[11px] text-slate-500 mb-3">Set-aside and competition mix for the active slice.</p>
       {% if overview and overview.charts %}
       <div class="insights-overview-tertiary">
-        <div class="clew-echarts-host insights-echarts-compact" data-chart-option="{{ overview.charts.set_aside | tojson | e }}"></div>
-        <div class="clew-echarts-host insights-echarts-compact" data-chart-option="{{ overview.charts.extent_competed | tojson | e }}"></div>
+        <div class="clew-echarts-host insights-echarts-compact" data-chart-option='{{ overview.charts.set_aside | tojson }}'></div>
+        <div class="clew-echarts-host insights-echarts-compact" data-chart-option='{{ overview.charts.extent_competed | tojson }}'></div>
       </div>
       {% else %}
       <p class="insights-idle-hint">Run slice on Overview first.</p>

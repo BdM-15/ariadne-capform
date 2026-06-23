@@ -100,6 +100,12 @@
 
   window.addEventListener("resize", resizeAll);
 
+  function scheduleChartInit() {
+    window.requestAnimationFrame(function () {
+      window.initClewCharts();
+    });
+  }
+
   document.body.addEventListener("htmx:afterSwap", function (e) {
     var t = e.detail && e.detail.target;
     if (!t) return;
@@ -108,7 +114,18 @@
       t.id === "insights-slice-panel" ||
       (t.closest && (t.closest("#clew-results-panel") || t.closest("#insights-slice-panel")))
     ) {
-      window.initClewCharts();
+      scheduleChartInit();
+    }
+  });
+
+  document.body.addEventListener("htmx:afterSettle", function (e) {
+    var t = e.detail && e.detail.target;
+    if (!t) return;
+    if (
+      t.id === "insights-slice-panel" ||
+      (t.closest && t.closest("#insights-slice-panel"))
+    ) {
+      scheduleChartInit();
     }
   });
 

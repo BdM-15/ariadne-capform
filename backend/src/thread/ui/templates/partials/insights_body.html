@@ -96,11 +96,7 @@
           </span>
           <i data-lucide="bar-chart-3" class="w-4 h-4 text-neon-cyan shrink-0"></i>
           <div class="min-w-0">
-            <div class="insights-frame-title-row">
-              <span class="pulse-panel-kicker text-neon-cyan/80">Market picture</span>
-              <span class="pulse-panel-title text-neon-cyan">Lens results</span>
-            </div>
-            <p class="insights-frame-sub">Overview · Recompete · Competition · Trace · Live (SAM)</p>
+            <span class="pulse-panel-title text-neon-cyan">Lens results</span>
           </div>
         </div>
       </summary>
@@ -113,14 +109,7 @@
         {% include "partials/insights_slice_panel.html" %}
         {% else %}
         <div id="insights-slice-panel" class="insights-slice-panel">
-          <nav class="insights-lens-tabs flex flex-wrap gap-1 mb-3" aria-label="Insight lenses">
-            <span class="btn btn-compact text-xs btn-primary" aria-current="page">Overview</span>
-            <span class="btn btn-compact text-xs btn-ghost opacity-60">Recompete</span>
-            <span class="btn btn-compact text-xs btn-ghost opacity-60">Competition</span>
-            <span class="btn btn-compact text-xs btn-ghost opacity-60">Trace</span>
-            <span class="btn btn-compact text-xs btn-ghost opacity-60">Live (SAM)</span>
-          </nav>
-          <p class="insights-idle-hint">Set facets in the card above, then <strong>Run slice</strong>.</p>
+          <p class="insights-idle-hint">Set facets above, then <strong>Run slice</strong>.</p>
         </div>
         {% endif %}
       </div>
