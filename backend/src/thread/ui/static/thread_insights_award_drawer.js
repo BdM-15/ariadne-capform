@@ -37,28 +37,6 @@
       "</div>";
   }
 
-  function bindAwardRowClicks() {
-    document.querySelectorAll("[data-insights-award-open]").forEach(function (el) {
-      if (el.dataset.awardOpenBound) return;
-      el.dataset.awardOpenBound = "1";
-      el.addEventListener("click", function (event) {
-        if (event.target.closest("button, a, form")) return;
-        var key = el.getAttribute("data-award-key");
-        if (key) window.openInsightsAwardDrawer(key);
-      });
-    });
-    document.querySelectorAll("[data-insights-award-key]").forEach(function (btn) {
-      if (btn.dataset.awardOpenBound) return;
-      btn.dataset.awardOpenBound = "1";
-      btn.addEventListener("click", function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        var key = btn.getAttribute("data-insights-award-key");
-        if (key) window.openInsightsAwardDrawer(key);
-      });
-    });
-  }
-
   function afterDrawerSwap() {
     if (window.initInsightsHone) window.initInsightsHone();
     if (window.lucide) window.lucide.createIcons();
@@ -73,10 +51,10 @@
     awardKey = (awardKey || "").trim();
     if (!awardKey) {
       showDrawerError("No award key on this row — run slice again to refresh cached expiring data.");
-      var r = root();
-      if (r) {
-        r.classList.remove("task-drawer-hidden");
-        r.setAttribute("aria-hidden", "false");
+      var r0 = root();
+      if (r0) {
+        r0.classList.remove("task-drawer-hidden");
+        r0.setAttribute("aria-hidden", "false");
         document.body.classList.add("task-drawer-open");
       }
       return;
@@ -119,15 +97,26 @@
     r.classList.add("task-drawer-hidden");
     r.setAttribute("aria-hidden", "true");
     document.body.classList.remove("task-drawer-open");
+    if (window.persistInsightsSession) window.persistInsightsSession();
   };
+
+  document.body.addEventListener("click", function (event) {
+    var profileBtn = event.target.closest("[data-insights-award-key]");
+    if (profileBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      var profileKey = profileBtn.getAttribute("data-insights-award-key");
+      if (profileKey) window.openInsightsAwardDrawer(profileKey);
+      return;
+    }
+    var row = event.target.closest("[data-insights-award-open]");
+    if (!row) return;
+    if (event.target.closest("button, a, form")) return;
+    var rowKey = row.getAttribute("data-award-key");
+    if (rowKey) window.openInsightsAwardDrawer(rowKey);
+  });
 
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && drawerOpen()) closeInsightsAwardDrawer();
   });
-
-  document.body.addEventListener("htmx:afterSwap", function () {
-    bindAwardRowClicks();
-  });
-
-  bindAwardRowClicks();
 })();

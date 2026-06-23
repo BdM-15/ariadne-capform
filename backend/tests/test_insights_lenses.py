@@ -190,6 +190,8 @@ def test_insights_page_renders_live_explore():
     assert "insights-award-drawer-root" in html
     assert "thread_insights_award_drawer" in html
     assert "thread_insights_session.js" in html
+    assert 'id="insights-clear-btn"' in html
+    assert ">Clear</button>" in html
     assert "NAICS portfolio config" in html
     assert "Add at least one facet" not in html
     assert "Shell stub" not in html

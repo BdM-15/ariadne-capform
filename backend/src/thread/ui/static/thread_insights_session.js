@@ -129,11 +129,48 @@
     });
     var card = document.getElementById("insights-lenses-card");
     if (card) card.open = true;
-    if (session.award_key && window.openInsightsAwardDrawer) {
-      window.setTimeout(function () {
-        window.openInsightsAwardDrawer(session.award_key);
-      }, 400);
+  };
+
+  var FACET_FIELDS = [
+    "agency",
+    "sub_agency",
+    "recipient",
+    "naics_codes",
+    "psc_codes",
+    "awarding_office",
+    "funding_office",
+    "recipient_uei",
+    "pop_state",
+    "extent_competed",
+    "type_of_set_aside",
+  ];
+
+  window.clearInsightsExplore = function () {
+    try {
+      localStorage.removeItem(SESSION_KEY);
+    } catch (_) {}
+    window._insightsSessionRestored = true;
+
+    var form = insightsForm();
+    if (form) {
+      FACET_FIELDS.forEach(function (name) {
+        var input = form.querySelector('[name="' + name + '"]');
+        if (input) input.value = "";
+      });
     }
+    var lens = document.getElementById("insights-active-lens");
+    if (lens) lens.value = "overview";
+    if (window.closeInsightsAwardDrawer) window.closeInsightsAwardDrawer();
+
+    var panel = document.getElementById("insights-slice-panel");
+    if (panel) {
+      panel.outerHTML =
+        '<div id="insights-slice-panel" class="insights-slice-panel" data-active-lens="overview" data-has-slice="0">' +
+        '<p class="insights-idle-hint">Set facets above, then <strong>Run slice</strong>.</p>' +
+        "</div>";
+    }
+    var card = document.getElementById("insights-lenses-card");
+    if (card) card.open = true;
   };
 
   function scheduleInsightsRestore() {
@@ -170,6 +207,29 @@
     }
   });
 
-  document.addEventListener("DOMContentLoaded", scheduleInsightsRestore);
-  if (document.readyState !== "loading") scheduleInsightsRestore();
+  function bindClearButton() {
+    var btn = document.getElementById("insights-clear-btn");
+    if (!btn || btn.dataset.insightsClearBound) return;
+    btn.dataset.insightsClearBound = "1";
+    btn.addEventListener("click", function () {
+      window.clearInsightsExplore();
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    scheduleInsightsRestore();
+    bindClearButton();
+  });
+  if (document.readyState !== "loading") {
+    scheduleInsightsRestore();
+    bindClearButton();
+  }
+
+  document.body.addEventListener("htmx:afterSwap", function (e) {
+    var t = e.detail && e.detail.target;
+    if (!t) return;
+    if (t.id === "insights-body" || (t.closest && t.closest("#insights-body"))) {
+      bindClearButton();
+    }
+  });
 })();

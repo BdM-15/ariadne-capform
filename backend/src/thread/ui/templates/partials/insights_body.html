@@ -50,6 +50,12 @@
           <input class="thread-input insights-facet-input" name="agency" placeholder="Agency" value="{{ facet_form.agency if facet_form else '' }}" />
           <input class="thread-input insights-facet-input insights-facet-input-wide" name="recipient" placeholder="Recipient" value="{{ facet_form.recipient if facet_form else '' }}" />
           <button type="submit" class="btn btn-hero-magenta btn-compact insights-facet-run">Run slice</button>
+          <button
+            type="button"
+            id="insights-clear-btn"
+            class="btn btn-ghost btn-compact insights-facet-clear"
+            title="Clear facets and slice results — start a new search"
+          >Clear</button>
           <p id="insights-slice-working" class="insights-slice-working htmx-indicator text-[10px] font-mono text-neon-cyan m-0" aria-live="polite">
             Running…
           </p>
