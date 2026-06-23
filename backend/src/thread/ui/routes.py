@@ -441,13 +441,23 @@ async def insights_award_partial(
     from thread.intel.pg_queries import get_award_profile
 
     key = award_key.strip()
-    award = await get_award_profile(db, key) if key else None
+    award = None
+    award_error: str | None = None
+    if not key:
+        award_error = "Missing award key — re-run slice to refresh expiring rows."
+    else:
+        try:
+            award = await get_award_profile(db, key)
+        except Exception as exc:  # pragma: no cover — surfaced in drawer
+            award_error = f"Database error loading award: {exc}"
+        if award is None and award_error is None:
+            award_error = f"Award not found for key {key[:48]}…"
     return templates.TemplateResponse(
         request,
         "partials/insights_award_panel.html",
         {
             "award": award,
-            "award_error": None if award else ("Award not found." if key else "Missing award key."),
+            "award_error": award_error,
         },
     )
 

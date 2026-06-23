@@ -120,6 +120,10 @@ def test_insights_award_partial():
     assert missing.status_code == 200
     assert "Award not found" in missing.text
 
+    route = client.get("/partials/insights/award")
+    assert route.status_code == 200
+    assert "Missing award key" in route.text
+
 
 def test_insights_slice_has_entity_tabs():
     client = TestClient(create_app())

@@ -24,6 +24,19 @@
     }
   }
 
+  function showDrawerError(message) {
+    var b = body();
+    if (!b) return;
+    b.innerHTML =
+      '<div class="p-4 space-y-2">' +
+      '<p class="text-neon-amber text-xs font-semibold">Could not load award profile.</p>' +
+      '<p class="text-[11px] text-slate-500 font-mono">' +
+      message +
+      "</p>" +
+      '<p class="text-[10px] text-slate-600">Restart <code class="font-mono">python app.py</code> after pull if you see HTTP 404.</p>' +
+      "</div>";
+  }
+
   function bindAwardRowClicks() {
     document.querySelectorAll("[data-insights-award-open]").forEach(function (el) {
       if (el.dataset.awardOpenBound) return;
@@ -53,28 +66,45 @@
   }
 
   window.openInsightsAwardDrawer = function (awardKey) {
-    if (!awardKey) return;
+    awardKey = (awardKey || "").trim();
+    if (!awardKey) {
+      showDrawerError("No award key on this row — run slice again to refresh cached expiring data.");
+      var r = root();
+      if (r) {
+        r.classList.remove("task-drawer-hidden");
+        r.setAttribute("aria-hidden", "false");
+        document.body.classList.add("task-drawer-open");
+      }
+      return;
+    }
     var r = root();
     var b = body();
-    if (!r || !b) return;
+    if (!r || !b) {
+      showDrawerError("Contract drawer shell missing — hard refresh /insights (Ctrl+Shift+R).");
+      return;
+    }
     r.classList.remove("task-drawer-hidden");
     r.setAttribute("aria-hidden", "false");
     document.body.classList.add("task-drawer-open");
     b.innerHTML = '<p class="insights-idle-hint p-4 text-neon-cyan">Loading contract profile…</p>';
     fetch("/partials/insights/award?award_key=" + encodeURIComponent(awardKey), {
       headers: { Accept: "text/html" },
+      credentials: "same-origin",
     })
       .then(function (res) {
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        return res.text();
+        return res.text().then(function (html) {
+          if (!res.ok) {
+            throw new Error("HTTP " + res.status + (html ? " — " + html.slice(0, 120) : ""));
+          }
+          return html;
+        });
       })
       .then(function (html) {
         b.innerHTML = html;
         afterDrawerSwap();
       })
-      .catch(function () {
-        b.innerHTML =
-          '<div class="p-4 space-y-2"><p class="text-neon-amber text-xs font-semibold">Could not load award profile.</p></div>';
+      .catch(function (err) {
+        showDrawerError(err && err.message ? err.message : "Network error");
       });
   };
 
