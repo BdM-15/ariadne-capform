@@ -12,6 +12,16 @@ from thread.config import Settings
 from thread.intel.sql_expressions import AGENCY_EXPR, naics_filter
 
 
+ADVANCED_FACET_FIELDS: tuple[str, ...] = (
+    "awarding_office",
+    "funding_office",
+    "recipient_uei",
+    "pop_state",
+    "extent_competed",
+    "type_of_set_aside",
+)
+
+
 @dataclass(frozen=True)
 class InsightFacetQuery:
     """Operator-defined search — NAICS is one optional facet among many."""
@@ -23,11 +33,27 @@ class InsightFacetQuery:
     sub_agency: str | None = None
     recipient: str | None = None
     psc_codes: tuple[str, ...] = ()
+    awarding_office: str | None = None
+    funding_office: str | None = None
+    recipient_uei: str | None = None
+    pop_state: str | None = None
+    extent_competed: str | None = None
+    type_of_set_aside: str | None = None
     description: str = ""
 
     def has_filters(self) -> bool:
         return bool(
-            self.naics_codes or self.agency or self.sub_agency or self.recipient or self.psc_codes
+            self.naics_codes
+            or self.agency
+            or self.sub_agency
+            or self.recipient
+            or self.psc_codes
+            or self.awarding_office
+            or self.funding_office
+            or self.recipient_uei
+            or self.pop_state
+            or self.extent_competed
+            or self.type_of_set_aside
         )
 
 
@@ -65,6 +91,13 @@ def query_from_dict(raw: dict[str, Any]) -> InsightFacetQuery | None:
         if raw.get("recipient")
         else (str(raw["incumbent"]).strip() or None) if raw.get("incumbent") else None
     )
+    def _opt_str(key: str) -> str | None:
+        val = raw.get(key)
+        if val is None:
+            return None
+        text = str(val).strip()
+        return text or None
+
     q = InsightFacetQuery(
         id=query_id,
         name=name,
@@ -73,6 +106,12 @@ def query_from_dict(raw: dict[str, Any]) -> InsightFacetQuery | None:
         sub_agency=sub_agency,
         recipient=recipient,
         psc_codes=psc,
+        awarding_office=_opt_str("awarding_office"),
+        funding_office=_opt_str("funding_office"),
+        recipient_uei=_opt_str("recipient_uei"),
+        pop_state=_opt_str("pop_state"),
+        extent_competed=_opt_str("extent_competed"),
+        type_of_set_aside=_opt_str("type_of_set_aside"),
         description=str(raw.get("description") or ""),
     )
     return q if q.has_filters() else None
@@ -100,6 +139,12 @@ def _write_queries(settings: Settings, queries: list[InsightFacetQuery]) -> None
             "sub_agency": q.sub_agency,
             "recipient": q.recipient,
             "psc_codes": list(q.psc_codes),
+            "awarding_office": q.awarding_office,
+            "funding_office": q.funding_office,
+            "recipient_uei": q.recipient_uei,
+            "pop_state": q.pop_state,
+            "extent_competed": q.extent_competed,
+            "type_of_set_aside": q.type_of_set_aside,
             "description": q.description,
         }
         for q in queries
@@ -151,6 +196,12 @@ def new_insight_query_from_form(
     recipient: str = "",
     naics_codes: str = "",
     psc_codes: str = "",
+    awarding_office: str = "",
+    funding_office: str = "",
+    recipient_uei: str = "",
+    pop_state: str = "",
+    extent_competed: str = "",
+    type_of_set_aside: str = "",
     description: str = "",
 ) -> InsightFacetQuery | None:
     raw = {
@@ -160,6 +211,12 @@ def new_insight_query_from_form(
         "recipient": recipient.strip() or None,
         "naics_codes": naics_codes.strip(),
         "psc_codes": psc_codes.strip(),
+        "awarding_office": awarding_office.strip() or None,
+        "funding_office": funding_office.strip() or None,
+        "recipient_uei": recipient_uei.strip() or None,
+        "pop_state": pop_state.strip() or None,
+        "extent_competed": extent_competed.strip() or None,
+        "type_of_set_aside": type_of_set_aside.strip() or None,
         "description": description.strip(),
     }
     existing = {q.id for q in load_insight_queries(settings)}
@@ -221,6 +278,18 @@ def describe_query(query: InsightFacetQuery | None) -> str:
         parts.append(f"NAICS: {', '.join(query.naics_codes)}")
     if query.psc_codes:
         parts.append(f"PSC: {', '.join(query.psc_codes)}")
+    if query.awarding_office:
+        parts.append(f"Awarding office: {query.awarding_office}")
+    if query.funding_office:
+        parts.append(f"Funding office: {query.funding_office}")
+    if query.recipient_uei:
+        parts.append(f"UEI: {query.recipient_uei}")
+    if query.pop_state:
+        parts.append(f"POP state: {query.pop_state}")
+    if query.extent_competed:
+        parts.append(f"Competition: {query.extent_competed}")
+    if query.type_of_set_aside:
+        parts.append(f"Set-aside: {query.type_of_set_aside}")
     return " · ".join(parts) if parts else query.name
 
 
@@ -257,5 +326,31 @@ def build_facet_sql(query: InsightFacetQuery) -> tuple[str, dict[str, Any]]:
     if query.recipient:
         clauses.append("AND recipient_name ILIKE :recipient")
         params["recipient"] = f"%{query.recipient}%"
+
+    if query.awarding_office:
+        clauses.append("AND awarding_office_name ILIKE :awarding_office")
+        params["awarding_office"] = f"%{query.awarding_office}%"
+
+    if query.funding_office:
+        clauses.append("AND funding_office_name ILIKE :funding_office")
+        params["funding_office"] = f"%{query.funding_office}%"
+
+    if query.recipient_uei:
+        clauses.append("AND recipient_uei ILIKE :recipient_uei")
+        params["recipient_uei"] = f"%{query.recipient_uei}%"
+
+    if query.pop_state:
+        clauses.append(
+            "AND primary_place_of_performance_state_code ILIKE :pop_state"
+        )
+        params["pop_state"] = f"%{query.pop_state}%"
+
+    if query.extent_competed:
+        clauses.append("AND extent_competed ILIKE :extent_competed")
+        params["extent_competed"] = f"%{query.extent_competed}%"
+
+    if query.type_of_set_aside:
+        clauses.append("AND type_of_set_aside ILIKE :type_of_set_aside")
+        params["type_of_set_aside"] = f"%{query.type_of_set_aside}%"
 
     return " ".join(clauses), params

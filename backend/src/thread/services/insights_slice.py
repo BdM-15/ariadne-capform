@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.config import Settings
-from thread.intel.facet_query import InsightFacetQuery
+from thread.intel.facet_query import ADVANCED_FACET_FIELDS, InsightFacetQuery
 from thread.services.insights_explore import RadarExploreResult, SamExploreResult, explore_radar, explore_sam
 from thread.services.insights_overview import OverviewResult, build_overview
 
@@ -44,14 +44,23 @@ def facet_form_from_params(
     recipient: str = "",
     naics_codes: str = "",
     psc_codes: str = "",
+    awarding_office: str = "",
+    funding_office: str = "",
+    recipient_uei: str = "",
+    pop_state: str = "",
+    extent_competed: str = "",
+    type_of_set_aside: str = "",
 ) -> dict[str, str]:
-    return {
+    form = {
         "agency": agency.strip(),
         "sub_agency": sub_agency.strip(),
         "recipient": recipient.strip(),
         "naics_codes": naics_codes.strip(),
         "psc_codes": psc_codes.strip(),
     }
+    for field in ADVANCED_FACET_FIELDS:
+        form[field] = (locals().get(field) or "").strip()
+    return form
 
 
 async def build_slice_panel(
@@ -64,6 +73,12 @@ async def build_slice_panel(
     recipient: str = "",
     naics_codes: str = "",
     psc_codes: str = "",
+    awarding_office: str = "",
+    funding_office: str = "",
+    recipient_uei: str = "",
+    pop_state: str = "",
+    extent_competed: str = "",
+    type_of_set_aside: str = "",
     run: bool = False,
     sam_title: str = "",
     sam_agency_keyword: str = "",
@@ -81,28 +96,39 @@ async def build_slice_panel(
         recipient=recipient,
         naics_codes=naics_codes,
         psc_codes=psc_codes,
+        awarding_office=awarding_office,
+        funding_office=funding_office,
+        recipient_uei=recipient_uei,
+        pop_state=pop_state,
+        extent_competed=extent_competed,
+        type_of_set_aside=type_of_set_aside,
     )
+    facet_kwargs = {
+        "agency": agency,
+        "sub_agency": sub_agency,
+        "recipient": recipient,
+        "naics_codes": naics_codes,
+        "psc_codes": psc_codes,
+        "awarding_office": awarding_office,
+        "funding_office": funding_office,
+        "recipient_uei": recipient_uei,
+        "pop_state": pop_state,
+        "extent_competed": extent_competed,
+        "type_of_set_aside": type_of_set_aside,
+    }
 
     overview_result: OverviewResult = await build_overview(
         session,
         settings,
-        agency=agency,
-        sub_agency=sub_agency,
-        recipient=recipient,
-        naics_codes=naics_codes,
-        psc_codes=psc_codes,
         run=run,
+        **facet_kwargs,
     )
 
     explore = await explore_radar(
         session,
         settings,
-        agency=agency,
-        sub_agency=sub_agency,
-        recipient=recipient,
-        naics_codes=naics_codes,
-        psc_codes=psc_codes,
         run=run,
+        **facet_kwargs,
     )
 
     sam_form = {

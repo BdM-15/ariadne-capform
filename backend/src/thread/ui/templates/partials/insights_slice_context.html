@@ -20,5 +20,14 @@
   <span class="pill pill-compact border border-edge text-slate-400">PSC {{ code }}</span>
   {% endfor %}
   {% endif %}
+  {% if query.awarding_office %}
+  <span class="pill pill-compact border border-edge text-slate-400">Office: {{ query.awarding_office }}</span>
+  {% endif %}
+  {% if query.recipient_uei %}
+  <span class="pill pill-compact border border-edge text-slate-400">UEI: {{ query.recipient_uei }}</span>
+  {% endif %}
+  {% if query.pop_state %}
+  <span class="pill pill-compact border border-edge text-slate-400">POP: {{ query.pop_state }}</span>
+  {% endif %}
 </div>
 {% endif %}

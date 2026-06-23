@@ -382,6 +382,12 @@ async def insights_slice_partial(
     recipient: str = Query(""),
     naics_codes: str = Query(""),
     psc_codes: str = Query(""),
+    awarding_office: str = Query(""),
+    funding_office: str = Query(""),
+    recipient_uei: str = Query(""),
+    pop_state: str = Query(""),
+    extent_competed: str = Query(""),
+    type_of_set_aside: str = Query(""),
     run: int = Query(0, ge=0, le=1),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -390,12 +396,20 @@ async def insights_slice_partial(
         db,
         settings,
         lens=lens,
-        agency=agency,
-        sub_agency=sub_agency,
-        recipient=recipient,
-        naics_codes=naics_codes,
-        psc_codes=psc_codes,
         run=bool(run),
+        **_advanced_facet_kwargs(
+            agency=agency,
+            sub_agency=sub_agency,
+            recipient=recipient,
+            naics_codes=naics_codes,
+            psc_codes=psc_codes,
+            awarding_office=awarding_office,
+            funding_office=funding_office,
+            recipient_uei=recipient_uei,
+            pop_state=pop_state,
+            extent_competed=extent_competed,
+            type_of_set_aside=type_of_set_aside,
+        ),
     )
     return templates.TemplateResponse(
         request,
@@ -428,6 +442,12 @@ async def insights_radar_explore_partial(
     recipient: str = Query(""),
     naics_codes: str = Query(""),
     psc_codes: str = Query(""),
+    awarding_office: str = Query(""),
+    funding_office: str = Query(""),
+    recipient_uei: str = Query(""),
+    pop_state: str = Query(""),
+    extent_competed: str = Query(""),
+    type_of_set_aside: str = Query(""),
     run: int = Query(0, ge=0, le=1),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -435,12 +455,20 @@ async def insights_radar_explore_partial(
     explore = await explore_radar(
         db,
         settings,
-        agency=agency,
-        sub_agency=sub_agency,
-        recipient=recipient,
-        naics_codes=naics_codes,
-        psc_codes=psc_codes,
         run=bool(run),
+        **_advanced_facet_kwargs(
+            agency=agency,
+            sub_agency=sub_agency,
+            recipient=recipient,
+            naics_codes=naics_codes,
+            psc_codes=psc_codes,
+            awarding_office=awarding_office,
+            funding_office=funding_office,
+            recipient_uei=recipient_uei,
+            pop_state=pop_state,
+            extent_competed=extent_competed,
+            type_of_set_aside=type_of_set_aside,
+        ),
     )
     return templates.TemplateResponse(
         request,
@@ -449,13 +477,19 @@ async def insights_radar_explore_partial(
     )
 
 
-def _clew_facet_form(
+def _advanced_facet_kwargs(
     *,
     agency: str = "",
     sub_agency: str = "",
     recipient: str = "",
     naics_codes: str = "",
     psc_codes: str = "",
+    awarding_office: str = "",
+    funding_office: str = "",
+    recipient_uei: str = "",
+    pop_state: str = "",
+    extent_competed: str = "",
+    type_of_set_aside: str = "",
 ) -> dict[str, str]:
     return {
         "agency": agency,
@@ -463,7 +497,17 @@ def _clew_facet_form(
         "recipient": recipient,
         "naics_codes": naics_codes,
         "psc_codes": psc_codes,
+        "awarding_office": awarding_office,
+        "funding_office": funding_office,
+        "recipient_uei": recipient_uei,
+        "pop_state": pop_state,
+        "extent_competed": extent_competed,
+        "type_of_set_aside": type_of_set_aside,
     }
+
+
+def _clew_facet_form(**kwargs: str) -> dict[str, str]:
+    return _advanced_facet_kwargs(**kwargs)
 
 
 @router.get("/partials/clew/drawer", response_class=HTMLResponse)
@@ -474,34 +518,37 @@ async def clew_drawer_partial(
     recipient: str = Query(""),
     naics_codes: str = Query(""),
     psc_codes: str = Query(""),
+    awarding_office: str = Query(""),
+    funding_office: str = Query(""),
+    recipient_uei: str = Query(""),
+    pop_state: str = Query(""),
+    extent_competed: str = Query(""),
+    type_of_set_aside: str = Query(""),
     mode: str = Query("money_flow"),
     run: int = Query(0, ge=0, le=1),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    drilldown = await build_drilldown(
-        db,
-        settings,
+    facets = _advanced_facet_kwargs(
         agency=agency,
         sub_agency=sub_agency,
         recipient=recipient,
         naics_codes=naics_codes,
         psc_codes=psc_codes,
-        mode=mode,
-        run=bool(run),
+        awarding_office=awarding_office,
+        funding_office=funding_office,
+        recipient_uei=recipient_uei,
+        pop_state=pop_state,
+        extent_competed=extent_competed,
+        type_of_set_aside=type_of_set_aside,
     )
+    drilldown = await build_drilldown(db, settings, mode=mode, run=bool(run), **facets)
     return templates.TemplateResponse(
         request,
         "partials/clew_drawer_panel.html",
         {
             "drilldown": drilldown,
-            "facet_form": _clew_facet_form(
-                agency=agency,
-                sub_agency=sub_agency,
-                recipient=recipient,
-                naics_codes=naics_codes,
-                psc_codes=psc_codes,
-            ),
+            "facet_form": _clew_facet_form(**facets),
             "clew_guide": guide_for_clew(),
         },
     )
@@ -515,43 +562,45 @@ async def clew_queue_review(
     recipient: str = Form(""),
     naics_codes: str = Form(""),
     psc_codes: str = Form(""),
+    awarding_office: str = Form(""),
+    funding_office: str = Form(""),
+    recipient_uei: str = Form(""),
+    pop_state: str = Form(""),
+    extent_competed: str = Form(""),
+    type_of_set_aside: str = Form(""),
     mode: str = Form("money_flow"),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    payload = {
-        "mode": mode,
-        "agency": agency.strip() or None,
-        "sub_agency": sub_agency.strip() or None,
-        "recipient": recipient.strip() or None,
-        "naics_codes": naics_codes.strip() or None,
-        "psc_codes": psc_codes.strip() or None,
-    }
-    result = await run_skill(settings, db, "clew_intel", payload)
-    drilldown = await build_drilldown(
-        db,
-        settings,
+    facets = _advanced_facet_kwargs(
         agency=agency,
         sub_agency=sub_agency,
         recipient=recipient,
         naics_codes=naics_codes,
         psc_codes=psc_codes,
+        awarding_office=awarding_office,
+        funding_office=funding_office,
+        recipient_uei=recipient_uei,
+        pop_state=pop_state,
+        extent_competed=extent_competed,
+        type_of_set_aside=type_of_set_aside,
+    )
+    payload = {"mode": mode, **{k: (v.strip() or None) for k, v in facets.items()}}
+    result = await run_skill(settings, db, "clew_intel", payload)
+    drilldown = await build_drilldown(
+        db,
+        settings,
         mode=mode,
         run=True,
         review_id=result.review_id,
+        **facets,
     )
     return templates.TemplateResponse(
         request,
         "partials/clew_drawer_panel.html",
         {
             "drilldown": drilldown,
-            "facet_form": _clew_facet_form(
-                agency=agency,
-                sub_agency=sub_agency,
-                recipient=recipient,
-                naics_codes=naics_codes,
-                psc_codes=psc_codes,
-            ),
+            "facet_form": _clew_facet_form(**facets),
             "clew_guide": guide_for_clew(),
         },
     )
@@ -565,6 +614,12 @@ async def insights_radar_drilldown_partial(
     recipient: str = Query(""),
     naics_codes: str = Query(""),
     psc_codes: str = Query(""),
+    awarding_office: str = Query(""),
+    funding_office: str = Query(""),
+    recipient_uei: str = Query(""),
+    pop_state: str = Query(""),
+    extent_competed: str = Query(""),
+    type_of_set_aside: str = Query(""),
     mode: str = Query("money_flow"),
     run: int = Query(0, ge=0, le=1),
     db: AsyncSession = Depends(get_db),
@@ -573,13 +628,21 @@ async def insights_radar_drilldown_partial(
     drilldown = await build_drilldown(
         db,
         settings,
-        agency=agency,
-        sub_agency=sub_agency,
-        recipient=recipient,
-        naics_codes=naics_codes,
-        psc_codes=psc_codes,
         mode=mode,
         run=bool(run),
+        **_advanced_facet_kwargs(
+            agency=agency,
+            sub_agency=sub_agency,
+            recipient=recipient,
+            naics_codes=naics_codes,
+            psc_codes=psc_codes,
+            awarding_office=awarding_office,
+            funding_office=funding_office,
+            recipient_uei=recipient_uei,
+            pop_state=pop_state,
+            extent_competed=extent_competed,
+            type_of_set_aside=type_of_set_aside,
+        ),
     )
     return templates.TemplateResponse(
         request,
@@ -596,30 +659,38 @@ async def insights_radar_analyze(
     recipient: str = Form(""),
     naics_codes: str = Form(""),
     psc_codes: str = Form(""),
+    awarding_office: str = Form(""),
+    funding_office: str = Form(""),
+    recipient_uei: str = Form(""),
+    pop_state: str = Form(""),
+    extent_competed: str = Form(""),
+    type_of_set_aside: str = Form(""),
     mode: str = Form("money_flow"),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    payload = {
-        "mode": mode,
-        "agency": agency.strip() or None,
-        "sub_agency": sub_agency.strip() or None,
-        "recipient": recipient.strip() or None,
-        "naics_codes": naics_codes.strip() or None,
-        "psc_codes": psc_codes.strip() or None,
-    }
-    result = await run_skill(settings, db, "clew_intel", payload)
-    drilldown = await build_drilldown(
-        db,
-        settings,
+    facets = _advanced_facet_kwargs(
         agency=agency,
         sub_agency=sub_agency,
         recipient=recipient,
         naics_codes=naics_codes,
         psc_codes=psc_codes,
+        awarding_office=awarding_office,
+        funding_office=funding_office,
+        recipient_uei=recipient_uei,
+        pop_state=pop_state,
+        extent_competed=extent_competed,
+        type_of_set_aside=type_of_set_aside,
+    )
+    payload = {"mode": mode, **{k: (v.strip() or None) for k, v in facets.items()}}
+    result = await run_skill(settings, db, "clew_intel", payload)
+    drilldown = await build_drilldown(
+        db,
+        settings,
         mode=mode,
         run=True,
         review_id=result.review_id,
+        **facets,
     )
     return templates.TemplateResponse(
         request,
@@ -668,6 +739,12 @@ async def insights_save_radar_lens(
     recipient: str = Form(""),
     naics_codes: str = Form(""),
     psc_codes: str = Form(""),
+    awarding_office: str = Form(""),
+    funding_office: str = Form(""),
+    recipient_uei: str = Form(""),
+    pop_state: str = Form(""),
+    extent_competed: str = Form(""),
+    type_of_set_aside: str = Form(""),
     description: str = Form(""),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -680,6 +757,12 @@ async def insights_save_radar_lens(
         recipient=recipient,
         naics_codes=naics_codes,
         psc_codes=psc_codes,
+        awarding_office=awarding_office,
+        funding_office=funding_office,
+        recipient_uei=recipient_uei,
+        pop_state=pop_state,
+        extent_competed=extent_competed,
+        type_of_set_aside=type_of_set_aside,
         description=description,
     )
     if query is None:

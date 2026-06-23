@@ -2,6 +2,7 @@
 
 from thread.intel.facet_query import (
     InsightFacetQuery,
+    build_facet_sql,
     describe_query,
     load_insight_queries,
     query_from_dict,
@@ -30,6 +31,33 @@ def test_query_accepts_competitor_recipient():
 
 def test_query_rejects_empty_facets():
     assert query_from_dict({"id": "empty", "name": "Empty"}) is None
+
+
+def test_query_accepts_awarding_office_only():
+    q = query_from_dict(
+        {
+            "id": "office",
+            "name": "Army CIO",
+            "awarding_office": "W6QK ACC-APG",
+        }
+    )
+    assert q is not None
+    assert q.awarding_office == "W6QK ACC-APG"
+    sql, params = build_facet_sql(q)
+    assert "awarding_office_name ILIKE" in sql
+    assert params["awarding_office"] == "%W6QK ACC-APG%"
+
+
+def test_query_accepts_recipient_uei():
+    q = query_from_dict(
+        {
+            "id": "uei",
+            "name": "UEI lookup",
+            "recipient_uei": "ABC123DEF456",
+        }
+    )
+    assert q is not None
+    assert "UEI: ABC123DEF456" in describe_query(q)
 
 
 def test_active_query_from_file(settings, tmp_path, monkeypatch):

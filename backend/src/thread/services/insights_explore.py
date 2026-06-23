@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.config import Settings
 from thread.intel import pg_queries as intel_queries
-from thread.intel.facet_query import InsightFacetQuery, describe_query, query_from_dict
+from thread.intel.facet_query import ADVANCED_FACET_FIELDS, InsightFacetQuery, describe_query, query_from_dict
 from thread.intel.sam_query import SamMonitorQuery, describe_sam_query, query_from_dict as sam_from_dict
 from thread.mcp.service import MCPService
 from thread.services.sam_monitor import build_sam_explore_results
@@ -48,6 +48,12 @@ def _facet_from_params(
     recipient: str = "",
     naics_codes: str = "",
     psc_codes: str = "",
+    awarding_office: str = "",
+    funding_office: str = "",
+    recipient_uei: str = "",
+    pop_state: str = "",
+    extent_competed: str = "",
+    type_of_set_aside: str = "",
 ) -> InsightFacetQuery | None:
     raw = {
         "id": "explore",
@@ -58,6 +64,9 @@ def _facet_from_params(
         "naics_codes": naics_codes.strip(),
         "psc_codes": psc_codes.strip(),
     }
+    for field in ADVANCED_FACET_FIELDS:
+        value = locals().get(field, "")
+        raw[field] = (value or "").strip() or None
     return query_from_dict(raw)
 
 
@@ -87,21 +96,15 @@ def _sam_from_params(
     return sam_from_dict(raw)
 
 
-def _radar_has_input(
-    *,
-    agency: str = "",
-    sub_agency: str = "",
-    recipient: str = "",
-    naics_codes: str = "",
-    psc_codes: str = "",
-) -> bool:
-    return bool(
-        agency.strip()
-        or sub_agency.strip()
-        or recipient.strip()
-        or naics_codes.strip()
-        or psc_codes.strip()
-    )
+def _radar_has_input(**kwargs: str) -> bool:
+    return any((kwargs.get(key) or "").strip() for key in (
+        "agency",
+        "sub_agency",
+        "recipient",
+        "naics_codes",
+        "psc_codes",
+        *ADVANCED_FACET_FIELDS,
+    ))
 
 
 async def explore_radar(
@@ -113,6 +116,12 @@ async def explore_radar(
     recipient: str = "",
     naics_codes: str = "",
     psc_codes: str = "",
+    awarding_office: str = "",
+    funding_office: str = "",
+    recipient_uei: str = "",
+    pop_state: str = "",
+    extent_competed: str = "",
+    type_of_set_aside: str = "",
     limit: int = 15,
     run: bool = False,
 ) -> RadarExploreResult:
@@ -124,15 +133,28 @@ async def explore_radar(
         recipient=recipient,
         naics_codes=naics_codes,
         psc_codes=psc_codes,
+        awarding_office=awarding_office,
+        funding_office=funding_office,
+        recipient_uei=recipient_uei,
+        pop_state=pop_state,
+        extent_competed=extent_competed,
+        type_of_set_aside=type_of_set_aside,
     )
+    facet_input = {
+        "agency": agency,
+        "sub_agency": sub_agency,
+        "recipient": recipient,
+        "naics_codes": naics_codes,
+        "psc_codes": psc_codes,
+        "awarding_office": awarding_office,
+        "funding_office": funding_office,
+        "recipient_uei": recipient_uei,
+        "pop_state": pop_state,
+        "extent_competed": extent_competed,
+        "type_of_set_aside": type_of_set_aside,
+    }
     if query is None:
-        if not run and not _radar_has_input(
-            agency=agency,
-            sub_agency=sub_agency,
-            recipient=recipient,
-            naics_codes=naics_codes,
-            psc_codes=psc_codes,
-        ):
+        if not run and not _radar_has_input(**facet_input):
             return RadarExploreResult(
                 query=None,
                 summary="",

@@ -171,7 +171,7 @@ def _agency_sub_flow_chart(rows: list[dict[str, Any]], overview: dict[str, Any])
     title = "Sub-agency flow" if group == "sub_agency" else "Office flow"
     names = [_truncate(r["label"], 40) for r in rows]
     values = [r["millions"] for r in rows]
-    hone_field = "sub_agency"
+    hone_field = "sub_agency" if group == "sub_agency" else "awarding_office"
     return {
         "backgroundColor": "transparent",
         "textStyle": {"color": TEXT},

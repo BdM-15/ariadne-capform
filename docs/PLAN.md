@@ -977,10 +977,10 @@ flowchart TD
 |-------|--------|-----------|
 | **17e-a** ✅ | **Slice context bar** + **operator NAICS portfolio** (`.thread/operator_profile.json` chips) | Operator always knows what data means |
 | **17e-b** ✅ | **Overview lens** — KPI strip + **capture intensity scatter (hero)** + agency→sub flow + FY trend + set-aside + extent competed + top recipients + UEI rows | `thread/intel/charts.py` + `/partials/insights/slice` |
-| **17e-c** 🟡 | **Hone interactions** — scatter/flow/recipient click + hone chips → re-run slice | Agency/sub/recipient wired; office hone awaits **17e-f** |
+| **17e-c** ✅ | **Hone interactions** — scatter/flow/recipient click + hone chips → re-run slice | Agency/sub/recipient/office wired via chart click |
 | **17e-d** ✅ | **Lens tabs** — Overview · Recompete · Competition · Trace · **Live (SAM)** | SAM moved off always-visible panel |
 | **17e-e** ✅ | **Sign-off E2E smoke** — facet → hone → Watch → Pulse → Track → packet fill one field | MVP sign-off test passes |
-| **17e-f** | **Extended facets** — office, UEI, POP state, competition/set-aside filters; **advanced** facet panel (collapsed) | Precision filters when known or after hone — not primary entry |
+| **17e-f** ✅ | **Extended facets** — office, UEI, POP state, competition/set-aside filters; **advanced** facet panel (collapsed) | Precision filters when known or after hone — not primary entry |
 | **17e-g** | **Entity profile tabs** — Competitor + Agency dossiers from chart click; shared DR/Clew chart primitives | Click Lockheed → UEI, $, top NAICS/agencies/subs, adjacent competitors, relationship heat map |
 
 **Clew boundary:** `/clew` stays the deep trace workbench (Sankey, teaming, saved traces). `/insights` Overview links **Trace** lens with facets pre-filled; do not duplicate full Clew UI on Insights.
@@ -1499,8 +1499,6 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 | Priority | Work | Why |
 |----------|------|-----|
 | **P0** | **17e-e** ✅ E2E sign-off smoke — facet → hone → Watch → Pulse → Track → packet fill | `pytest test_insights_signoff_e2e` + `smoke_insights_signoff.py` |
-| **P0** | **17e-c** finish hone — office from chart (needs **17e-f** facet field) | Sub-agency/recipient/agency wired |
-| **P1** | **17e-f** Extended facets (advanced panel) | Office/UEI precision when known |
 | **P1** | **17e-g** Entity profile tabs (Competitor · Agency) | Full dossier + heat maps |
 | **P1** | Query cache / limits on 64M PG (bootstrap TTL like capture-insights) | UX — Clew queries 45–70s today |
 | **Defer** | 21b–21d Incubator Develop/Publish | Capture ingest polish |
@@ -1531,7 +1529,7 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 - [ ] **Phase 17e** — Data Insights command surface (MVP blocker)
   - [x] 17e-a — slice context bar + operator NAICS portfolio
   - [x] 17e-b — Overview lens (intensity hero + charts)
-  - [ ] 17e-c — Hone interactions (agency/sub/recipient ✅; office → 17e-f)
+  - [x] 17e-c — Hone interactions (agency/sub/recipient/office)
   - [x] 17e-d — Lens tabs (incl. Live SAM)
   - [x] 17e-e — E2E sign-off smoke
   - [ ] 17e-f — Extended facets (advanced panel)

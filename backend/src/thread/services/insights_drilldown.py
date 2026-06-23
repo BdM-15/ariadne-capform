@@ -39,12 +39,31 @@ async def build_drilldown(
     recipient: str = "",
     naics_codes: str = "",
     psc_codes: str = "",
+    awarding_office: str = "",
+    funding_office: str = "",
+    recipient_uei: str = "",
+    pop_state: str = "",
+    extent_competed: str = "",
+    type_of_set_aside: str = "",
     mode: str = "money_flow",
     run: bool = False,
     review_id: str | None = None,
     include_mcp: bool = False,
     path: str = "",
 ) -> DrilldownResult:
+    facet_kwargs = {
+        "agency": agency,
+        "sub_agency": sub_agency,
+        "recipient": recipient,
+        "naics_codes": naics_codes,
+        "psc_codes": psc_codes,
+        "awarding_office": awarding_office,
+        "funding_office": funding_office,
+        "recipient_uei": recipient_uei,
+        "pop_state": pop_state,
+        "extent_competed": extent_competed,
+        "type_of_set_aside": type_of_set_aside,
+    }
     stats = await intel_queries.get_intel_stats(session)
     intel_live = bool(stats.get("prime_awards_ready") and stats.get("prime_award_count", 0) > 0)
     path_edges = parse_path_param(path)
@@ -52,13 +71,7 @@ async def build_drilldown(
         path_mode = mode if mode in {"money_flow", "teaming"} else "money_flow"
         analysis = analysis_from_path(mode=path_mode, edges=path_edges)
         analysis["mineru"] = mineru_ingest_status(settings)
-        query = _facet_from_params(
-            agency=agency,
-            sub_agency=sub_agency,
-            recipient=recipient,
-            naics_codes=naics_codes,
-            psc_codes=psc_codes,
-        )
+        query = _facet_from_params(**facet_kwargs)
         return DrilldownResult(
             query=query,
             summary=describe_query(query) if query else analysis.get("summary", ""),
@@ -69,13 +82,7 @@ async def build_drilldown(
             review_id=review_id,
         )
 
-    query = _facet_from_params(
-        agency=agency,
-        sub_agency=sub_agency,
-        recipient=recipient,
-        naics_codes=naics_codes,
-        psc_codes=psc_codes,
-    )
+    query = _facet_from_params(**facet_kwargs)
 
     if not run:
         return DrilldownResult(
