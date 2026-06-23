@@ -1256,6 +1256,21 @@ body {
   background: rgba(var(--ink-900-rgb), 0.35);
 }
 
+.insights-result-row-clickable {
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.insights-result-row-clickable:hover {
+  border-color: rgba(0, 240, 255, 0.35);
+  background: rgba(var(--ink-900-rgb), 0.55);
+}
+
+.insights-result-actions .btn {
+  min-width: 4.5rem;
+  justify-content: center;
+}
+
 .insights-result-main {
   min-width: 0;
   display: flex;

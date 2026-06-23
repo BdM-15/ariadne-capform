@@ -1,0 +1,21 @@
+<div id="insights-award-drawer-root" class="task-drawer-root task-drawer-hidden" aria-hidden="true">
+  <button
+    type="button"
+    class="task-drawer-backdrop"
+    aria-label="Close contract profile"
+    onclick="closeInsightsAwardDrawer()"
+  ></button>
+  <aside id="insights-award-drawer" class="task-drawer" role="dialog" aria-labelledby="insights-award-drawer-title">
+    <header class="task-drawer-head">
+      <div class="task-drawer-head-main min-w-0">
+        <span class="text-[10px] font-mono uppercase tracking-wide text-neon-magenta/80">Contract profile</span>
+        <h2 id="insights-award-drawer-title" class="task-drawer-title text-neon-cyan">Award</h2>
+        <p class="task-drawer-sub text-[10px] text-slate-500">USAspending prime award · drill to agency or office</p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-compact task-drawer-close" onclick="closeInsightsAwardDrawer()" title="Close">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </header>
+    <div id="insights-award-drawer-body" class="task-drawer-body"></div>
+  </aside>
+</div>

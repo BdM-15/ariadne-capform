@@ -234,19 +234,44 @@ async def get_award_profile(
     session: AsyncSession,
     award_key: str,
 ) -> dict[str, Any] | None:
-    """Single award row for packet route-driven fill."""
+    """Single award row — packet fill + Insights contract profile drawer."""
     key = (award_key or "").strip()
     if not key or not await table_exists(session, PRIME_TABLE):
         return None
     sql = f"""
         SELECT
             contract_award_unique_key AS award_key,
+            award_id_piid AS piid,
+            parent_award_id_piid AS parent_piid,
             recipient_name AS recipient,
+            recipient_uei,
             federal_action_obligation AS obligation,
+            potential_total_value_of_award AS potential_value,
+            period_of_performance_start_date AS pop_start,
             period_of_performance_current_end_date AS end_date,
+            period_of_performance_potential_end_date AS pop_potential_end,
             {AGENCY_EXPR} AS agency,
+            parent_award_agency_name AS parent_agency,
+            awarding_sub_agency_name AS awarding_sub_agency,
+            awarding_office_name AS awarding_office,
+            funding_agency_name AS funding_agency,
+            funding_sub_agency_name AS funding_sub_agency,
+            funding_office_name AS funding_office,
+            primary_place_of_performance_city_name AS pop_city,
+            {STATE_EXPR} AS pop_state,
             COALESCE(NULLIF(type_of_contract_pricing, ''), 'Unknown') AS pricing,
-            naics_code
+            type_of_set_aside,
+            extent_competed,
+            naics_code,
+            naics_description,
+            product_or_service_code AS psc_code,
+            product_or_service_code_description AS psc_description,
+            COALESCE(
+                NULLIF(TRIM(prime_award_base_transaction_description), ''),
+                NULLIF(TRIM(transaction_description), '')
+            ) AS description,
+            usaspending_permalink,
+            {MONTHS_TO_END_EXPR} AS months_to_end
         FROM {PRIME_TABLE}
         WHERE contract_award_unique_key = :award_key
         LIMIT 1
@@ -256,12 +281,34 @@ async def get_award_profile(
         return None
     return {
         "award_key": row.award_key,
+        "piid": row.piid,
+        "parent_piid": row.parent_piid,
         "recipient": row.recipient,
+        "recipient_uei": row.recipient_uei,
         "obligation": float(row.obligation) if row.obligation is not None else None,
+        "potential_value": float(row.potential_value) if row.potential_value is not None else None,
+        "pop_start": str(row.pop_start) if row.pop_start else None,
         "end_date": str(row.end_date) if row.end_date else None,
+        "pop_potential_end": str(row.pop_potential_end) if row.pop_potential_end else None,
         "agency": row.agency,
+        "parent_agency": row.parent_agency,
+        "awarding_sub_agency": row.awarding_sub_agency,
+        "awarding_office": row.awarding_office,
+        "funding_agency": row.funding_agency,
+        "funding_sub_agency": row.funding_sub_agency,
+        "funding_office": row.funding_office,
+        "pop_city": row.pop_city,
+        "pop_state": row.pop_state,
         "pricing": row.pricing,
+        "type_of_set_aside": row.type_of_set_aside,
+        "extent_competed": row.extent_competed,
         "naics_code": row.naics_code,
+        "naics_description": row.naics_description,
+        "psc_code": row.psc_code,
+        "psc_description": row.psc_description,
+        "description": row.description,
+        "usaspending_permalink": row.usaspending_permalink,
+        "months_to_end": int(row.months_to_end or 0),
     }
 
 

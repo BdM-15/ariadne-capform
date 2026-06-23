@@ -1,0 +1,113 @@
+<div class="insights-award-panel task-drawer-panel" id="insights-award-panel" data-award-key="{{ award.award_key }}">
+  {% if award_error %}
+  <div class="task-drawer-section px-4 py-4">
+    <p class="insights-explore-msg insights-explore-msg-warn">{{ award_error }}</p>
+  </div>
+  {% elif award %}
+  <div class="task-drawer-section px-4 pt-4 pb-3 border-b border-edge">
+    <h3 class="text-sm font-semibold text-slate-100 m-0 leading-snug">{{ award.recipient or 'Unknown recipient' }}</h3>
+    {% if award.piid %}
+    <p class="text-[10px] font-mono text-neon-cyan mt-1 m-0">PIID {{ award.piid }}{% if award.parent_piid %} · parent {{ award.parent_piid }}{% endif %}</p>
+    {% endif %}
+    {% if award.description %}
+    <p class="text-[11px] text-slate-300 mt-3 mb-0 leading-relaxed">{{ award.description }}</p>
+    {% endif %}
+  </div>
+
+  <div class="task-drawer-section px-4 py-3 border-b border-edge">
+    <div class="flex flex-wrap gap-2 text-[10px]">
+      <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">{{ award.obligation|money }}</span>
+      {% if award.potential_value %}
+      <span class="pill pill-compact border border-edge text-slate-400">Ceiling {{ award.potential_value|money }}</span>
+      {% endif %}
+      <span class="pill pill-compact border border-neon-amber/40 text-neon-amber">{{ award.end_date|datefmt }} · {{ award.months_to_end|urgency }}</span>
+      {% if award.pricing %}
+      <span class="pill pill-compact border border-edge text-slate-500">{{ award.pricing }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="task-drawer-section px-4 py-3 border-b border-edge space-y-2 text-[11px]">
+    <p class="text-[10px] uppercase tracking-wide text-slate-600 m-0">Industry</p>
+    {% if award.naics_code %}
+    <p class="m-0 text-slate-300"><span class="text-neon-magenta font-mono">NAICS {{ award.naics_code }}</span>{% if award.naics_description %} — {{ award.naics_description }}{% endif %}</p>
+    {% endif %}
+    {% if award.psc_code %}
+    <p class="m-0 text-slate-400"><span class="font-mono">PSC {{ award.psc_code }}</span>{% if award.psc_description %} — {{ award.psc_description }}{% endif %}</p>
+    {% endif %}
+  </div>
+
+  <div class="task-drawer-section px-4 py-3 border-b border-edge space-y-2 text-[11px]">
+    <p class="text-[10px] uppercase tracking-wide text-slate-600 m-0">Agency path</p>
+    {% if award.agency %}
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-slate-300">{{ award.agency }}</span>
+      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-cyan" data-drill-field="agency" data-drill-value="{{ award.agency }}">Agency profile →</button>
+    </div>
+    {% endif %}
+    {% if award.awarding_sub_agency and award.awarding_sub_agency != award.agency %}
+    <div class="flex flex-wrap items-center gap-2 text-slate-400">
+      <span>Sub: {{ award.awarding_sub_agency }}</span>
+      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px]" data-drill-field="sub_agency" data-drill-value="{{ award.awarding_sub_agency }}">Sub-agency →</button>
+    </div>
+    {% endif %}
+    {% if award.awarding_office %}
+    <div class="flex flex-wrap items-center gap-2 text-slate-400">
+      <span>Office: {{ award.awarding_office }}</span>
+      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px]" data-drill-field="awarding_office" data-drill-value="{{ award.awarding_office }}">Office →</button>
+    </div>
+    {% endif %}
+    {% if award.funding_agency and award.funding_agency != award.agency %}
+    <p class="m-0 text-slate-500">Funding: {{ award.funding_agency }}{% if award.funding_sub_agency %} / {{ award.funding_sub_agency }}{% endif %}</p>
+    {% endif %}
+  </div>
+
+  <div class="task-drawer-section px-4 py-3 border-b border-edge space-y-1 text-[10px] font-mono text-slate-500">
+    <p class="text-[10px] uppercase tracking-wide text-slate-600 m-0 mb-2 not-italic font-sans">Competition</p>
+    {% if award.type_of_set_aside %}
+    <p class="m-0">Set-aside: <span class="text-slate-300">{{ award.type_of_set_aside }}</span></p>
+    {% endif %}
+    {% if award.extent_competed %}
+    <p class="m-0">Extent: <span class="text-slate-300">{{ award.extent_competed }}</span></p>
+    {% endif %}
+    {% if award.recipient_uei %}
+    <p class="m-0">UEI: <span class="text-neon-cyan">{{ award.recipient_uei }}</span></p>
+    {% endif %}
+    {% if award.pop_city or award.pop_state %}
+    <p class="m-0">POP: {{ award.pop_city or '' }}{% if award.pop_city and award.pop_state %}, {% endif %}{{ award.pop_state or '' }}</p>
+    {% endif %}
+    {% if award.pop_start or award.end_date %}
+    <p class="m-0">Period: {{ award.pop_start|datefmt if award.pop_start else '—' }} → {{ award.end_date|datefmt }}</p>
+    {% endif %}
+  </div>
+
+  <div class="task-drawer-section px-4 py-3 flex flex-wrap gap-2">
+    {% if award.recipient %}
+    <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-lime" data-drill-field="recipient" data-drill-value="{{ award.recipient }}">Competitor profile →</button>
+    {% endif %}
+    {% with recipient=award.recipient or '', agency=award.agency or '', naics_codes=award.naics_code or '', mode='teaming', run='1', extra_class='btn btn-ghost btn-compact text-[10px] border border-neon-magenta/40 text-neon-magenta' %}
+    {% include "partials/clew_link.html" %}
+    {% endwith %}
+    <form
+      hx-post="/watchlist/add/recompete"
+      hx-target="#insights-slice-panel"
+      hx-swap="outerHTML"
+      hx-include="#insights-radar-form, #insights-entity-state"
+      class="inline"
+    >
+      <input type="hidden" name="return_lens" value="recompete" />
+      <input type="hidden" name="award_key" value="{{ award.award_key }}" />
+      <input type="hidden" name="title" value="{{ award.recipient or '' }}" />
+      <input type="hidden" name="watch_agency" value="{{ award.agency or '' }}" />
+      <input type="hidden" name="naics_code" value="{{ award.naics_code or '' }}" />
+      <input type="hidden" name="end_date" value="{{ award.end_date or '' }}" />
+      <input type="hidden" name="obligation" value="{{ award.obligation if award.obligation is not none else '' }}" />
+      <input type="hidden" name="months_to_end" value="{{ award.months_to_end if award.months_to_end is not none else '' }}" />
+      <button type="submit" class="btn btn-primary btn-compact">Watch</button>
+    </form>
+    {% if award.usaspending_permalink %}
+    <a href="{{ award.usaspending_permalink }}" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-compact text-[10px] no-underline border border-edge text-slate-400">USAspending ↗</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

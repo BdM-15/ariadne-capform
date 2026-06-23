@@ -432,6 +432,26 @@ async def insights_slice_partial(
     )
 
 
+@router.get("/partials/insights/award", response_class=HTMLResponse)
+async def insights_award_partial(
+    request: Request,
+    award_key: str = Query(""),
+    db: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    from thread.intel.pg_queries import get_award_profile
+
+    key = award_key.strip()
+    award = await get_award_profile(db, key) if key else None
+    return templates.TemplateResponse(
+        request,
+        "partials/insights_award_panel.html",
+        {
+            "award": award,
+            "award_error": None if award else ("Award not found." if key else "Missing award key."),
+        },
+    )
+
+
 @router.post("/insights/operator-naics", response_class=HTMLResponse)
 async def insights_save_operator_naics(
     request: Request,

@@ -9,7 +9,14 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.config import Settings
-from thread.intel.charts import agency_sub_flow, spend_trend, teaming, top_recipients
+from thread.intel.charts import (
+    agency_sub_flow,
+    extent_competed_breakdown,
+    set_aside_breakdown,
+    spend_trend,
+    teaming,
+    top_recipients,
+)
 from thread.intel.slice_cache import get_cached_entity_profile, store_cached_entity_profile
 from thread.intel.echarts_options import attach_entity_echarts
 from thread.intel.facet_query import InsightFacetQuery, build_facet_sql
@@ -194,6 +201,16 @@ def explore_query_for_entity(
     return scoped_slice_query(slice_query, entity)
 
 
+async def _competition_mix(
+    session: AsyncSession,
+    scoped: InsightFacetQuery,
+) -> dict[str, Any]:
+    facet_sql, facet_params = build_facet_sql(scoped)
+    set_aside = await set_aside_breakdown(session, facet_sql, facet_params)
+    extent = await extent_competed_breakdown(session, facet_sql, facet_params)
+    return {"set_aside": set_aside, "extent_competed": extent}
+
+
 async def _agency_profile(
     session: AsyncSession,
     scoped: InsightFacetQuery,
@@ -205,6 +222,7 @@ async def _agency_profile(
     spend = await spend_trend(session, scoped, limit=12)
     sub_flow = await agency_sub_flow(session, scoped, limit=12)
     agencies_for_matrix = await _top_agencies_in_scope(session, scoped, limit=10)
+    competition = await _competition_mix(session, scoped)
 
     return {
         "status": "ready",
@@ -222,6 +240,7 @@ async def _agency_profile(
         "agency_sub_flow_group": sub_flow.get("group"),
         "top_agencies": agencies_for_matrix,
         "slice_summary": _slice_hint(slice_query),
+        **competition,
     }
 
 
@@ -237,6 +256,7 @@ async def _competitor_profile(
     top_agencies = await _top_agencies_in_scope(session, scoped, limit=12)
     top_naics = await _top_naics_in_scope(session, scoped, limit=10)
     subs = await teaming(session, scoped, limit=10)
+    competition = await _competition_mix(session, scoped)
 
     return {
         "status": "ready",
@@ -255,6 +275,7 @@ async def _competitor_profile(
         "teaming": subs.get("edges") or [],
         "teaming_error": subs.get("error"),
         "slice_summary": _slice_hint(slice_query),
+        **competition,
     }
 
 

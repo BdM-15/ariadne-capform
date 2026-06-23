@@ -35,17 +35,7 @@
       {% include "partials/insights_radar_explore.html" %}
     </div>
     {% elif active_lens == 'competition' %}
-    <div class="insights-competition-lens">
-      <p class="text-[11px] text-slate-500 mb-3">Set-aside and competition mix for the active slice.</p>
-      {% if overview and overview.charts %}
-      <div class="insights-overview-tertiary">
-        <div class="clew-echarts-host insights-echarts-compact" data-chart-option='{{ overview.charts.set_aside | tojson }}'></div>
-        <div class="clew-echarts-host insights-echarts-compact" data-chart-option='{{ overview.charts.extent_competed | tojson }}'></div>
-      </div>
-      {% else %}
-      <p class="insights-idle-hint">Run slice on Overview first.</p>
-      {% endif %}
-    </div>
+    {% include "partials/insights_competition_lens.html" %}
     {% elif active_lens == 'trace' %}
     <div class="insights-trace-lens space-y-3">
       <p class="text-[11px] text-slate-500">Deep money-path tracing lives on Clew — facets pre-filled from this slice.</p>

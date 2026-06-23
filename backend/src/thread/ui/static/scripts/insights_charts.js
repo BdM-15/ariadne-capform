@@ -53,6 +53,7 @@
   function navigateEntityDrill(field, value, meta) {
     var form = document.getElementById("insights-radar-form");
     if (!form || !value) return;
+    if (window.closeInsightsAwardDrawer) window.closeInsightsAwardDrawer();
     var map = DRILL_MAP[field];
     if (!map && !(meta && meta.drillLens)) return;
 

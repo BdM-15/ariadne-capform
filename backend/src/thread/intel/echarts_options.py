@@ -68,6 +68,20 @@ def attach_entity_echarts(profile: dict[str, Any], kind: str) -> dict[str, Any]:
         naics_chart = _horizontal_bar_chart(naics_rows, title="Top NAICS", name_key="recipient")
         if naics_chart:
             charts["top_naics"] = naics_chart
+    set_aside = _donut_chart(
+        profile.get("set_aside") or [],
+        title="Set-aside mix",
+        name_key="bucket",
+    )
+    if set_aside:
+        charts["set_aside"] = set_aside
+    extent = _horizontal_bar_chart(
+        profile.get("extent_competed") or [],
+        title="Extent competed",
+        name_key="extent",
+    )
+    if extent:
+        charts["extent_competed"] = extent
     if charts:
         profile["charts"] = charts
     return profile

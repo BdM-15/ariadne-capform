@@ -95,6 +95,32 @@ def test_explore_query_for_entity_scopes_recipient():
     assert scoped.recipient == "Acme Federal LLC"
 
 
+def test_insights_competition_lens_entity_scoped_copy():
+    client = TestClient(create_app())
+    res = client.get(
+        "/partials/insights/slice",
+        params={
+            "run": 1,
+            "lens": "competition",
+            "naics_codes": "561210",
+            "entity_kind": "competitor",
+            "entity_value": "SAVANNAH RIVER NUCLEAR SOLUTIONS LLC",
+            "entity_scope": "recipient",
+        },
+    )
+    assert res.status_code == 200
+    html = res.text
+    assert "insights-competition-lens" in html
+    assert "not slice-wide totals" in html or "whole slice" in html
+
+
+def test_insights_award_partial():
+    client = TestClient(create_app())
+    missing = client.get("/partials/insights/award", params={"award_key": "NO_SUCH_AWARD"})
+    assert missing.status_code == 200
+    assert "Award not found" in missing.text
+
+
 def test_insights_slice_has_entity_tabs():
     client = TestClient(create_app())
     res = client.get("/partials/insights/slice?lens=overview&run=0")

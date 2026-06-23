@@ -1,0 +1,29 @@
+<div class="insights-competition-lens">
+  {% if entity and entity.value and entity_ready and entity_profile and entity_profile.charts %}
+  <p class="text-[11px] text-slate-500 mb-3">
+    Set-aside and competition mix for
+    <span class="text-neon-cyan font-mono">{{ entity.display_label }}</span>
+    within the active slice — not slice-wide totals.
+  </p>
+  <div class="insights-overview-tertiary">
+    {% if entity_profile.charts.set_aside %}
+    <div class="clew-echarts-host insights-echarts-compact" data-chart-option='{{ entity_profile.charts.set_aside | tojson }}'></div>
+    {% endif %}
+    {% if entity_profile.charts.extent_competed %}
+    <div class="clew-echarts-host insights-echarts-compact" data-chart-option='{{ entity_profile.charts.extent_competed | tojson }}'></div>
+    {% endif %}
+  </div>
+  {% elif overview_ready and overview and overview.charts %}
+  <p class="text-[11px] text-slate-500 mb-3">Set-aside and competition mix for the <strong>whole slice</strong> — drill into an agency or competitor for entity-specific mix.</p>
+  <div class="insights-overview-tertiary">
+    {% if overview.charts.set_aside %}
+    <div class="clew-echarts-host insights-echarts-compact" data-chart-option='{{ overview.charts.set_aside | tojson }}'></div>
+    {% endif %}
+    {% if overview.charts.extent_competed %}
+    <div class="clew-echarts-host insights-echarts-compact" data-chart-option='{{ overview.charts.extent_competed | tojson }}'></div>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="insights-idle-hint">Run slice on Overview first{% if entity and entity.value %}, or wait for entity profile to load{% endif %}.</p>
+  {% endif %}
+</div>
