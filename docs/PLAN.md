@@ -599,7 +599,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 | Step | MVP must prove | Current gap |
 |------|----------------|-------------|
-| **Find** | Run facet slice on `/insights`, see **market picture** (capture intensity hero + charts), spot agency/competitor worth pursuing | **17e 🟡** — Overview + lens tabs + **17e-e** E2E smoke ✅; **17e-g** entity tabs remain |
+| **Find** | Run facet slice on `/insights`, see **market picture** (capture intensity hero + charts), spot agency/competitor worth pursuing | **17e ✅** — Overview + entity drill + entity-scoped Recompete/Watch |
 | **Watch** | One-click Watch from Insights row → Pulse watchlist with provenance | ✅ wired |
 | **Track** | Pulse watchlist → Track form → opportunity `pursuing` | ✅ wired — needs E2E smoke |
 | **Open packet** | `/capture/{id}` slide workspace loads | ✅ wired |
@@ -654,7 +654,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 |--------|------------|-------------|
 | Command Center (`/`) | Attention widgets, compact nav, pursuit rail — **not** analytics home | Widget row (12c–12h): reviews, phase band, hot signals, health strip, **quick actions**; anti-pattern: metrics dump |
 | Portfolio Pulse (`/pulse`) | Morning briefing: **watchlist** + inbox + digest + capture snapshot | Identify-only; Track → `/capture/{id}`; not packet home |
-| Data Insights (`/insights`) | 🟡 Overview + lens tabs + hone (17e-a–f ✅) | **17e-g** entity profile tabs · query cache |
+| Data Insights (`/insights`) | 🟡 Overview + lens tabs + entity drill (17e-a–f ✅, **17e-g lite** ✅) | Full 17e-g heat maps · query cache |
 | **Filament** (`/capture`) | ✅ Post-identify pursuit list; nav **Filament** (connected packets, not hand-jammed decks) | CRM pipeline board (deferred) |
 | Filament workspace (`/capture/{id}`) | ✅ Slide canvas + **connected fill routes** (14j/20a/20b) + evidence inspector; MS pills | Phase 20c ranked routing matrix + optional Grok advisor |
 | Sidebar nav | Command / Identify / **Filament** (home first) / **Tools** / Win / System | Studio route (Phase 21) |
@@ -977,11 +977,11 @@ flowchart TD
 |-------|--------|-----------|
 | **17e-a** ✅ | **Slice context bar** + **operator NAICS portfolio** (`.thread/operator_profile.json` chips) | Operator always knows what data means |
 | **17e-b** ✅ | **Overview lens** — KPI strip + **capture intensity scatter (hero)** + agency→sub flow + FY trend + set-aside + extent competed + top recipients + UEI rows | `thread/intel/charts.py` + `/partials/insights/slice` |
-| **17e-c** ✅ | **Hone interactions** — scatter/flow/recipient click + hone chips → re-run slice | Agency/sub/recipient/office wired via chart click |
+| **17e-c** ✅ → **17e-g lite** | **Chart drill** — scatter/flow/recipient click opens **Agency/Competitor** profile tab (slice unchanged); breadcrumb back to Overview | Replaces hone-via-form-submit anti-pattern |
 | **17e-d** ✅ | **Lens tabs** — Overview · Recompete · Competition · Trace · **Live (SAM)** | SAM moved off always-visible panel |
 | **17e-e** ✅ | **Sign-off E2E smoke** — facet → hone → Watch → Pulse → Track → packet fill one field | MVP sign-off test passes |
 | **17e-f** ✅ | **Extended facets** — office, UEI, POP state, competition/set-aside filters; **advanced** facet panel (collapsed) | Precision filters when known or after hone — not primary entry |
-| **17e-g** | **Entity profile tabs** — Competitor + Agency dossiers from chart click; shared DR/Clew chart primitives | Click Lockheed → UEI, $, top NAICS/agencies/subs, adjacent competitors, relationship heat map |
+| **17e-g** 🟡 | **Entity profile tabs** — Competitor + Agency dossiers from chart click; shared DR/Clew chart primitives | **17e-g lite ✅** — drill opens Agency/Competitor tab + breadcrumb back; heat maps + adjacent competitors deferred |
 
 **Clew boundary:** `/clew` stays the deep trace workbench (Sankey, teaming, saved traces). `/insights` Overview links **Trace** lens with facets pre-filled; do not duplicate full Clew UI on Insights.
 
@@ -1032,7 +1032,42 @@ All facets remain **peer dimensions in SQL** (no platform defaults). **UI promin
 | Money flow | `money_flow` | Sub-tier and office breakdown |
 | Actions | — | Hone slice, Research → vault `entities/agencies/`, open Competitor tab |
 
-**MVP boundary:** Sign-off needs Overview + hone + Watch path. **17e-g lite** (competitor/agency tab with KPI + top lists, no heat map) is acceptable stretch; full heat maps + adjacent-competitor graph ship in **17e-g** proper or **17c-graph**.
+**MVP boundary:** Sign-off needs Overview + hone + Watch path. **17e-g lite** (competitor/agency tab with KPI + top lists + entity-scoped Recompete/Watch ✅) is acceptable stretch; full heat maps + adjacent-competitor graph ship in **17e-g** proper or **17c-graph**.
+
+#### Entity profile doctrine — storytelling, exports, decision-grade data (17e-h+)
+
+Every **profile surface** (Agency, Competitor, Opportunity/Capture workspace, future Vehicle/Program profiles) must satisfy **two audiences**:
+
+| Audience | Job | Delivery |
+|----------|-----|----------|
+| **Operator in platform** | Scan → decide → act (Watch, Track, Research, fill packet) | Visual **data storytelling** — KPI strip, derived callouts, charts that answer one question each, expiring-work table, cross-jump links; no wall of raw SQL |
+| **Operator offline / vault** | Brief stakeholders, compound intel, reuse on next pursuit | **Export** to **docx** + **pptx** (structured sections mirror on-screen story) + **vault** (`entities/agencies/`, `entities/competitors/`, pursuit `02_intel/`) — review-gated, provenance on every block |
+
+**Design rule:** When defining what a Competitor or Agency profile contains on **Profile →** click, specify **decision elements** first (identity, market position, customer concentration, recompete timing, teaming, certs/live status) — then map each element to **data source(s)**. Do not ship chart inventory without the decision it supports.
+
+**Data composition (historical + live):**
+
+| Element | Primary | Supplement (MCP / research) |
+|---------|---------|----------------------------|
+| Identity (UEI, cage, name resolve) | PG `recipient_uei` / distinct names | **SAM entity MCP** when UEI known or confirmed on Live tab |
+| Market $ / FY trend / concentration | PG intel (`recipient_landscape`, `spend_trend`) | — |
+| Agency hierarchy (dept → sub → office) | PG distinct + chart drill | **FH API** (17d-agency) + SAM org |
+| Expiring / recompete timing | PG `period_of_performance_current_end_date` | SAM notices on Live tab for same entity/NAICS |
+| Certs / set-aside / open competition | PG historical mix | **SAM MCP** entity + notice search |
+| Teaming / subs | PG FFATA `teaming` | USAspending MCP subaward supplement (Clew pattern) |
+| Narrative “so what” | Deterministic templates from metrics catalog | Grok synthesis → **candidate** until `/review` |
+
+**Export slices (deferred — do not block MVP sign-off):**
+
+| Slice | Scope | Done when |
+|-------|--------|-----------|
+| **17e-h-a** | Profile **schema registry** — named sections, required metrics, source tags (`pg_intel`, `sam_mcp`, `vault`) shared by UI + export | One JSON/catalog drives Agency + Competitor templates |
+| **17e-h-b** | **Vault promote** from profile — Research/Export → `entities/*` candidate with facet slice + entity seed provenance | Review gate; wikilinks to pursuit |
+| **17e-h-c** | **docx** export — executive one-pager per profile type (KPI table + top lists + expiring table) | Uses docx skill / template |
+| **17e-h-d** | **pptx** export — 3–5 slide deck (title, market position, customers/agencies, recompete callout, next actions) | Uses pptx skill / template |
+| **17e-h-e** | Opportunity/Capture profile uses same registry — packet field gaps + intel blocks export with slide workspace | Phase 20 + 21 alignment |
+
+**Anti-pattern:** Static PNG dumps or unstructured Clew HTML as the only export — platform story and offline deliverable must share the **same section model**.
 
 **Capture intensity — better than capture-insights Overview:**
 
@@ -1499,8 +1534,9 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 | Priority | Work | Why |
 |----------|------|-----|
 | **P0** | **17e-e** ✅ E2E sign-off smoke — facet → hone → Watch → Pulse → Track → packet fill | `pytest test_insights_signoff_e2e` + `smoke_insights_signoff.py` |
-| **P1** | **17e-g** Entity profile tabs (Competitor · Agency) | Full dossier + heat maps |
-| **P1** | Query cache / limits on 64M PG (bootstrap TTL like capture-insights) | UX — Clew queries 45–70s today |
+| **P1** | **17e-g** Entity profile tabs (Competitor · Agency) | **17e-g lite ✅** + entity→Recompete→Watch glue ✅; heat maps deferred |
+| **P1** | **17e-i** Query cache / limits on 64M PG (bootstrap TTL like capture-insights) | UX — slice queries 30–90s today |
+| **Defer** | **17e-h** Profile exports (docx/pptx/vault) + schema registry | Storytelling doctrine locked; build after cache + 17e-g depth |
 | **Defer** | 21b–21d Incubator Develop/Publish | Capture ingest polish |
 | **Defer** | 23b dedup matview, more analytics view rules | Chart accuracy polish |
 | **Defer** | 17b-interact, 17d-agency, 17c vectors | Clew/Insights UX depth |
@@ -1533,7 +1569,10 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
   - [x] 17e-d — Lens tabs (incl. Live SAM)
   - [x] 17e-e — E2E sign-off smoke
   - [x] 17e-f — Extended facets (advanced panel)
-  - [ ] 17e-g — Entity profile tabs (P1 stretch)
+  - [x] 17e-g lite — Entity profile tabs + entity-scoped Recompete/Watch
+  - [ ] 17e-g — Heat maps + adjacent competitors (depth)
+  - [ ] 17e-h — Profile schema registry + docx/pptx/vault export (deferred)
+  - [ ] 17e-i — Slice query cache (P1)
 - [x] MVP sign-off E2E (find → watch → track → packet fill)
 - [ ] Incubator Develop → Publish (Phase 21b–21d — deferred)
 - [x] `pg_queries` intel layer
