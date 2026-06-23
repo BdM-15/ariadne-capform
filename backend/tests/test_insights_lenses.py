@@ -146,6 +146,9 @@ def test_insights_page_renders_live_explore():
     assert 'id="insights-lenses-card"' in html
     assert 'id="insights-slice-panel"' in html
     assert "hx-swap=\"outerHTML\"" in html
+    assert 'action="/partials/insights/slice"' not in html
+    assert "slicePanelHasResults" in html
+    assert "openLensesCard" in html
     assert "NAICS portfolio config" in html
     assert "Add at least one facet" not in html
     assert "Shell stub" not in html
