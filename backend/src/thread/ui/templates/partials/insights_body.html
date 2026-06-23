@@ -279,6 +279,9 @@
     if (t.id === "insights-slice-panel" || (t.closest && t.closest("#insights-slice-panel"))) {
       openLensesCard(true);
     }
+    if (t.id === "insights-slice-panel" || (t.closest && t.closest("#insights-slice-panel"))) {
+      if (window.persistInsightsSession) window.persistInsightsSession();
+    }
     if (t.id === "insights-body" || t.id === "insights-slice-panel" || (t.closest && (t.closest("#insights-body") || t.closest("#insights-slice-panel")))) {
       initInsightsPage();
     }

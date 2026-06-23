@@ -2146,6 +2146,7 @@ async def clew_page(
         {
             "app_name": settings.public_app_name,
             "active_nav": "clew",
+            "from_insights": (request.query_params.get("from") or "").strip().lower() == "insights",
             **page,
         },
     )

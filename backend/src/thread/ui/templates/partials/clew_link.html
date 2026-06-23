@@ -1,6 +1,6 @@
 {# Link to standalone Clew page with optional pre-filled facets #}
 <a
-  href="/clew?recipient={{ recipient|default('', true)|urlencode }}&agency={{ agency|default('', true)|urlencode }}&sub_agency={{ sub_agency|default('', true)|urlencode }}&naics_codes={{ naics_codes|default('', true)|urlencode }}&psc_codes={{ psc_codes|default('', true)|urlencode }}&mode={{ mode|default('money_flow', true)|urlencode }}&run={{ run|default('0', true) }}"
-  class="btn btn-ghost btn-compact text-[10px] no-underline {{ extra_class }}"
-  title="Open Clew trace page"
+  href="/clew?recipient={{ recipient|default('', true)|urlencode }}&agency={{ agency|default('', true)|urlencode }}&sub_agency={{ sub_agency|default('', true)|urlencode }}&naics_codes={{ naics_codes|default('', true)|urlencode }}&psc_codes={{ psc_codes|default('', true)|urlencode }}&mode={{ mode|default('money_flow', true)|urlencode }}&run={{ run|default('0', true) }}{% if from_insights %}&from=insights{% endif %}"
+  class="btn btn-ghost btn-compact text-[10px] no-underline {{ extra_class }}{% if from_insights %} insights-clew-link{% endif %}"
+  title="{% if from_insights %}Open Clew trace — return to Insights via back link{% else %}Open Clew trace page{% endif %}"
 >Clew</a>

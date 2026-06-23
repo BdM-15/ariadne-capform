@@ -3,6 +3,9 @@
 {% block page_header %}
 <header class="page-nav-bar glass-section-bar h-12 shrink-0 flex items-center px-6 justify-between gap-4">
   <div class="flex items-center gap-3 min-w-0">
+    {% if from_insights %}
+    <a href="/insights" class="btn btn-ghost btn-compact text-neon-cyan text-xs no-underline shrink-0" title="Return to your last facet slice">← Insights</a>
+    {% endif %}
     <h1 class="text-base font-semibold tracking-tight h1-gradient shrink-0">Clew</h1>
     <span class="pill border border-neon-magenta/40 text-neon-magenta text-[10px] font-mono uppercase">Trace</span>
     <span class="text-[11px] font-mono text-slate-500 truncate hidden sm:inline">Standalone research utility · PG bulk + MCP live</span>

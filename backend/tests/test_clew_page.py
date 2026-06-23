@@ -34,6 +34,14 @@ def test_clew_page_loads():
     assert "substring search" in res.text
 
 
+def test_clew_from_insights_shows_back_link():
+    client = TestClient(create_app())
+    res = client.get("/clew?recipient=Acme&from=insights&run=1&mode=teaming")
+    assert res.status_code == 200
+    assert "← Insights" in res.text
+    assert 'href="/insights"' in res.text
+
+
 def test_clew_prefill_query():
     client = TestClient(create_app())
     res = client.get("/clew?recipient=Acme&agency=Army&mode=teaming&run=0")

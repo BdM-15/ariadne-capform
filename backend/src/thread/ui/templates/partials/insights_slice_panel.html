@@ -40,7 +40,7 @@
     <div class="insights-trace-lens space-y-3">
       <p class="text-[11px] text-slate-500">Deep money-path tracing lives on Clew — facets pre-filled from this slice.</p>
       {% if query %}
-      {% with recipient=query.recipient or '', agency=query.agency or '', naics_codes=query.naics_codes|join(',') if query.naics_codes else '', mode='money_flow', run='1', extra_class='btn-hero-magenta' %}
+      {% with recipient=query.recipient or '', agency=query.agency or '', naics_codes=query.naics_codes|join(',') if query.naics_codes else '', mode='money_flow', run='1', from_insights=true, extra_class='btn-hero-magenta' %}
       {% include "partials/clew_link.html" %}
       {% endwith %}
       {% else %}

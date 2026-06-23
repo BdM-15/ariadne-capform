@@ -85,7 +85,7 @@
     {% if award.recipient %}
     <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-lime" data-drill-field="recipient" data-drill-value="{{ award.recipient }}">Competitor profile →</button>
     {% endif %}
-    {% with recipient=award.recipient or '', agency=award.agency or '', naics_codes=award.naics_code or '', mode='teaming', run='1', extra_class='btn btn-ghost btn-compact text-[10px] border border-neon-magenta/40 text-neon-magenta' %}
+    {% with recipient=award.recipient or '', agency=award.agency or '', naics_codes=award.naics_code or '', mode='teaming', run='1', from_insights=true, extra_class='btn btn-ghost btn-compact text-[10px] border border-neon-magenta/40 text-neon-magenta' %}
     {% include "partials/clew_link.html" %}
     {% endwith %}
     <form

@@ -31,7 +31,7 @@
         data-insights-award-key="{{ row.award_key }}"
         title="Contract profile"
       >Profile</button>
-      {% with recipient=row.recipient or '', agency=row.agency or '', naics_codes=row.naics_code or '', mode='teaming', run='1', extra_class='btn btn-ghost btn-compact text-[10px] border border-neon-cyan/40 text-neon-cyan' %}
+      {% with recipient=row.recipient or '', agency=row.agency or '', naics_codes=row.naics_code or '', mode='teaming', run='1', from_insights=true, extra_class='btn btn-ghost btn-compact text-[10px] border border-neon-cyan/40 text-neon-cyan' %}
       {% include "partials/clew_link.html" %}
       {% endwith %}
       <form
