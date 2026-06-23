@@ -6,6 +6,17 @@
     return document.getElementById("insights-award-drawer-body");
   }
 
+  function mountDrawerPortal() {
+    var r = root();
+    if (r && r.parentElement !== document.body) {
+      document.body.appendChild(r);
+    }
+    var bookmarks = document.getElementById("insights-bookmarks-drawer-root");
+    if (bookmarks && bookmarks.parentElement !== document.body) {
+      document.body.appendChild(bookmarks);
+    }
+  }
+
   function drawerOpen() {
     var r = root();
     return r && !r.classList.contains("task-drawer-hidden");
@@ -26,10 +37,14 @@
 
   function showDrawerError(message) {
     var b = body();
-    if (!b) return;
+    var r = root();
+    if (!b || !r) return;
+    r.classList.remove("task-drawer-hidden");
+    r.setAttribute("aria-hidden", "false");
+    document.body.classList.add("task-drawer-open");
     b.innerHTML =
       '<div class="p-4 space-y-2">' +
-      '<p class="text-neon-amber text-xs font-semibold">Could not load award profile.</p>' +
+      '<p class="text-neon-amber text-xs font-semibold">Could not load contract profile.</p>' +
       '<p class="text-[11px] text-slate-500 font-mono">' +
       message +
       "</p>" +
@@ -41,6 +56,7 @@
     if (window.initInsightsHone) window.initInsightsHone();
     if (window.lucide) window.lucide.createIcons();
     if (window.persistInsightsSession) window.persistInsightsSession();
+    if (window.initInsightsPage) window.initInsightsPage();
     document.querySelectorAll("a.insights-clew-link").forEach(function (anchor) {
       if (window.enhanceInsightsClewHref) window.enhanceInsightsClewHref(anchor);
     });
@@ -48,15 +64,10 @@
   }
 
   window.openInsightsAwardDrawer = function (awardKey) {
+    mountDrawerPortal();
     awardKey = (awardKey || "").trim();
     if (!awardKey) {
-      showDrawerError("No award key on this row — run slice again to refresh cached expiring data.");
-      var r0 = root();
-      if (r0) {
-        r0.classList.remove("task-drawer-hidden");
-        r0.setAttribute("aria-hidden", "false");
-        document.body.classList.add("task-drawer-open");
-      }
+      showDrawerError("No award key on this row — run slice again to refresh expiring data.");
       return;
     }
     var r = root();
@@ -107,20 +118,22 @@
       if (profileBtn) {
         event.preventDefault();
         event.stopPropagation();
-        var profileKey = profileBtn.getAttribute("data-insights-award-key");
-        if (profileKey) window.openInsightsAwardDrawer(profileKey);
+        window.openInsightsAwardDrawer(profileBtn.getAttribute("data-insights-award-key") || "");
         return;
       }
       var row = event.target.closest("[data-insights-award-open]");
       if (!row) return;
       if (event.target.closest("button, a, form, .insights-drill-chip")) return;
-      var rowKey = row.getAttribute("data-award-key");
-      if (rowKey) window.openInsightsAwardDrawer(rowKey);
+      window.openInsightsAwardDrawer(row.getAttribute("data-award-key") || "");
     },
     true
   );
 
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && drawerOpen()) closeInsightsAwardDrawer();
+    if (e.key === "Escape" && drawerOpen()) window.closeInsightsAwardDrawer();
   });
+
+  mountDrawerPortal();
+  if (document.readyState !== "loading") mountDrawerPortal();
+  else document.addEventListener("DOMContentLoaded", mountDrawerPortal);
 })();

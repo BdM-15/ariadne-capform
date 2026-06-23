@@ -169,7 +169,10 @@
     if (stage) {
       stage.outerHTML =
         '<div id="insights-stage-content" class="insights-stage-content" data-active-lens="overview" data-has-slice="0">' +
+        '<div class="insights-lens-banner" role="region" aria-label="Lens navigation">' +
+        '<p id="insights-slice-loading" class="insights-stage-status htmx-indicator" aria-live="polite">Loading…</p>' +
         '<nav id="insights-lens-tabs" class="insights-lens-tabs insights-lens-tabs-hidden" role="tablist" aria-label="Insights lenses"></nav>' +
+        '</div>' +
         '<div id="insights-slice-panel" class="insights-slice-panel">' +
         '<div id="insights-lens-body" class="insights-lens-body insights-lens-idle">' +
         '<p class="insights-idle-hint">Set facets in the slice navigator, then <strong>Run slice</strong>. Lens tabs activate after the first query.</p>' +

@@ -4,7 +4,10 @@
   data-active-lens="{{ active_lens }}"
   data-has-slice="{{ '1' if has_slice else '0' }}"
 >
-  {% include "partials/insights_lens_tabs.html" %}
+  <div class="insights-lens-banner" role="region" aria-label="Lens navigation">
+    <p id="insights-slice-loading" class="insights-stage-status htmx-indicator" aria-live="polite">Loading…</p>
+    {% include "partials/insights_lens_tabs.html" %}
+  </div>
 
   <div id="insights-slice-panel" class="insights-slice-panel">
     {% include "partials/insights_slice_context.html" %}

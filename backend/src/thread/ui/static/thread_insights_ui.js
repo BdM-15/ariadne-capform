@@ -133,20 +133,22 @@
     );
   }
 
-  document.body.addEventListener("htmx:beforeRequest", function (e) {
-    if (!isSliceRequest(e)) return;
-    var elt = e.detail && e.detail.elt;
-    if (elt && elt.id === "insights-radar-form") return;
-    if (elt && elt.classList && elt.classList.contains("insights-lens-tab")) {
-      setStageStatus("Switching lens…", "loading");
-      return;
-    }
-    if (elt && elt.classList && elt.classList.contains("insights-drill-chip")) {
-      setStageStatus("Opening profile…", "loading");
-      return;
-    }
-    setStageStatus("Loading lens results…", "loading");
-  });
+  document.body.addEventListener(
+    "htmx:beforeRequest",
+    function (e) {
+      if (!isSliceRequest(e)) return;
+      var elt = e.detail && e.detail.elt;
+      if (elt && elt.id === "insights-radar-form") return;
+      var msg = "Loading lens results…";
+      if (elt && elt.classList && elt.classList.contains("insights-lens-tab")) {
+        msg = "Switching to " + (elt.textContent || "lens").trim() + "…";
+      } else if (elt && elt.classList && elt.classList.contains("insights-drill-chip")) {
+        msg = "Opening profile…";
+      }
+      setStageStatus(msg, "loading");
+    },
+    true
+  );
 
   document.body.addEventListener("htmx:afterSwap", function (e) {
     var t = e.detail && e.detail.target;
