@@ -10,7 +10,9 @@
       <span class="text-slate-300">{{ row.agency }}</span>
       {% if row.hot %}<span class="pill pill-compact border border-neon-lime/30 text-neon-lime text-[9px]">hot</span>{% endif %}
       <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-cyan" data-drill-field="agency" data-drill-value="{{ row.agency|e }}">Profile →</button>
+      {% with entity_kind='agency', entity_scope='agency', value=row.agency, extra_class='text-neon-cyan' %}
+      {% include "partials/insights_drill_profile_btn.html" %}
+      {% endwith %}
     </div>
     {% endfor %}
   </div>
@@ -34,6 +36,12 @@
     <span class="pill pill-compact border border-edge text-slate-400">{{ kpis.recipient_count or 0 }} contractors</span>
   </div>
   <div class="insights-overview-grid">
+    {% if charts.relationship_heatmap %}
+    <div class="clew-echarts-host insights-echarts-sub" data-chart-key="relationship_heatmap" data-chart-option='{{ charts.relationship_heatmap | tojson }}'></div>
+    {% endif %}
+    {% if charts.money_flow %}
+    <div class="clew-echarts-host insights-echarts-sub" data-chart-key="money_flow" data-chart-option='{{ charts.money_flow | tojson }}'></div>
+    {% endif %}
     {% if charts.sub_flow %}
     <div class="clew-echarts-host insights-echarts-sub" data-chart-key="sub_flow" data-chart-option='{{ charts.sub_flow | tojson }}'></div>
     {% endif %}
@@ -42,6 +50,9 @@
     {% endif %}
     {% if charts.top_contractors %}
     <div class="clew-echarts-host insights-echarts-compact" data-chart-key="top_contractors" data-chart-option='{{ charts.top_contractors | tojson }}'></div>
+    {% endif %}
+    {% if charts.pricing_buckets %}
+    <div class="clew-echarts-host insights-echarts-compact" data-chart-key="pricing_buckets" data-chart-option='{{ charts.pricing_buckets | tojson }}'></div>
     {% endif %}
   </div>
   {% if entity_profile.top_contractors %}
@@ -52,7 +63,9 @@
       <span class="text-slate-300">{{ row.recipient }}</span>
       {% if row.recipient_uei %}<span class="text-neon-cyan">UEI {{ row.recipient_uei }}</span>{% endif %}
       <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-lime" data-drill-field="recipient" data-drill-value="{{ row.recipient|e }}">Competitor →</button>
+      {% with entity_kind='competitor', entity_scope='recipient', value=row.recipient, label='Competitor →', extra_class='text-neon-lime' %}
+      {% include "partials/insights_drill_profile_btn.html" %}
+      {% endwith %}
     </div>
     {% endfor %}
   </div>

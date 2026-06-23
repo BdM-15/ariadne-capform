@@ -95,6 +95,72 @@ def test_explore_query_for_entity_scopes_recipient():
     assert scoped.recipient == "Acme Federal LLC"
 
 
+def test_insights_competition_lens_slice_wide_ffp():
+    client = TestClient(create_app())
+    res = client.get(
+        "/partials/insights/slice",
+        params={
+            "run": 1,
+            "lens": "competition",
+            "naics_codes": "561210",
+        },
+    )
+    assert res.status_code == 200
+    html = res.text
+    assert "insights-competition-lens" in html
+    assert "FFP shaping" in html or "competition posture" in html or "non-fixed" in html
+
+
+def test_insights_graph_expand_requires_node_id():
+    client = TestClient(create_app())
+    res = client.get(
+        "/api/insights/graph-expand",
+        params={"naics_codes": "561210", "node_id": ""},
+    )
+    assert res.status_code == 400
+    assert "node_id" in res.json().get("error", "")
+
+
+def test_insights_trace_lens_inline_not_clew_only():
+    client = TestClient(create_app())
+    res = client.get(
+        "/partials/insights/slice",
+        params={
+            "run": 1,
+            "lens": "trace",
+            "naics_codes": "561210",
+        },
+    )
+    assert res.status_code == 200
+    html = res.text
+    assert "insights-trace-lens" in html
+    assert "Deep money-path tracing lives on Clew" not in html
+    assert "active slice" in html or "money" in html.lower()
+    assert "multi-hop" in html or "Relations trace" in html
+    assert "people-only" in html or "not people-only" in html
+
+
+def test_insights_competitor_drill_relations_multi_hop_copy():
+    client = TestClient(create_app())
+    res = client.get(
+        "/partials/insights/slice",
+        params={
+            "run": 1,
+            "lens": "competitor",
+            "naics_codes": "561210",
+            "entity_kind": "competitor",
+            "entity_value": "SAVANNAH RIVER NUCLEAR SOLUTIONS LLC",
+            "entity_scope": "recipient",
+        },
+    )
+    assert res.status_code == 200
+    html = res.text
+    assert "insights-competitor-lens" in html
+    assert "Relations web" in html or "relations_graph" in html or "insights-explore-msg" in html
+    if "Relations web" in html:
+        assert "hops" in html
+
+
 def test_insights_competition_lens_entity_scoped_copy():
     client = TestClient(create_app())
     res = client.get(

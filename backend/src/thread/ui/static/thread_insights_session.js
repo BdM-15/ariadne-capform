@@ -162,12 +162,16 @@
     if (lens) lens.value = "overview";
     if (window.closeInsightsAwardDrawer) window.closeInsightsAwardDrawer();
 
+    var tabs = document.getElementById("insights-lens-tabs");
+    if (tabs) tabs.classList.add("insights-lens-tabs-hidden");
+
     var panel = document.getElementById("insights-slice-panel");
     if (panel) {
       panel.outerHTML =
         '<div id="insights-slice-panel" class="insights-slice-panel" data-active-lens="overview" data-has-slice="0">' +
-        '<p class="insights-idle-hint">Set facets above, then <strong>Run slice</strong>.</p>' +
-        "</div>";
+        '<div id="insights-lens-body" class="insights-lens-body insights-lens-idle">' +
+        '<p class="insights-idle-hint">Set facets in the slice navigator, then <strong>Run slice</strong>. Lens tabs activate after the first query.</p>' +
+        "</div></div>";
     }
     var card = document.getElementById("insights-lenses-card");
     if (card) card.open = true;

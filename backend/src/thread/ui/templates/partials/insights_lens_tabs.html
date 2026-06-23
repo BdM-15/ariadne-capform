@@ -1,0 +1,28 @@
+<nav
+  id="insights-lens-tabs"
+  class="insights-lens-tabs{% if not has_slice %} insights-lens-tabs-hidden{% endif %}"
+  role="tablist"
+  aria-label="Insights lenses"
+  {% if oob is defined and oob %}hx-swap-oob="true"{% endif %}
+>
+  {% set facet_qs = "agency=" ~ (facet_form.agency or '') ~ "&sub_agency=" ~ (facet_form.sub_agency or '') ~ "&recipient=" ~ (facet_form.recipient or '') ~ "&naics_codes=" ~ (facet_form.naics_codes or '') ~ "&psc_codes=" ~ (facet_form.psc_codes or '') ~ "&run=1" %}
+  {% for tab in lens_tabs %}
+  <button
+    type="button"
+    class="insights-lens-tab {% if tab.id == active_lens %}insights-lens-tab-active{% endif %}"
+    role="tab"
+    aria-selected="{{ 'true' if tab.id == active_lens else 'false' }}"
+    {% if has_slice %}
+    hx-get="/partials/insights/slice?lens={{ tab.id }}&{{ facet_qs }}"
+    hx-target="#insights-slice-panel"
+    hx-swap="outerHTML"
+    hx-indicator="#insights-slice-loading"
+    hx-include="#insights-radar-form, #insights-entity-state"
+    hx-vals='{"lens": "{{ tab.id }}", "run": "1"}'
+    {% else %}
+    disabled
+    title="Run a slice first"
+    {% endif %}
+  >{{ tab.label }}</button>
+  {% endfor %}
+</nav>

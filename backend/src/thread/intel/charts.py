@@ -17,9 +17,12 @@ from thread.intel.sql_expressions import (
     AGENCY_EXPR,
     AGENCY_NORMALIZED_EXPR,
     EXTENT_COMPETED_NORMALIZED_EXPR,
+    IDV_FLAG_EXPR,
+    PRICING_BUCKET_EXPR,
     PRIME_TABLE,
     SET_ASIDE_CHART_EXPR,
     SUB_TABLE,
+    VEHICLE_EXPR,
     round_numeric,
 )
 
@@ -481,6 +484,586 @@ async def extent_competed_breakdown(
         }
         for r in rows
     ]
+
+
+def _pressure_tier(non_fixed_pct: float) -> str:
+    if non_fixed_pct >= 45:
+        return "high"
+    if non_fixed_pct >= 25:
+        return "moderate"
+    return "low"
+
+
+def _agency_shape_gate(non_fixed_pct: float, expiring_non_fixed: int) -> str:
+    if non_fixed_pct >= 35 and expiring_non_fixed > 0:
+        return "advance"
+    if non_fixed_pct >= 25 or expiring_non_fixed > 0:
+        return "monitor"
+    return "defer"
+
+
+async def agency_recipient_matrix(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    *,
+    limit: int = 120,
+) -> dict[str, Any]:
+    """Agency × recipient pairs for relationship heatmaps (capture-insights port)."""
+    facet_sql, facet_params = build_facet_sql(query)
+    sql = f"""
+        SELECT
+            ({AGENCY_EXPR}) AS agency,
+            recipient_name AS recipient,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE recipient_name IS NOT NULL
+          {facet_sql}
+        GROUP BY agency, recipient_name
+        HAVING COUNT(*) >= 1
+        ORDER BY actions DESC, millions DESC NULLS LAST
+        LIMIT :limit
+    """
+    rows = (await session.execute(text(sql), {**facet_params, "limit": limit})).all()
+    cells = [
+        {
+            "agency": r.agency,
+            "recipient": r.recipient,
+            "actions": int(r.actions),
+            "millions": float(r.millions or 0),
+        }
+        for r in rows
+    ]
+    agencies = list(dict.fromkeys(c["agency"] for c in cells))[:12]
+    recipients = list(dict.fromkeys(c["recipient"] for c in cells))[:12]
+    return {
+        "mode": "agency_recipient_matrix",
+        "cells": cells,
+        "agencies": agencies,
+        "recipients": recipients,
+        "summary": f"{len(cells)} agency×recipient ties in slice",
+    }
+
+
+async def pricing_bucket_breakdown(
+    session: AsyncSession,
+    facet_sql: str,
+    facet_params: dict[str, Any],
+    *,
+    limit: int = 8,
+) -> list[dict[str, Any]]:
+    sql = f"""
+        WITH bucketed AS (
+            SELECT
+                ({PRICING_BUCKET_EXPR}) AS pricing_bucket,
+                federal_action_obligation AS oblig
+            FROM {PRIME_TABLE}
+            WHERE 1=1
+              {facet_sql}
+        )
+        SELECT
+            pricing_bucket,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(oblig, 0)) / 1000000.0")} AS millions
+        FROM bucketed
+        GROUP BY pricing_bucket
+        ORDER BY millions DESC NULLS LAST
+        LIMIT :limit
+    """
+    rows = (await session.execute(text(sql), {**facet_params, "limit": limit})).all()
+    labels = {
+        "firm_fixed": "Firm fixed",
+        "cost_reimbursement": "Cost reimbursable",
+        "time_materials": "Time & materials",
+        "performance_based": "Performance-based",
+        "other": "Other / unknown",
+    }
+    return [
+        {
+            "bucket": labels.get(r.pricing_bucket, r.pricing_bucket),
+            "pricing_bucket": r.pricing_bucket,
+            "actions": int(r.actions),
+            "millions": float(r.millions or 0),
+        }
+        for r in rows
+    ]
+
+
+async def vehicle_breakdown(
+    session: AsyncSession,
+    facet_sql: str,
+    facet_params: dict[str, Any],
+    *,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    sql = f"""
+        SELECT
+            COALESCE(type_of_contract_pricing, 'Unknown Pricing') AS pricing,
+            ({VEHICLE_EXPR}) AS vehicle,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE 1=1
+          {facet_sql}
+        GROUP BY pricing, vehicle
+        ORDER BY millions DESC NULLS LAST
+        LIMIT :limit
+    """
+    rows = (await session.execute(text(sql), {**facet_params, "limit": limit})).all()
+    return [
+        {
+            "pricing": r.pricing,
+            "vehicle": r.vehicle,
+            "actions": int(r.actions),
+            "millions": float(r.millions or 0),
+        }
+        for r in rows
+    ]
+
+
+async def idv_channel_split(
+    session: AsyncSession,
+    facet_sql: str,
+    facet_params: dict[str, Any],
+) -> list[dict[str, Any]]:
+    sql = f"""
+        SELECT
+            ({IDV_FLAG_EXPR}) AS channel,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE 1=1
+          {facet_sql}
+        GROUP BY channel
+        ORDER BY millions DESC NULLS LAST
+    """
+    rows = (await session.execute(text(sql), facet_params)).all()
+    return [
+        {
+            "channel": r.channel,
+            "actions": int(r.actions),
+            "millions": float(r.millions or 0),
+        }
+        for r in rows
+    ]
+
+
+async def ffp_shaping_radar(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    *,
+    months_ahead: int = 36,
+    agency_limit: int = 12,
+    target_limit: int = 15,
+) -> dict[str, Any]:
+    """FFP / flexible-pricing shaping radar — facet-scoped (capture-insights port)."""
+    empty: dict[str, Any] = {
+        "meta": {
+            "policy_note": (
+                "Agencies under non-fixed pricing pressure — shaping qualification lens, "
+                "not a prediction that specific contracts will convert."
+            ),
+        },
+        "summary": {
+            "market_non_fixed_pct": 0,
+            "market_firm_fixed_pct": 0,
+            "agencies_high_pressure": 0,
+            "shape_now_count": 0,
+        },
+        "agency_pressure": [],
+        "shape_targets": [],
+    }
+    facet_sql, facet_params = build_facet_sql(query)
+    market_sql = f"""
+        WITH bucketed AS (
+            SELECT
+                ({PRICING_BUCKET_EXPR}) AS pricing_bucket,
+                federal_action_obligation AS oblig
+            FROM {PRIME_TABLE}
+            WHERE 1=1
+              {facet_sql}
+        )
+        SELECT pricing_bucket, COUNT(*) AS actions,
+               {round_numeric("SUM(COALESCE(oblig, 0)) / 1000000.0")} AS millions
+        FROM bucketed
+        GROUP BY pricing_bucket
+        ORDER BY millions DESC NULLS LAST
+    """
+    market_rows = (await session.execute(text(market_sql), facet_params)).all()
+    total_m = sum(float(r.millions or 0) for r in market_rows) or 0
+    if not total_m:
+        return empty
+
+    bucket_m = {r.pricing_bucket: float(r.millions or 0) for r in market_rows}
+    firm_fixed_m = bucket_m.get("firm_fixed", 0)
+    non_fixed_m = sum(
+        bucket_m.get(k, 0)
+        for k in ("cost_reimbursement", "time_materials", "performance_based", "other")
+    )
+
+    agency_sql = f"""
+        WITH bucketed AS (
+            SELECT
+                ({AGENCY_EXPR}) AS agency,
+                ({PRICING_BUCKET_EXPR}) AS pricing_bucket,
+                COALESCE(type_of_contract_pricing, 'Unknown') AS pricing_label,
+                federal_action_obligation AS oblig
+            FROM {PRIME_TABLE}
+            WHERE 1=1
+              {facet_sql}
+        ),
+        agency_totals AS (
+            SELECT agency, {round_numeric("SUM(oblig) / 1000000.0")} AS total_millions
+            FROM bucketed
+            GROUP BY agency
+            HAVING SUM(oblig) > 0
+        ),
+        agency_buckets AS (
+            SELECT
+                agency,
+                pricing_bucket,
+                COUNT(*) AS actions,
+                {round_numeric("SUM(oblig) / 1000000.0")} AS millions,
+                MAX(pricing_label) AS sample_pricing
+            FROM bucketed
+            GROUP BY agency, pricing_bucket
+        )
+        SELECT
+            bk.agency,
+            tot.total_millions,
+            bk.pricing_bucket,
+            bk.millions,
+            bk.actions,
+            bk.sample_pricing
+        FROM agency_buckets bk
+        JOIN agency_totals tot ON tot.agency = bk.agency
+        ORDER BY tot.total_millions DESC NULLS LAST, bk.millions DESC NULLS LAST
+    """
+    agency_rows = (await session.execute(text(agency_sql), facet_params)).all()
+
+    expiring_sql = f"""
+        SELECT
+            contract_award_unique_key,
+            recipient_name,
+            ({AGENCY_EXPR}) AS agency,
+            COALESCE(type_of_contract_pricing, 'Unknown') AS pricing,
+            ({PRICING_BUCKET_EXPR}) AS pricing_bucket,
+            {round_numeric("COALESCE(federal_action_obligation, 0) / 1000000.0")} AS obligation_millions,
+            period_of_performance_current_end_date::text AS end_date
+        FROM {PRIME_TABLE}
+        WHERE period_of_performance_current_end_date IS NOT NULL
+          AND period_of_performance_current_end_date <= CURRENT_DATE + (:months_ahead || ' months')::interval
+          AND period_of_performance_current_end_date >= CURRENT_DATE
+          {facet_sql}
+        ORDER BY period_of_performance_current_end_date ASC
+        LIMIT :exp_limit
+    """
+    expiring_rows = (
+        await session.execute(
+            text(expiring_sql),
+            {**facet_params, "months_ahead": str(months_ahead), "exp_limit": max(target_limit * 4, 40)},
+        )
+    ).all()
+
+    agency_map: dict[str, dict[str, Any]] = {}
+    for r in agency_rows:
+        agency = r.agency
+        if agency not in agency_map:
+            agency_map[agency] = {"agency": agency, "total_millions": float(r.total_millions or 0), "buckets": {}}
+        agency_map[agency]["buckets"][r.pricing_bucket] = {
+            "millions": float(r.millions or 0),
+            "actions": int(r.actions),
+            "sample_pricing": r.sample_pricing,
+        }
+
+    agency_pressure: list[dict[str, Any]] = []
+    for agency, entry in sorted(
+        agency_map.items(),
+        key=lambda x: x[1]["total_millions"],
+        reverse=True,
+    )[:agency_limit]:
+        total = entry["total_millions"] or 1.0
+        buckets = entry["buckets"]
+        firm_m = buckets.get("firm_fixed", {}).get("millions", 0)
+        cost_rm = buckets.get("cost_reimbursement", {}).get("millions", 0)
+        tm_rm = buckets.get("time_materials", {}).get("millions", 0)
+        perf_rm = buckets.get("performance_based", {}).get("millions", 0)
+        other_rm = buckets.get("other", {}).get("millions", 0)
+        non_fixed_m_ag = cost_rm + tm_rm + perf_rm + other_rm
+        non_fixed_pct = round((non_fixed_m_ag / total) * 100, 1)
+
+        dominant_non_fixed = None
+        dominant_m = 0.0
+        for bname in ("cost_reimbursement", "time_materials", "performance_based", "other"):
+            bm = buckets.get(bname, {}).get("millions", 0)
+            if bm > dominant_m:
+                dominant_m = bm
+                dominant_non_fixed = buckets.get(bname, {}).get("sample_pricing")
+
+        expiring_non_fixed = sum(
+            1 for er in expiring_rows if er.agency == agency and er.pricing_bucket != "firm_fixed"
+        )
+
+        agency_pressure.append({
+            "agency": agency,
+            "total_millions": round(total, 2),
+            "firm_fixed_pct": round((firm_m / total) * 100, 1),
+            "non_fixed_pct": non_fixed_pct,
+            "dominant_non_fixed_pricing": dominant_non_fixed,
+            "pressure_tier": _pressure_tier(non_fixed_pct),
+            "shape_gate": _agency_shape_gate(non_fixed_pct, expiring_non_fixed),
+            "expiring_non_fixed_count": expiring_non_fixed,
+        })
+
+    agency_pressure.sort(key=lambda a: (a["non_fixed_pct"], a["total_millions"]), reverse=True)
+    agency_pct_lookup = {a["agency"]: a["non_fixed_pct"] for a in agency_pressure}
+    agency_tier_lookup = {a["agency"]: a["pressure_tier"] for a in agency_pressure}
+
+    shape_targets: list[dict[str, Any]] = []
+    for er in expiring_rows:
+        if er.pricing_bucket == "firm_fixed":
+            continue
+        agency_non_fixed = agency_pct_lookup.get(er.agency, 0)
+        pressure_tier = agency_tier_lookup.get(er.agency, "low")
+        oblig_m = float(er.obligation_millions or 0)
+
+        if agency_non_fixed >= 35 and oblig_m >= 0.5:
+            shape_gate = "shape_now"
+            shape_reason = (
+                f"Non-fixed ({er.pricing}) expiring at agency with {agency_non_fixed}% "
+                "flexible pricing — early shaping window"
+            )
+        elif agency_non_fixed >= 25 or pressure_tier in ("high", "moderate"):
+            shape_gate = "monitor"
+            shape_reason = "Flexible pricing recompete — watch for shift toward fixed-price terms"
+        else:
+            shape_gate = "watch"
+            shape_reason = "Non-fixed expiring award — lower agency pressure in slice"
+
+        shape_targets.append({
+            "award_key": er.contract_award_unique_key,
+            "recipient": er.recipient_name,
+            "agency": er.agency,
+            "end_date": er.end_date,
+            "pricing": er.pricing,
+            "pricing_bucket": er.pricing_bucket,
+            "obligation_millions": oblig_m,
+            "agency_non_fixed_pct": agency_non_fixed,
+            "pressure_tier": pressure_tier,
+            "shape_gate": shape_gate,
+            "shape_reason": shape_reason,
+        })
+
+    gate_order = {"shape_now": 0, "monitor": 1, "watch": 2}
+    shape_targets.sort(
+        key=lambda t: (
+            gate_order.get(t["shape_gate"], 9),
+            -(t["obligation_millions"] or 0),
+            -(t["agency_non_fixed_pct"] or 0),
+        )
+    )
+    shape_targets = shape_targets[:target_limit]
+
+    return {
+        "meta": empty["meta"],
+        "summary": {
+            "market_non_fixed_pct": round((non_fixed_m / total_m) * 100, 1),
+            "market_firm_fixed_pct": round((firm_fixed_m / total_m) * 100, 1),
+            "agencies_high_pressure": sum(1 for a in agency_pressure if a["pressure_tier"] == "high"),
+            "shape_now_count": sum(1 for t in shape_targets if t["shape_gate"] == "shape_now"),
+        },
+        "agency_pressure": agency_pressure,
+        "shape_targets": shape_targets,
+    }
+
+
+async def adjacent_competitors(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    target_recipient: str,
+    *,
+    limit: int = 10,
+    exclude_top_n: int = 10,
+    max_share_pct: float = 8.0,
+) -> list[dict[str, Any]]:
+    """Co-occurrence at shared agencies — niche primes, not market leaders."""
+    target = (target_recipient or "").strip()
+    if not target:
+        return []
+
+    facet_sql, facet_params = build_facet_sql(query)
+    market_sql = f"""
+        SELECT recipient_name,
+               {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE recipient_name IS NOT NULL
+          {facet_sql}
+        GROUP BY recipient_name
+        ORDER BY millions DESC NULLS LAST
+    """
+    market_rows = (await session.execute(text(market_sql), facet_params)).all()
+    total_market = sum(float(r.millions or 0) for r in market_rows) or 1.0
+    top_names = {r.recipient_name for r in market_rows[:exclude_top_n]}
+    top_names.add(target)
+
+    overlap_sql = f"""
+        WITH target_agencies AS (
+            SELECT DISTINCT ({AGENCY_EXPR}) AS agency
+            FROM {PRIME_TABLE}
+            WHERE recipient_name = :target_recipient
+              {facet_sql}
+        ),
+        recipient_totals AS (
+            SELECT recipient_name,
+                   {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS market_millions
+            FROM {PRIME_TABLE}
+            WHERE recipient_name IS NOT NULL
+              {facet_sql}
+            GROUP BY recipient_name
+        ),
+        overlap AS (
+            SELECT
+                p.recipient_name,
+                ({AGENCY_EXPR}) AS agency,
+                COUNT(*) AS actions,
+                {round_numeric("SUM(COALESCE(p.federal_action_obligation, 0)) / 1000000.0")} AS millions
+            FROM {PRIME_TABLE} p
+            WHERE p.recipient_name != :target_recipient
+              {facet_sql}
+              AND ({AGENCY_EXPR}) IN (SELECT agency FROM target_agencies)
+            GROUP BY p.recipient_name, ({AGENCY_EXPR})
+        )
+        SELECT
+            o.recipient_name,
+            COUNT(DISTINCT o.agency) AS shared_agencies,
+            SUM(o.actions) AS total_actions,
+            {round_numeric("SUM(o.millions)")} AS shared_millions,
+            MAX(o.agency) AS sample_agency,
+            MAX(rt.market_millions) AS market_millions
+        FROM overlap o
+        LEFT JOIN recipient_totals rt ON rt.recipient_name = o.recipient_name
+        GROUP BY o.recipient_name
+        ORDER BY shared_agencies DESC, shared_millions ASC
+        LIMIT :scan_limit
+    """
+    rows = (
+        await session.execute(
+            text(overlap_sql),
+            {**facet_params, "target_recipient": target, "scan_limit": max(limit * 3, 30)},
+        )
+    ).all()
+
+    candidates: list[dict[str, Any]] = []
+    for r in rows:
+        name = r.recipient_name or "Unknown"
+        if name in top_names:
+            continue
+        market_m = float(r.market_millions or 0)
+        share_pct = round((market_m / total_market) * 100, 2)
+        if share_pct > max_share_pct:
+            continue
+        shared_ag = int(r.shared_agencies or 0)
+        shared_m = float(r.shared_millions or 0)
+        overlap_ratio = round(shared_m / market_m, 3) if market_m else 0.0
+        if share_pct <= 4.0 and shared_ag >= 2:
+            fit = "promising"
+            fit_reason = "Adjacent vendor at shared buyers — validate gap before outreach"
+        elif shared_ag >= 1 and shared_m <= 12:
+            fit = "research"
+            fit_reason = "Thin overlap — subs or web research may surface better fits"
+        else:
+            fit = "research"
+            fit_reason = "Weak bulk signal — vet capability match"
+        candidates.append({
+            "recipient": name,
+            "shared_agencies": shared_ag,
+            "total_actions": int(r.total_actions or 0),
+            "shared_millions": shared_m,
+            "market_millions": market_m,
+            "market_share_pct": share_pct,
+            "overlap_ratio": overlap_ratio,
+            "sample_agency": r.sample_agency,
+            "fit": fit,
+            "fit_reason": fit_reason,
+        })
+
+    fit_order = {"promising": 0, "research": 1}
+    candidates.sort(
+        key=lambda c: (
+            fit_order.get(c["fit"], 9),
+            -(c["shared_agencies"] or 0),
+            c["market_share_pct"] or 999,
+        )
+    )
+    return candidates[:limit]
+
+
+async def run_competition_lens(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+) -> dict[str, Any]:
+    """Slice-wide competition bundle — set-aside, extent, pricing, vehicles, FFP shaping."""
+    if not query.has_filters():
+        return {"error": "At least one search facet required.", "status": "no_query"}
+    if not await table_exists(session, PRIME_TABLE):
+        return {"error": "Prime awards table missing.", "status": "loading"}
+
+    facet_sql, facet_params = build_facet_sql(query)
+    set_aside = await set_aside_breakdown(session, facet_sql, facet_params)
+    extent = await extent_competed_breakdown(session, facet_sql, facet_params)
+    pricing = await pricing_bucket_breakdown(session, facet_sql, facet_params)
+    vehicles = await vehicle_breakdown(session, facet_sql, facet_params)
+    idv_split = await idv_channel_split(session, facet_sql, facet_params)
+    ffp = await ffp_shaping_radar(session, query)
+
+    return {
+        "status": "ready",
+        "mode": "competition_lens",
+        "set_aside": set_aside,
+        "extent_competed": extent,
+        "pricing_buckets": pricing,
+        "vehicle_breakdown": vehicles,
+        "idv_split": idv_split,
+        "ffp_shaping": ffp,
+    }
+
+
+async def run_trace_lens(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    *,
+    limit: int = 16,
+) -> dict[str, Any]:
+    """Inline DR trace — Sankey + expose graph + heat map on active slice."""
+    if not query.has_filters():
+        return {"error": "At least one search facet required.", "status": "no_query"}
+    if not await table_exists(session, PRIME_TABLE):
+        return {"error": "Prime awards table missing.", "status": "loading"}
+
+    from thread.intel.graph_trace import build_browse_funnel, build_relations_graph
+
+    money = await money_flow(session, query, limit=limit)
+    team = await teaming(session, query, limit=limit)
+    matrix = await agency_recipient_matrix(session, query, limit=80)
+    relations = await build_relations_graph(
+        session,
+        query,
+        seed_recipient=query.recipient or "",
+        seed_agency=query.agency or "",
+        max_hops=3,
+    )
+    browse = build_browse_funnel(relations)
+
+    return {
+        "status": "ready",
+        "mode": "trace_lens",
+        "money_flow": money,
+        "teaming": team,
+        "agency_recipient_matrix": matrix,
+        "relations_graph": relations,
+        "expose_graph": relations,
+        "browse_funnel": browse,
+    }
 
 
 async def top_recipients(

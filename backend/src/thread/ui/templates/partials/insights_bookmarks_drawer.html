@@ -1,0 +1,60 @@
+<div id="insights-bookmarks-drawer-root" class="insights-bookmarks-drawer-root insights-drawer-hidden" aria-hidden="true">
+  <button
+    type="button"
+    class="insights-bookmarks-backdrop"
+    aria-label="Close bookmarks"
+    onclick="closeInsightsBookmarksDrawer()"
+  ></button>
+  <aside id="insights-bookmarks-drawer" class="insights-bookmarks-drawer" role="dialog" aria-labelledby="insights-bookmarks-title">
+    <header class="insights-bookmarks-head">
+      <div class="min-w-0">
+        <span class="text-[10px] font-mono uppercase tracking-wide text-neon-magenta/80">Saved searches</span>
+        <h2 id="insights-bookmarks-title" class="text-sm font-semibold text-neon-magenta m-0">Bookmarks</h2>
+        <p class="text-[10px] text-slate-500 m-0 mt-1">Reopen a named facet slice — does not control Pulse.</p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-compact" onclick="closeInsightsBookmarksDrawer()" title="Close">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </header>
+    <div class="insights-bookmarks-body">
+      <form class="insights-bookmark-save" hx-post="/insights/radar/save" hx-target="#insights-body" hx-swap="outerHTML" hx-include="#insights-radar-form">
+        <input class="thread-input insights-bookmark-input" name="name" placeholder="Bookmark name" required />
+        <input class="thread-input insights-bookmark-input" name="description" placeholder="Notes (optional)" />
+        <button type="submit" class="btn btn-primary btn-compact w-full">Save current slice</button>
+      </form>
+      {% if ctx.radar_lenses|length == 0 %}
+      <p class="insights-bookmarks-empty text-[11px] text-slate-500 mt-4">No bookmarks yet.</p>
+      {% else %}
+      <ul class="insights-bookmark-list mt-3">
+        {% for lens in ctx.radar_lenses %}
+        <li class="insights-bookmark-item">
+          <div class="insights-bookmark-meta">
+            <span class="insights-bookmark-name">{{ lens.query.name }}</span>
+            <span class="insights-bookmark-facets">{{ lens.summary }}</span>
+            {% if lens.expiring_count is not none %}
+            <span class="insights-bookmark-stat">{{ lens.expiring_count }} expiring</span>
+            {% endif %}
+          </div>
+          <div class="insights-bookmark-actions">
+            <button
+              type="button"
+              class="btn btn-primary btn-compact"
+              hx-get="/partials/insights/slice?run=1&lens=overview"
+              hx-target="#insights-slice-panel"
+              hx-swap="outerHTML"
+              hx-include="#insights-radar-form"
+              hx-indicator="#insights-slice-loading"
+              hx-vals='{"agency": "{{ lens.query.agency or '' }}", "sub_agency": "{{ lens.query.sub_agency or '' }}", "recipient": "{{ lens.query.recipient or '' }}", "naics_codes": "{{ lens.query.naics_codes|join(',') if lens.query.naics_codes else '' }}", "psc_codes": "{{ lens.query.psc_codes|join(',') if lens.query.psc_codes else '' }}", "awarding_office": "{{ lens.query.awarding_office or '' }}", "funding_office": "{{ lens.query.funding_office or '' }}", "recipient_uei": "{{ lens.query.recipient_uei or '' }}", "pop_state": "{{ lens.query.pop_state or '' }}", "extent_competed": "{{ lens.query.extent_competed or '' }}", "type_of_set_aside": "{{ lens.query.type_of_set_aside or '' }}"}'
+              onclick="closeInsightsBookmarksDrawer()"
+            >Open</button>
+            <form hx-post="/insights/radar/{{ lens.query.id }}/delete" hx-target="#insights-body" hx-swap="outerHTML" hx-confirm="Delete {{ lens.query.name }}?">
+              <button type="submit" class="btn btn-ghost btn-compact text-[10px] text-slate-500">Delete</button>
+            </form>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </aside>
+</div>

@@ -10,8 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.config import Settings
 from thread.intel.charts import (
+    adjacent_competitors,
+    agency_recipient_matrix,
     agency_sub_flow,
     extent_competed_breakdown,
+    money_flow,
+    pricing_bucket_breakdown,
     set_aside_breakdown,
     spend_trend,
     teaming,
@@ -143,7 +147,7 @@ async def build_entity_profile(
     scoped = scoped_slice_query(slice_query, entity)
     try:
         if entity.kind == "competitor":
-            raw = await _competitor_profile(session, scoped, entity, slice_query)
+            raw = await _competitor_profile(session, scoped, entity, slice_query, settings)
         else:
             raw = await _agency_profile(session, scoped, entity, slice_query)
     except Exception as exc:  # pragma: no cover — surfaced in UI
@@ -208,7 +212,8 @@ async def _competition_mix(
     facet_sql, facet_params = build_facet_sql(scoped)
     set_aside = await set_aside_breakdown(session, facet_sql, facet_params)
     extent = await extent_competed_breakdown(session, facet_sql, facet_params)
-    return {"set_aside": set_aside, "extent_competed": extent}
+    pricing = await pricing_bucket_breakdown(session, facet_sql, facet_params)
+    return {"set_aside": set_aside, "extent_competed": extent, "pricing_buckets": pricing}
 
 
 async def _agency_profile(
@@ -223,6 +228,8 @@ async def _agency_profile(
     sub_flow = await agency_sub_flow(session, scoped, limit=12)
     agencies_for_matrix = await _top_agencies_in_scope(session, scoped, limit=10)
     competition = await _competition_mix(session, scoped)
+    matrix = await agency_recipient_matrix(session, scoped, limit=100)
+    flow = await money_flow(session, scoped, limit=14)
 
     return {
         "status": "ready",
@@ -239,6 +246,8 @@ async def _agency_profile(
         "agency_sub_flow": sub_flow.get("rows") or [],
         "agency_sub_flow_group": sub_flow.get("group"),
         "top_agencies": agencies_for_matrix,
+        "agency_recipient_matrix": matrix,
+        "money_flow": flow.get("flows") or [],
         "slice_summary": _slice_hint(slice_query),
         **competition,
     }
@@ -249,6 +258,7 @@ async def _competitor_profile(
     scoped: InsightFacetQuery,
     entity: EntityContext,
     slice_query: InsightFacetQuery,
+    settings: Settings,
 ) -> dict[str, Any]:
     kpis = await _entity_kpis(session, scoped)
     identity = await _recipient_identity(session, scoped, entity.value)
@@ -257,6 +267,28 @@ async def _competitor_profile(
     top_naics = await _top_naics_in_scope(session, scoped, limit=10)
     subs = await teaming(session, scoped, limit=10)
     competition = await _competition_mix(session, scoped)
+    matrix = await agency_recipient_matrix(session, scoped, limit=100)
+    flow = await money_flow(session, scoped, limit=14)
+    adjacent = await adjacent_competitors(session, slice_query, entity.value, limit=8)
+    from thread.intel.graph_trace import (
+        build_browse_funnel,
+        build_relations_graph,
+        enrich_relations_graph,
+    )
+
+    relations = await build_relations_graph(
+        session,
+        scoped,
+        seed_recipient=entity.value,
+        max_hops=3,
+    )
+    relations = await enrich_relations_graph(
+        relations,
+        settings,
+        recipient_uei=identity.get("recipient_uei") or scoped.recipient_uei,
+        seed_prime=entity.value,
+    )
+    browse = build_browse_funnel(relations)
 
     return {
         "status": "ready",
@@ -274,6 +306,11 @@ async def _competitor_profile(
         "top_naics": top_naics,
         "teaming": subs.get("edges") or [],
         "teaming_error": subs.get("error"),
+        "agency_recipient_matrix": matrix,
+        "money_flow": flow.get("flows") or [],
+        "adjacent_competitors": adjacent,
+        "relations_graph": relations,
+        "browse_funnel": browse,
         "slice_summary": _slice_hint(slice_query),
         **competition,
     }

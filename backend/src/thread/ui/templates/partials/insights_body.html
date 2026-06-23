@@ -1,184 +1,98 @@
 <div id="insights-body" class="insights-page page-content">
   {% if flash %}
-  <div class="card card-accent accent-amber p-3 text-sm text-neon-amber mb-4">{{ flash }}</div>
+  <div class="insights-flash-banner">{{ flash }}</div>
   {% endif %}
 
-  <div class="settings-tip-box insights-page-tip mb-4">
-    <strong class="text-slate-300">Identify</strong> —
-    run a <span class="text-neon-magenta">facet slice</span>, read the Overview (capture intensity hero),
-    <span class="text-neon-magenta">Watch</span> →
-    <a href="/pulse#potential-watchlist" class="text-neon-cyan no-underline hover:underline">Pulse watchlist</a>.
-    Deep trace → <a href="/clew" class="text-neon-magenta no-underline hover:underline">Clew</a>.
-  </div>
-
-  <div class="insights-status-row flex flex-wrap gap-2 text-[10px] font-mono mb-4">
-    <span class="pill pill-compact border {% if ctx.intel_live %}border-neon-lime/40 text-neon-lime{% else %}border-neon-amber/40 text-neon-amber{% endif %}">
-      PG {% if ctx.intel_live %}ready{% else %}loading{% endif %}
-    </span>
-    {% if ctx.intel_live %}
-    <span class="pill pill-compact border border-edge text-slate-500">{{ "{:,}".format(ctx.intel_stats.prime_award_count) }} awards</span>
-    {% endif %}
-    <span class="pill pill-compact border {% if ctx.sam_configured %}border-neon-cyan/40 text-neon-cyan{% else %}border-neon-amber/40 text-neon-amber{% endif %}">
-      SAM {% if ctx.sam_configured %}ready{% else %}no key{% endif %}
-    </span>
-  </div>
-
-  <div class="insights-stack space-y-4">
-    <div id="insights-facet-card" class="card card-accent accent-magenta insights-facet-toolbar">
+  <div class="insights-workspace">
+    <aside class="insights-facet-nav" aria-label="Facet slice">
       <form
         id="insights-radar-form"
         class="insights-facet-form"
         hx-get="/partials/insights/slice"
         hx-target="#insights-slice-panel"
         hx-swap="outerHTML"
-        hx-indicator="#insights-slice-working"
+        hx-indicator="#insights-slice-loading, #insights-slice-working"
         hx-vals='{"lens": "overview"}'
       >
         <input type="hidden" name="run" value="1" />
         <input type="hidden" id="insights-active-lens" value="{{ active_lens or 'overview' }}" />
 
-        <div class="insights-facet-primary">
-          <span class="insights-facet-label text-neon-magenta/80">Slice</span>
-          {% if ctx.naics_portfolio %}
-          <div class="insights-naics-chips insights-naics-chips-inline">
-            {% for code in ctx.naics_portfolio %}
-            <button type="button" class="btn btn-ghost btn-compact insights-naics-chip" data-naics="{{ code }}">{{ code }}</button>
-            {% endfor %}
-          </div>
-          {% endif %}
-          <input class="thread-input insights-facet-input insights-facet-input-naics" id="insights-naics-input" name="naics_codes" placeholder="NAICS" value="{{ facet_form.naics_codes if facet_form else '' }}" title="NAICS codes (comma-separated)" />
-          <input class="thread-input insights-facet-input" name="agency" placeholder="Agency" value="{{ facet_form.agency if facet_form else '' }}" />
-          <input class="thread-input insights-facet-input insights-facet-input-wide" name="recipient" placeholder="Recipient" value="{{ facet_form.recipient if facet_form else '' }}" />
-          <button type="submit" class="btn btn-hero-magenta btn-compact insights-facet-run">Run slice</button>
-          <button
-            type="button"
-            id="insights-clear-btn"
-            class="btn btn-ghost btn-compact insights-facet-clear"
-            title="Clear facets and slice results — start a new search"
-          >Clear</button>
-          <p id="insights-slice-working" class="insights-slice-working htmx-indicator text-[10px] font-mono text-neon-cyan m-0" aria-live="polite">
-            Running…
-          </p>
-          <button type="button" class="btn btn-ghost btn-compact insights-facet-guide" title="Explore guide" onclick="openGuideDialog('guide-usaspending-explore')">
+        <header class="insights-facet-nav-head">
+          <span class="insights-facet-nav-title">Slice</span>
+          <button type="button" class="insights-facet-nav-icon" title="Explore guide" onclick="openGuideDialog('guide-usaspending-explore')">
             <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
           </button>
-        </div>
+        </header>
 
-        <details id="insights-facet-more" class="insights-facet-more" data-insights-collapse>
-          <summary class="insights-facet-more-summary">More facets · PSC · sub-agency · office · UEI</summary>
-          <div class="insights-facet-more-body">
-            <div class="insights-facet-secondary-grid">
-              <input class="thread-input insights-facet-input" name="psc_codes" placeholder="PSC" value="{{ facet_form.psc_codes if facet_form else '' }}" />
-              <input class="thread-input insights-facet-input" name="sub_agency" placeholder="Sub-agency" value="{{ facet_form.sub_agency if facet_form else '' }}" />
-              <input class="thread-input insights-facet-input" name="awarding_office" placeholder="Awarding office" value="{{ facet_form.awarding_office if facet_form else '' }}" />
-              <input class="thread-input insights-facet-input" name="funding_office" placeholder="Funding office" value="{{ facet_form.funding_office if facet_form else '' }}" />
-              <input class="thread-input insights-facet-input" name="recipient_uei" placeholder="UEI" value="{{ facet_form.recipient_uei if facet_form else '' }}" />
-              <input class="thread-input insights-facet-input" name="pop_state" placeholder="POP state" value="{{ facet_form.pop_state if facet_form else '' }}" />
-              <input class="thread-input insights-facet-input" name="extent_competed" placeholder="Competition" value="{{ facet_form.extent_competed if facet_form else '' }}" />
-              <input class="thread-input insights-facet-input" name="type_of_set_aside" placeholder="Set-aside" value="{{ facet_form.type_of_set_aside if facet_form else '' }}" />
-            </div>
+        {% if ctx.naics_portfolio %}
+        <div class="insights-naics-chips">
+          {% for code in ctx.naics_portfolio %}
+          <button type="button" class="insights-naics-chip" data-naics="{{ code }}">{{ code }}</button>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <label class="insights-field">
+          <span class="insights-field-label">NAICS</span>
+          <input class="insights-field-input" id="insights-naics-input" name="naics_codes" placeholder="541512" value="{{ facet_form.naics_codes if facet_form else '' }}" />
+        </label>
+        <label class="insights-field">
+          <span class="insights-field-label">Agency</span>
+          <input class="insights-field-input" name="agency" placeholder="Department of Energy" value="{{ facet_form.agency if facet_form else '' }}" />
+        </label>
+        <label class="insights-field">
+          <span class="insights-field-label">Recipient</span>
+          <input class="insights-field-input" name="recipient" placeholder="Prime contractor" value="{{ facet_form.recipient if facet_form else '' }}" />
+        </label>
+
+        <button type="submit" class="btn btn-hero-magenta insights-facet-run-btn">Run slice</button>
+        <p id="insights-slice-working" class="insights-slice-working htmx-indicator" aria-live="polite">Running…</p>
+
+        <details class="insights-facet-more">
+          <summary>More facets</summary>
+          <div class="insights-facet-more-grid">
+            <label class="insights-field"><span class="insights-field-label">PSC</span><input class="insights-field-input" name="psc_codes" value="{{ facet_form.psc_codes if facet_form else '' }}" /></label>
+            <label class="insights-field"><span class="insights-field-label">Sub-agency</span><input class="insights-field-input" name="sub_agency" value="{{ facet_form.sub_agency if facet_form else '' }}" /></label>
+            <label class="insights-field"><span class="insights-field-label">Award office</span><input class="insights-field-input" name="awarding_office" value="{{ facet_form.awarding_office if facet_form else '' }}" /></label>
+            <label class="insights-field"><span class="insights-field-label">Fund office</span><input class="insights-field-input" name="funding_office" value="{{ facet_form.funding_office if facet_form else '' }}" /></label>
+            <label class="insights-field"><span class="insights-field-label">UEI</span><input class="insights-field-input" name="recipient_uei" value="{{ facet_form.recipient_uei if facet_form else '' }}" /></label>
+            <label class="insights-field"><span class="insights-field-label">POP state</span><input class="insights-field-input" name="pop_state" value="{{ facet_form.pop_state if facet_form else '' }}" /></label>
+            <label class="insights-field"><span class="insights-field-label">Competition</span><input class="insights-field-input" name="extent_competed" value="{{ facet_form.extent_competed if facet_form else '' }}" /></label>
+            <label class="insights-field"><span class="insights-field-label">Set-aside</span><input class="insights-field-input" name="type_of_set_aside" value="{{ facet_form.type_of_set_aside if facet_form else '' }}" /></label>
           </div>
         </details>
-        <p class="insights-facet-hint">One facet minimum · PG query ~30–90s</p>
+
+        <p class="insights-facet-footnote">One facet minimum · ~30–90s</p>
       </form>
-      <details class="insights-facet-portfolio" data-insights-collapse>
-        <summary>NAICS portfolio config</summary>
-        <div class="insights-facet-portfolio-body">
-          <form
-            hx-post="/insights/operator-naics"
-            hx-target="#insights-body"
-            hx-swap="outerHTML"
-            class="insights-facet-portfolio-form"
-          >
-            <input class="thread-input insights-facet-input insights-facet-input-wide" name="naics_portfolio" placeholder="541512, 541511, …" value="{{ ctx.naics_portfolio_text }}" />
-            <button type="submit" class="btn btn-primary btn-compact">Save</button>
+
+      <nav class="insights-facet-links" aria-label="Slice tools">
+        <button type="button" class="insights-facet-link" onclick="openInsightsBookmarksDrawer()">
+          Bookmarks <span class="insights-facet-link-count">{{ ctx.radar_lenses|length }}</span>
+        </button>
+        <details class="insights-facet-link-details">
+          <summary class="insights-facet-link">NAICS portfolio</summary>
+          <form hx-post="/insights/operator-naics" hx-target="#insights-body" hx-swap="outerHTML" class="insights-portfolio-form">
+            <input class="insights-field-input" name="naics_portfolio" placeholder="541512, 541511" value="{{ ctx.naics_portfolio_text }}" />
+            <button type="submit" class="btn btn-primary btn-compact w-full mt-1">Save</button>
           </form>
-        </div>
-      </details>
-    </div>
+        </details>
+        <button type="button" id="insights-clear-btn" class="insights-facet-link insights-facet-link-muted">Clear slice</button>
+      </nav>
+    </aside>
 
-    <details id="insights-lenses-card" class="card card-accent accent-cyan insights-frame insights-frame-collapse pulse-collapse" data-insights-collapse open>
-      <summary class="insights-frame-head pulse-panel-head">
-        <div class="insights-frame-head-main">
-          <span class="pulse-collapse-toggle" aria-hidden="true">
-            <i data-lucide="chevron-down" class="w-3.5 h-3.5 pulse-collapse-chevron"></i>
-          </span>
-          <i data-lucide="bar-chart-3" class="w-4 h-4 text-neon-cyan shrink-0"></i>
-          <div class="min-w-0">
-            <span class="pulse-panel-title text-neon-cyan">Lens results</span>
-          </div>
-        </div>
-      </summary>
+    <section class="insights-stage" aria-label="Lens results">
+      <header class="insights-stage-head">
+        <p id="insights-slice-loading" class="insights-stage-status htmx-indicator" aria-live="polite"></p>
+        {% set has_slice = slice_panel %}
+        {% include "partials/insights_lens_tabs.html" %}
+      </header>
 
-      <div class="insights-frame-body">
-        {% if slice_panel %}
-        {% include "partials/insights_slice_panel.html" %}
-        {% else %}
-        <div id="insights-slice-panel" class="insights-slice-panel">
-          <p class="insights-idle-hint">Set facets above, then <strong>Run slice</strong>.</p>
+      <div id="insights-slice-panel" class="insights-slice-panel" data-active-lens="{{ active_lens or 'overview' }}" data-has-slice="{{ '1' if slice_panel else '0' }}">
+        <div id="insights-lens-body" class="insights-lens-body insights-lens-idle">
+          <p class="insights-idle-hint">Set facets in the slice navigator, then <strong>Run slice</strong>. Lens tabs activate after the first query.</p>
         </div>
-        {% endif %}
       </div>
-    </details>
-
-    <details id="insights-bookmarks-card" class="card card-accent accent-magenta insights-frame insights-frame-collapse insights-bookmarks-drawer" data-insights-collapse {% if ctx.radar_lenses|length > 0 %}open{% endif %}>
-      <summary class="insights-frame-head pulse-panel-head insights-bookmarks-summary">
-        <div class="insights-frame-head-main">
-          <span class="pulse-collapse-toggle" aria-hidden="true">
-            <i data-lucide="chevron-down" class="w-3.5 h-3.5 pulse-collapse-chevron"></i>
-          </span>
-          <i data-lucide="bookmark" class="w-4 h-4 text-neon-magenta shrink-0"></i>
-          <div class="min-w-0">
-            <div class="insights-frame-title-row">
-              <span class="pulse-panel-kicker text-neon-magenta/80">Saved</span>
-              <span class="pulse-panel-title text-neon-magenta">Bookmarks</span>
-            </div>
-          </div>
-          <span class="pill pill-compact border border-neon-magenta/30 text-neon-magenta/90 text-[10px]">{{ ctx.radar_lenses|length }}</span>
-        </div>
-      </summary>
-      <div class="insights-frame-body insights-bookmarks-body">
-        <p class="insights-bookmarks-hint">Reopen a named search — does not control Pulse.</p>
-        <form class="insights-bookmark-save" hx-post="/insights/radar/save" hx-target="#insights-body" hx-swap="outerHTML" hx-include="#insights-radar-form">
-          <div class="insights-bookmark-save-row">
-            <input class="thread-input" name="name" placeholder="Bookmark name" required />
-            <input class="thread-input" name="description" placeholder="Notes (optional)" />
-            <button type="submit" class="btn btn-primary shrink-0">Save current search</button>
-          </div>
-        </form>
-        {% if ctx.radar_lenses|length == 0 %}
-        <p class="insights-bookmarks-empty">No bookmarks yet.</p>
-        {% else %}
-        <ul class="insights-bookmark-list">
-          {% for lens in ctx.radar_lenses %}
-          <li class="insights-bookmark-item">
-            <div class="insights-bookmark-meta">
-              <span class="insights-bookmark-name">{{ lens.query.name }}</span>
-              <span class="insights-bookmark-facets">{{ lens.summary }}</span>
-              {% if lens.expiring_count is not none %}
-              <span class="insights-bookmark-stat">{{ lens.expiring_count }} expiring</span>
-              {% endif %}
-            </div>
-            <div class="insights-bookmark-actions">
-              <button
-                type="button"
-                class="btn btn-primary"
-                hx-get="/partials/insights/slice?run=1&lens=overview"
-                hx-target="#insights-slice-panel"
-                hx-swap="outerHTML"
-                hx-include="#insights-radar-form"
-                hx-vals='{"agency": "{{ lens.query.agency or '' }}", "sub_agency": "{{ lens.query.sub_agency or '' }}", "recipient": "{{ lens.query.recipient or '' }}", "naics_codes": "{{ lens.query.naics_codes|join(',') if lens.query.naics_codes else '' }}", "psc_codes": "{{ lens.query.psc_codes|join(',') if lens.query.psc_codes else '' }}", "awarding_office": "{{ lens.query.awarding_office or '' }}", "funding_office": "{{ lens.query.funding_office or '' }}", "recipient_uei": "{{ lens.query.recipient_uei or '' }}", "pop_state": "{{ lens.query.pop_state or '' }}", "extent_competed": "{{ lens.query.extent_competed or '' }}", "type_of_set_aside": "{{ lens.query.type_of_set_aside or '' }}"}'
-              >Open</button>
-              <form hx-post="/insights/radar/{{ lens.query.id }}/delete" hx-target="#insights-body" hx-swap="outerHTML" hx-confirm="Delete {{ lens.query.name }}?">
-                <button type="submit" class="btn btn-ghost btn-compact text-[10px] text-slate-500">Delete</button>
-              </form>
-            </div>
-          </li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-      </div>
-    </details>
+    </section>
   </div>
 
   {% set guide_id = "usaspending-explore" %}
@@ -189,130 +103,6 @@
   {% include "partials/insights_guide_dialog.html" %}
 </div>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" defer></script>
-<script src="/static/scripts/clew_charts.js" defer></script>
-<script src="/static/scripts/insights_charts.js" defer></script>
-<script>
-(function () {
-  var KEY = "insights-collapse-v1";
-  function panels() { return document.querySelectorAll("[data-insights-collapse]"); }
-  function slicePanelHasResults() {
-    var panel = document.getElementById("insights-slice-panel");
-    if (!panel) return false;
-    if (panel.getAttribute("data-has-slice") === "1") return true;
-    return !!panel.querySelector(".insights-slice-bar, .insights-lens-tabs, .clew-echarts-host");
-  }
-  function persistPanelOpen(id, open) {
-    if (!id) return;
-    var saved = {};
-    try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (_) {}
-    saved[id] = !!open;
-    localStorage.setItem(KEY, JSON.stringify(saved));
-  }
-  function openLensesCard(persist) {
-    var card = document.getElementById("insights-lenses-card");
-    if (!card) return;
-    card.open = true;
-    if (persist) persistPanelOpen("insights-lenses-card", true);
-  }
-  function loadState() {
-    var saved = {};
-    try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (_) {}
-    var forceLensesOpen = slicePanelHasResults();
-    panels().forEach(function (el) {
-      if (!el.id) return;
-      if (el.id === "insights-lenses-card" && forceLensesOpen) {
-        el.open = true;
-        return;
-      }
-      if (Object.prototype.hasOwnProperty.call(saved, el.id)) el.open = !!saved[el.id];
-    });
-  }
-  function bindState() {
-    panels().forEach(function (el) {
-      if (el.dataset.insightsCollapseBound) return;
-      el.dataset.insightsCollapseBound = "1";
-      el.addEventListener("toggle", function () {
-        if (!el.id) return;
-        var saved = {};
-        try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (_) {}
-        saved[el.id] = el.open;
-        localStorage.setItem(KEY, JSON.stringify(saved));
-      });
-    });
-  }
-  function bindNaicsChips() {
-    document.querySelectorAll(".insights-naics-chip").forEach(function (btn) {
-      if (btn.dataset.bound) return;
-      btn.dataset.bound = "1";
-      btn.addEventListener("click", function () {
-        var input = document.getElementById("insights-naics-input");
-        if (!input) return;
-        var code = btn.getAttribute("data-naics");
-        var parts = input.value.split(/[,;\s]+/).map(function (s) { return s.trim(); }).filter(Boolean);
-        if (parts.indexOf(code) < 0) parts.push(code);
-        input.value = parts.join(", ");
-      });
-    });
-  }
-  function bindRunSliceReset() {
-    var form = document.getElementById("insights-radar-form");
-    if (!form || form.dataset.runResetBound) return;
-    form.dataset.runResetBound = "1";
-    form.addEventListener("submit", function () {
-      var lens = document.getElementById("insights-active-lens");
-      if (lens) lens.value = "overview";
-      openLensesCard(true);
-    });
-  }
-  function processInsightsForm() {
-    var form = document.getElementById("insights-radar-form");
-    if (form && window.htmx) window.htmx.process(form);
-  }
-  function initInsightsPage() {
-    loadState();
-    bindState();
-    bindNaicsChips();
-    bindRunSliceReset();
-    processInsightsForm();
-    if (window.initClewCharts) window.initClewCharts();
-    if (window.initInsightsHone) window.initInsightsHone();
-    if (window.lucide) window.lucide.createIcons();
-  }
-  initInsightsPage();
-  document.body.addEventListener("htmx:afterSwap", function (e) {
-    var t = e.detail && e.detail.target;
-    if (!t) return;
-    if (t.id === "insights-slice-panel" || (t.closest && t.closest("#insights-slice-panel"))) {
-      openLensesCard(true);
-    }
-    if (t.id === "insights-slice-panel" || (t.closest && t.closest("#insights-slice-panel"))) {
-      if (window.persistInsightsSession) window.persistInsightsSession();
-    }
-    if (t.id === "insights-body" || t.id === "insights-slice-panel" || (t.closest && (t.closest("#insights-body") || t.closest("#insights-slice-panel")))) {
-      initInsightsPage();
-    }
-  });
-  document.body.addEventListener("htmx:beforeRequest", function (e) {
-    var elt = e.detail && e.detail.elt;
-    if (!elt || elt.id !== "insights-radar-form") return;
-    openLensesCard(true);
-    var panel = document.getElementById("insights-slice-panel");
-    if (!panel) return;
-    panel.innerHTML =
-      '<p class="insights-slice-loading insights-idle-hint text-neon-cyan">Running slice… PG query may take 30–90s.</p>';
-  });
-  document.body.addEventListener("htmx:targetError", function (e) {
-    var elt = e.detail && e.detail.elt;
-    if (!elt || elt.id !== "insights-radar-form") return;
-    console.error("Insights Run slice: HTMX target missing (#insights-slice-panel).");
-    openLensesCard(true);
-  });
-  document.body.addEventListener("htmx:responseError", function (e) {
-    var elt = e.detail && e.detail.elt;
-    if (!elt || elt.id !== "insights-radar-form") return;
-    var status = e.detail.xhr && e.detail.xhr.status;
-    console.error("Insights Run slice failed" + (status ? " (HTTP " + status + ")" : "") + ".");
-    openLensesCard(true);
-  });
-})();
-</script>
+<script src="/static/scripts/clew_charts.js?v={{ asset_v() }}" defer></script>
+<script src="/static/scripts/insights_charts.js?v={{ asset_v() }}" defer></script>
+<script src="/static/thread_insights_ui.js?v={{ asset_v() }}"></script>

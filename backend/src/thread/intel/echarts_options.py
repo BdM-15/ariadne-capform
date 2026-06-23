@@ -8,12 +8,25 @@ MAGENTA = "#ff2bd6"
 CYAN = "#00f0ff"
 LIME = "#00ff9c"
 AMBER = "#fbbf24"
+TIER_HIGH = "#ff2bd6"
+TIER_MED = "#00f0ff"
+TIER_LOW = "#64748b"
 TEXT = "#94a3b8"
 TEXT_BRIGHT = "#e2e8f0"
 GRID = "#1f2a44"
 AXIS = "#64748b"
 
 MAX_SANKEY_LINKS = 24
+
+
+def _non_negative_float(value: Any) -> float:
+    try:
+        n = float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    if n != n:
+        return 0.0
+    return max(0.0, n)
 
 
 def attach_echarts_option(analysis: dict[str, Any]) -> dict[str, Any]:
@@ -42,6 +55,24 @@ def attach_entity_echarts(profile: dict[str, Any], kind: str) -> dict[str, Any]:
     spend = _spend_trend_chart({"bars": profile.get("spend_trend") or [], "mode": "spend_trend"})
     if spend:
         charts["spend_trend"] = spend
+    matrix = _agency_recipient_heatmap(profile.get("agency_recipient_matrix") or {})
+    if matrix:
+        charts["relationship_heatmap"] = matrix
+    money = _money_flow_sankey({"flows": profile.get("money_flow") or [], "mode": "money_flow"})
+    if money:
+        charts["money_flow"] = money
+    team_edges = profile.get("teaming") or []
+    if team_edges and not profile.get("teaming_error"):
+        team = _teaming_sankey({"edges": team_edges, "mode": "teaming"})
+        if team:
+            charts["teaming"] = team
+    relations = profile.get("relations_graph") or profile.get("expose_graph") or {}
+    rel_chart = _relations_force_graph(relations)
+    if rel_chart:
+        charts["relations_graph"] = rel_chart
+    browse = _browse_funnel_sankey(profile.get("browse_funnel") or {})
+    if browse:
+        charts["browse_funnel"] = browse
     if kind == "agency":
         sub_flow = _agency_sub_flow_chart(profile.get("agency_sub_flow") or [], profile)
         if sub_flow:
@@ -82,9 +113,77 @@ def attach_entity_echarts(profile: dict[str, Any], kind: str) -> dict[str, Any]:
     )
     if extent:
         charts["extent_competed"] = extent
+    pricing = _pricing_bucket_chart(profile.get("pricing_buckets") or [])
+    if pricing:
+        charts["pricing_buckets"] = pricing
     if charts:
         profile["charts"] = charts
     return profile
+
+
+def attach_competition_echarts(bundle: dict[str, Any]) -> dict[str, Any]:
+    if bundle.get("error"):
+        return bundle
+    charts: dict[str, Any] = {}
+    set_aside = _donut_chart(bundle.get("set_aside") or [], title="Set-aside mix", name_key="bucket")
+    if set_aside:
+        charts["set_aside"] = set_aside
+    extent = _horizontal_bar_chart(
+        bundle.get("extent_competed") or [],
+        title="Extent competed",
+        name_key="extent",
+    )
+    if extent:
+        charts["extent_competed"] = extent
+    pricing = _pricing_bucket_chart(bundle.get("pricing_buckets") or [])
+    if pricing:
+        charts["pricing_buckets"] = pricing
+    vehicles = _vehicle_combo_chart(bundle.get("vehicle_breakdown") or [])
+    if vehicles:
+        charts["vehicle_breakdown"] = vehicles
+    idv = _donut_chart(
+        [{"bucket": r["channel"], "millions": r["millions"]} for r in bundle.get("idv_split") or []],
+        title="IDV vs standalone",
+        name_key="bucket",
+    )
+    if idv:
+        charts["idv_split"] = idv
+    ffp = bundle.get("ffp_shaping") or {}
+    pressure = _ffp_pressure_chart(ffp.get("agency_pressure") or [])
+    if pressure:
+        charts["ffp_pressure"] = pressure
+    if charts:
+        bundle["charts"] = charts
+    return bundle
+
+
+def attach_trace_echarts(bundle: dict[str, Any]) -> dict[str, Any]:
+    if bundle.get("error"):
+        return bundle
+    charts: dict[str, Any] = {}
+    money = bundle.get("money_flow") or {}
+    sankey = _money_flow_sankey(money) if money.get("flows") else None
+    if sankey:
+        charts["money_flow"] = sankey
+    team = bundle.get("teaming") or {}
+    if team.get("edges") and not team.get("error"):
+        team_chart = _teaming_sankey(team)
+        if team_chart:
+            charts["teaming"] = team_chart
+    matrix = _agency_recipient_heatmap(bundle.get("agency_recipient_matrix") or {})
+    if matrix:
+        charts["relationship_heatmap"] = matrix
+    relations = bundle.get("relations_graph") or bundle.get("expose_graph") or {}
+    rel_chart = _relations_force_graph(relations)
+    if rel_chart:
+        charts["relations_graph"] = rel_chart
+        charts["expose_graph"] = rel_chart
+    browse = _browse_funnel_sankey(bundle.get("browse_funnel") or {})
+    if browse:
+        charts["browse_funnel"] = browse
+    if charts:
+        bundle["charts"] = charts
+    return bundle
 
 
 def attach_overview_echarts(overview: dict[str, Any]) -> dict[str, Any]:
@@ -463,6 +562,314 @@ def _recipient_landscape_chart(analysis: dict[str, Any]) -> dict[str, Any] | Non
         title="Recipient concentration",
         name_key="recipient",
     )
+
+
+def _agency_recipient_heatmap(matrix: dict[str, Any]) -> dict[str, Any] | None:
+    cells = matrix.get("cells") or []
+    if not cells:
+        return None
+    agencies = matrix.get("agencies") or list(dict.fromkeys(c["agency"] for c in cells))[:10]
+    recipients = matrix.get("recipients") or list(dict.fromkeys(c["recipient"] for c in cells))[:10]
+    if not agencies or not recipients:
+        return None
+    agency_idx = {a: i for i, a in enumerate(agencies)}
+    recipient_idx = {r: i for i, r in enumerate(recipients)}
+    data = []
+    max_actions = 1
+    for c in cells:
+        if c["agency"] not in agency_idx or c["recipient"] not in recipient_idx:
+            continue
+        actions = int(c.get("actions") or 0)
+        max_actions = max(max_actions, actions)
+        data.append([
+            agency_idx[c["agency"]],
+            recipient_idx[c["recipient"]],
+            actions,
+            c.get("millions", 0),
+        ])
+    if not data:
+        return None
+    return {
+        "backgroundColor": "transparent",
+        "textStyle": {"color": TEXT},
+        "title": _title("Agency × contractor relationships"),
+        "tooltip": {**_tooltip("item"), "position": "top"},
+        "grid": {"left": "22%", "right": "6%", "top": 56, "bottom": "14%"},
+        "xAxis": {
+            "type": "category",
+            "data": [_truncate(a, 24) for a in agencies],
+            "splitArea": {"show": True},
+            "axisLabel": {"color": AXIS, "rotate": 35, "fontSize": 9},
+        },
+        "yAxis": {
+            "type": "category",
+            "data": [_truncate(r, 28) for r in recipients],
+            "splitArea": {"show": True},
+            "axisLabel": {"color": TEXT_BRIGHT, "fontSize": 9},
+        },
+        "visualMap": {
+            "min": 0,
+            "max": max_actions,
+            "calculable": False,
+            "orient": "horizontal",
+            "left": "center",
+            "bottom": 0,
+            "inRange": {"color": ["#0f172a", CYAN, LIME, MAGENTA]},
+            "textStyle": {"color": AXIS, "fontSize": 9},
+        },
+        "series": [
+            {
+                "type": "heatmap",
+                "data": data,
+                "label": {"show": False},
+                "emphasis": {"itemStyle": {"shadowBlur": 8, "shadowColor": "rgba(0,0,0,0.4)"}},
+            }
+        ],
+        "_intel": {
+            "mode": "relationship_heatmap",
+            "agencies": agencies,
+            "recipients": recipients,
+            "drillField": "recipient",
+            "drillLens": "competitor",
+            "entityScope": "recipient",
+        },
+    }
+
+
+def _pricing_bucket_chart(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not rows:
+        return None
+    return {
+        "backgroundColor": "transparent",
+        "textStyle": {"color": TEXT},
+        "title": _title("Contract pricing mix"),
+        "tooltip": {**_tooltip("axis"), "axisPointer": {"type": "shadow"}},
+        "grid": _grid(top=72),
+        "xAxis": {
+            "type": "category",
+            "data": [_truncate(str(r.get("bucket") or "?"), 20) for r in rows],
+            "axisLabel": {"color": AXIS, "rotate": 20, "fontSize": 9},
+        },
+        "yAxis": {
+            "type": "value",
+            "name": "$M",
+            "axisLabel": {"color": AXIS},
+            "splitLine": {"lineStyle": {"color": GRID, "type": "dashed"}},
+        },
+        "series": [
+            {
+                "type": "bar",
+                "data": [r.get("millions", 0) for r in rows],
+                "itemStyle": {"color": AMBER},
+                "barMaxWidth": 40,
+            }
+        ],
+        "_intel": {"mode": "pricing_buckets"},
+    }
+
+
+def _vehicle_combo_chart(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not rows:
+        return None
+    vehicles = list(dict.fromkeys(r.get("vehicle") or "?" for r in rows))[:8]
+    pricing_types = list(dict.fromkeys(r.get("pricing") or "?" for r in rows))[:6]
+    series = []
+    for pricing in pricing_types:
+        values = []
+        for vehicle in vehicles:
+            match = next(
+                (r for r in rows if r.get("vehicle") == vehicle and r.get("pricing") == pricing),
+                None,
+            )
+            values.append(match.get("millions", 0) if match else 0)
+        series.append({
+            "name": _truncate(pricing, 22),
+            "type": "bar",
+            "stack": "vehicle",
+            "emphasis": {"focus": "series"},
+            "data": values,
+            "barMaxWidth": 28,
+        })
+    return {
+        "backgroundColor": "transparent",
+        "textStyle": {"color": TEXT},
+        "title": _title("Vehicle × pricing combinations"),
+        "tooltip": {**_tooltip("axis"), "axisPointer": {"type": "shadow"}},
+        "legend": {"top": 28, "textStyle": {"color": AXIS, "fontSize": 9}},
+        "grid": _grid(top=88, bottom=48),
+        "xAxis": {
+            "type": "category",
+            "data": [_truncate(v, 18) for v in vehicles],
+            "axisLabel": {"color": AXIS, "rotate": 25, "fontSize": 9},
+        },
+        "yAxis": {
+            "type": "value",
+            "name": "$M",
+            "axisLabel": {"color": AXIS},
+            "splitLine": {"lineStyle": {"color": GRID, "type": "dashed"}},
+        },
+        "series": series,
+        "_intel": {"mode": "vehicle_breakdown"},
+    }
+
+
+def _tier_color(tier: str) -> str:
+    if tier == "high":
+        return TIER_HIGH
+    if tier == "medium":
+        return TIER_MED
+    return TIER_LOW
+
+
+def _browse_funnel_sankey(funnel: dict[str, Any]) -> dict[str, Any] | None:
+    flows = funnel.get("flows") or []
+    if not flows:
+        return None
+    links = [{"source": f["source"], "target": f["target"], "value": f["millions"]} for f in flows]
+    chart = _sankey_option(
+        title="Browse funnel — multi-hop relations",
+        links=links,
+        source_label="from",
+        target_label="to",
+        mode="browse_funnel",
+    )
+    if chart:
+        chart["_intel"] = {"mode": "browse_funnel", "expandable": False}
+    return chart
+
+
+def _relations_force_graph(graph: dict[str, Any]) -> dict[str, Any] | None:
+    """DR expose/relations — multi-hop force graph; people is one node kind among several."""
+    nodes = graph.get("nodes") or []
+    edges = graph.get("edges") or []
+    if not nodes or not edges:
+        return None
+
+    kind_symbols = {
+        "agency": "roundRect",
+        "prime": "circle",
+        "sub": "diamond",
+        "vehicle": "rect",
+        "person": "pin",
+    }
+    echarts_nodes = [
+        {
+            "id": n["id"],
+            "name": _truncate(n.get("label") or n["id"], 32),
+            "symbolSize": max(14, min(52, 12 + _non_negative_float(n.get("millions_total")) ** 0.5 * 4)),
+            "symbol": kind_symbols.get(n.get("kind"), "circle"),
+            "itemStyle": {"color": _tier_color(n.get("magnitude_tier", "low"))},
+            "label": {"show": True, "color": TEXT_BRIGHT, "fontSize": 9},
+            "value": n.get("millions_total", 0),
+            **{k: n[k] for k in ("kind", "hop", "millions_in", "millions_out") if k in n},
+        }
+        for n in nodes
+    ]
+    edge_colors = {
+        "obligation": CYAN,
+        "teaming": LIME,
+        "teaming_network": "#86efac",
+        "vehicle_member": AMBER,
+        "co_occurrence": MAGENTA,
+        "person_affiliation": "#f472b6",
+    }
+    echarts_links = [
+        {
+            "source": e["source"],
+            "target": e["target"],
+            "value": max(_non_negative_float(e.get("millions")), 0.01),
+            "lineStyle": {
+                "color": edge_colors.get(e.get("kind"), TEXT),
+                "width": max(1, min(6, _non_negative_float(e.get("millions")) ** 0.5)),
+                "curveness": 0.15,
+            },
+            "kind": e.get("kind"),
+        }
+        for e in edges
+    ]
+    return {
+        "backgroundColor": "transparent",
+        "textStyle": {"color": TEXT},
+        "title": _title("Relations trace — multi-hop graph"),
+        "tooltip": _tooltip(),
+        "series": [
+            {
+                "type": "graph",
+                "layout": "force",
+                "roam": True,
+                "draggable": True,
+                "focusNodeAdjacency": True,
+                "force": {
+                    "repulsion": 220,
+                    "edgeLength": [80, 160],
+                    "gravity": 0.08,
+                },
+                "data": echarts_nodes,
+                "links": echarts_links,
+                "emphasis": {"focus": "adjacency", "lineStyle": {"width": 4}},
+            }
+        ],
+        "_intel": {
+            "mode": "relations_graph",
+            "drillField": "recipient",
+            "expandable": True,
+            "edgeKinds": list(edge_colors.keys()),
+            "relationFamilies": graph.get("relation_families") or [],
+            "maxHop": (graph.get("summary") or {}).get("max_hop"),
+        },
+    }
+
+
+def graph_option_from_payload(graph: dict[str, Any]) -> dict[str, Any] | None:
+    """Build ECharts option from relations graph JSON (expand merge)."""
+    return _relations_force_graph(graph)
+
+
+def _ffp_pressure_chart(agency_pressure: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not agency_pressure:
+        return None
+    rows = agency_pressure[:12]
+    names = [_truncate(r["agency"], 32) for r in rows]
+    return {
+        "backgroundColor": "transparent",
+        "textStyle": {"color": TEXT},
+        "title": _title("FFP shaping — non-fixed pricing pressure by agency"),
+        "tooltip": {**_tooltip("axis"), "axisPointer": {"type": "shadow"}},
+        "grid": {**_grid(), "left": "30%"},
+        "xAxis": {
+            "type": "value",
+            "name": "% non-fixed",
+            "max": 100,
+            "axisLabel": {"color": AXIS},
+            "splitLine": {"lineStyle": {"color": GRID, "type": "dashed"}},
+        },
+        "yAxis": {
+            "type": "category",
+            "data": list(reversed(names)),
+            "axisLabel": {"color": TEXT_BRIGHT, "fontSize": 9},
+        },
+        "series": [
+            {
+                "type": "bar",
+                "data": [
+                    {
+                        "value": r.get("non_fixed_pct", 0),
+                        "agency": r["agency"],
+                        "tier": r.get("pressure_tier"),
+                    }
+                    for r in reversed(rows)
+                ],
+                "itemStyle": {"color": MAGENTA},
+                "barMaxWidth": 14,
+            }
+        ],
+        "_intel": {
+            "mode": "ffp_pressure",
+            "honeField": "agency",
+            "drillLens": "agency",
+            "entityScope": "agency",
+        },
+    }
 
 
 def _truncate(text: str, max_len: int) -> str:

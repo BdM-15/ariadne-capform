@@ -63,13 +63,31 @@ PRICING_BUCKET_EXPR = """CASE
          AND UPPER(COALESCE(type_of_contract_pricing, '')) NOT LIKE '%INCENTIVE%'
       OR UPPER(COALESCE(type_of_contract_pricing, '')) LIKE '%FIXED PRICE REDETERMINATION%'
     THEN 'firm_fixed'
-    WHEN UPPER(COALESCE(type_of_contract_pricing, '')) LIKE '%COST%'
-      OR UPPER(COALESCE(type_of_contract_pricing, '')) LIKE '%TIME AND MATERIAL%'
-      OR UPPER(COALESCE(type_of_contract_pricing, '')) LIKE '%LABOR HOUR%'
-    THEN 'cost_reimbursable'
     WHEN UPPER(COALESCE(type_of_contract_pricing, '')) LIKE '%INCENTIVE%'
-    THEN 'incentive'
+      OR UPPER(COALESCE(type_of_contract_pricing, '')) LIKE '%AWARD FEE%'
+    THEN 'performance_based'
+    WHEN UPPER(COALESCE(type_of_contract_pricing, '')) LIKE '%TIME AND MATERIAL%'
+      OR UPPER(COALESCE(type_of_contract_pricing, '')) LIKE '%LABOR HOUR%'
+    THEN 'time_materials'
+    WHEN UPPER(COALESCE(type_of_contract_pricing, '')) LIKE '%COST PLUS%'
+      OR UPPER(COALESCE(type_of_contract_pricing, '')) LIKE '%COST SHARING%'
+      OR UPPER(TRIM(COALESCE(type_of_contract_pricing, ''))) = 'COST'
+    THEN 'cost_reimbursement'
     ELSE 'other'
+END"""
+
+VEHICLE_EXPR = """COALESCE(
+    NULLIF(TRIM(idv_type), ''),
+    NULLIF(TRIM(type_of_idc), ''),
+    'Standalone / Definitive'
+)"""
+
+IDV_FLAG_EXPR = """CASE
+    WHEN NULLIF(TRIM(idv_type), '') IS NOT NULL THEN 'IDV / Task Order'
+    WHEN NULLIF(TRIM(type_of_idc), '') IS NOT NULL THEN 'IDV / Task Order'
+    WHEN UPPER(COALESCE(award_type, '')) LIKE '%DELIVERY ORDER%' THEN 'IDV / Task Order'
+    WHEN UPPER(COALESCE(award_type, '')) LIKE '%BPA%' THEN 'IDV / Task Order'
+    ELSE 'Standalone / Definitive'
 END"""
 
 MONTHS_TO_END_EXPR = """(

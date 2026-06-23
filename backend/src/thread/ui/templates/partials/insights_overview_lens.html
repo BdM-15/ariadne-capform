@@ -17,7 +17,9 @@
   <p class="insights-hot-callout text-[11px] text-neon-lime mb-3">
     Above the line:
     {% for ag in intensity.hot_agencies[:5] %}
-    <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-lime" data-drill-field="agency" data-drill-value="{{ ag|e }}">{{ ag }}</button>{% if not loop.last %} · {% endif %}
+    {% with entity_kind='agency', entity_scope='agency', value=ag, label=ag, extra_class='text-neon-lime' %}
+    {% include "partials/insights_drill_profile_btn.html" %}
+    {% endwith %}{% if not loop.last %} · {% endif %}
     {% endfor %}
   </p>
   {% endif %}
@@ -52,7 +54,9 @@
       <span class="text-slate-300">{{ row.recipient }}</span>
       {% if row.recipient_uei %}<span class="text-neon-cyan">UEI {{ row.recipient_uei }}</span>{% endif %}
       <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px]" data-drill-field="recipient" data-drill-value="{{ row.recipient|e }}">Profile →</button>
+      {% with entity_kind='competitor', entity_scope='recipient', value=row.recipient %}
+      {% include "partials/insights_drill_profile_btn.html" %}
+      {% endwith %}
     </div>
     {% endfor %}
   </div>

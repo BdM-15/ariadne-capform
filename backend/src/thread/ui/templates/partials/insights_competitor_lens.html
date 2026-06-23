@@ -9,7 +9,9 @@
       <span class="text-slate-300">{{ row.recipient }}</span>
       {% if row.recipient_uei %}<span class="text-neon-cyan">UEI {{ row.recipient_uei }}</span>{% endif %}
       <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-lime" data-drill-field="recipient" data-drill-value="{{ row.recipient|e }}">Profile →</button>
+      {% with entity_kind='competitor', entity_scope='recipient', value=row.recipient, extra_class='text-neon-lime' %}
+      {% include "partials/insights_drill_profile_btn.html" %}
+      {% endwith %}
     </div>
     {% endfor %}
   </div>
@@ -38,7 +40,37 @@
     <span class="pill pill-compact border border-edge text-slate-400">{{ kpis.agency_count or 0 }} agencies</span>
     <span class="pill pill-compact border border-edge text-slate-400">{{ "{:,}".format(kpis.award_count or 0) }} actions</span>
   </div>
+  {% set rel_summary = (entity_profile.relations_graph or {}).summary or {} %}
+  {% set rel_families = (entity_profile.relations_graph or {}).relation_families or [] %}
+  {% if rel_summary.node_count %}
+  <p class="text-[11px] text-slate-500 mb-2">
+    Relations web — {{ rel_summary.node_count }} nodes · {{ rel_summary.edge_count or 0 }} edges ·
+    {{ rel_summary.max_hop or 0 }} hops across
+    {% if rel_families %}{{ rel_families | join(', ') }}{% else %}org money, teaming, vehicle, co-occurrence{% endif %}
+    (people is one optional family via SAM POCs).
+    <span class="text-neon-cyan">Shift+click</span> graph node to expand.
+  </p>
+  {% endif %}
   <div class="insights-overview-grid">
+    {% if charts.relations_graph %}
+    <div class="clew-echarts-host insights-echarts-hero" data-chart-key="relations_graph" data-chart-option='{{ charts.relations_graph | tojson }}'></div>
+    {% elif entity_profile.relations_graph and entity_profile.relations_graph.error %}
+    <p class="insights-explore-msg insights-explore-msg-warn text-[10px]">{{ entity_profile.relations_graph.error }}</p>
+    {% elif entity_profile.relations_graph and not rel_summary.node_count %}
+    <p class="insights-idle-hint text-[10px]">Relations graph needs more award/subaward edges in this slice — try widening NAICS or agency.</p>
+    {% endif %}
+    {% if charts.browse_funnel %}
+    <div class="clew-echarts-host insights-echarts-sub" data-chart-key="browse_funnel" data-chart-option='{{ charts.browse_funnel | tojson }}'></div>
+    {% endif %}
+    {% if charts.relationship_heatmap %}
+    <div class="clew-echarts-host insights-echarts-sub" data-chart-key="relationship_heatmap" data-chart-option='{{ charts.relationship_heatmap | tojson }}'></div>
+    {% endif %}
+    {% if charts.money_flow %}
+    <div class="clew-echarts-host insights-echarts-sub" data-chart-key="money_flow" data-chart-option='{{ charts.money_flow | tojson }}'></div>
+    {% endif %}
+    {% if charts.teaming %}
+    <div class="clew-echarts-host insights-echarts-sub" data-chart-key="teaming" data-chart-option='{{ charts.teaming | tojson }}'></div>
+    {% endif %}
     {% if charts.spend_trend %}
     <div class="clew-echarts-host insights-echarts-sub" data-chart-key="spend_trend" data-chart-option='{{ charts.spend_trend | tojson }}'></div>
     {% endif %}
@@ -48,7 +80,25 @@
     {% if charts.top_naics %}
     <div class="clew-echarts-host insights-echarts-compact" data-chart-key="top_naics" data-chart-option='{{ charts.top_naics | tojson }}'></div>
     {% endif %}
+    {% if charts.pricing_buckets %}
+    <div class="clew-echarts-host insights-echarts-compact" data-chart-key="pricing_buckets" data-chart-option='{{ charts.pricing_buckets | tojson }}'></div>
+    {% endif %}
   </div>
+  {% if entity_profile.adjacent_competitors %}
+  <div class="insights-entity-list mt-3 text-[10px] font-mono text-slate-500">
+    <p class="text-[10px] uppercase tracking-wide text-slate-600 mb-2">Adjacent competitors — shared buyers, not market leaders</p>
+    {% for row in entity_profile.adjacent_competitors[:6] %}
+    <div class="flex flex-wrap items-center gap-2 py-1 border-b border-edge/40">
+      <span class="text-slate-300">{{ row.recipient }}</span>
+      <span class="pill pill-compact text-[9px] border-edge text-slate-500">{{ row.fit }}</span>
+      <span>{{ row.shared_agencies }} shared agencies · ${{ "%.2f"|format(row.shared_millions or 0) }}M overlap</span>
+      {% with entity_kind='competitor', entity_scope='recipient', value=row.recipient, extra_class='text-neon-lime' %}
+      {% include "partials/insights_drill_profile_btn.html" %}
+      {% endwith %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
   {% if entity_profile.top_agencies %}
   <div class="insights-entity-list mt-3 text-[10px] font-mono text-slate-500">
     <p class="text-[10px] uppercase tracking-wide text-slate-600 mb-2">Top agencies — click to open agency profile</p>
@@ -56,7 +106,9 @@
     <div class="flex flex-wrap items-center gap-2 py-1 border-b border-edge/40">
       <span class="text-slate-300">{{ row.agency }}</span>
       <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-cyan" data-drill-field="agency" data-drill-value="{{ row.agency|e }}">Agency →</button>
+      {% with entity_kind='agency', entity_scope='agency', value=row.agency, label='Agency →', extra_class='text-neon-cyan' %}
+      {% include "partials/insights_drill_profile_btn.html" %}
+      {% endwith %}
     </div>
     {% endfor %}
   </div>
@@ -68,7 +120,9 @@
     <div class="flex flex-wrap gap-2 py-1 border-b border-edge/40">
       <span class="text-slate-400">{{ edge.sub }}</span>
       <span>${{ "%.2f"|format(edge.millions) }}M</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px]" data-drill-field="recipient" data-drill-value="{{ edge.sub|e }}">Competitor →</button>
+      {% with entity_kind='competitor', entity_scope='recipient', value=edge.sub, label='Competitor →' %}
+      {% include "partials/insights_drill_profile_btn.html" %}
+      {% endwith %}
     </div>
     {% endfor %}
   </div>

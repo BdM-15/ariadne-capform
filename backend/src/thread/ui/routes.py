@@ -8,7 +8,7 @@ from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -311,12 +311,16 @@ async def _render_insights_body(
     slice_ctx: dict | None = None,
 ) -> HTMLResponse:
     ctx = await build_insights_page_context(db, settings)
+    from thread.services.insights_slice import INSIGHTS_LENS_TABS
+
     template_ctx: dict = {
         "ctx": ctx,
         "flash": flash,
-        "facet_form": facet_form,
+        "facet_form": facet_form or {},
         "active_lens": active_lens,
         "slice_panel": slice_panel,
+        "has_slice": slice_panel,
+        "lens_tabs": INSIGHTS_LENS_TABS,
         "radar_guide": guide_for_explore("usaspending_explore"),
         "sam_guide": guide_for_explore("sam_explore"),
         "clew_guide": guide_for_clew(),
@@ -330,11 +334,17 @@ async def _render_insights_body(
     )
 
 
-def _slice_template_ctx(panel, *, slice_flash: str | None = None) -> dict:
+def _slice_template_ctx(
+    panel,
+    *,
+    slice_flash: str | None = None,
+    htmx_request: bool = False,
+) -> dict:
     return {
         "facet_form": panel.facet_form,
         "active_lens": panel.active_lens,
         "lens_tabs": panel.lens_tabs,
+        "htmx_request": htmx_request,
         "query": panel.query,
         "has_slice": panel.has_slice,
         "overview": panel.overview,
@@ -349,6 +359,12 @@ def _slice_template_ctx(panel, *, slice_flash: str | None = None) -> dict:
         "entity_ready": panel.entity_ready,
         "entity_idle": panel.entity_idle,
         "entity_error": panel.entity_error,
+        "competition_bundle": panel.competition_bundle,
+        "competition_ready": panel.competition_ready,
+        "competition_error": panel.competition_error,
+        "trace_bundle": panel.trace_bundle,
+        "trace_ready": panel.trace_ready,
+        "trace_error": panel.trace_error,
         "cache_hit": panel.cache_hit,
         "cache_age_seconds": panel.cache_age_seconds,
         "slice_flash": slice_flash,
@@ -362,6 +378,8 @@ async def insights_page(
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
+    from thread.services.insights_slice import INSIGHTS_LENS_TABS
+
     ctx = await build_insights_page_context(db, settings)
     return templates.TemplateResponse(
         request,
@@ -371,9 +389,11 @@ async def insights_page(
             "active_nav": "insights",
             "ctx": ctx,
             "flash": None,
-            "facet_form": None,
+            "facet_form": {},
             "active_lens": "overview",
             "slice_panel": False,
+            "has_slice": False,
+            "lens_tabs": INSIGHTS_LENS_TABS,
             "radar_guide": guide_for_explore("usaspending_explore"),
             "sam_guide": guide_for_explore("sam_explore"),
             "clew_guide": guide_for_clew(),
@@ -428,8 +448,54 @@ async def insights_slice_partial(
     return templates.TemplateResponse(
         request,
         "partials/insights_slice_panel.html",
-        _slice_template_ctx(panel),
+        _slice_template_ctx(panel, htmx_request=bool(request.headers.get("HX-Request"))),
     )
+
+
+@router.get("/api/insights/graph-expand")
+async def insights_graph_expand(
+    node_id: str = Query(""),
+    batch: int = Query(3, ge=1, le=12),
+    agency: str = Query(""),
+    sub_agency: str = Query(""),
+    recipient: str = Query(""),
+    naics_codes: str = Query(""),
+    psc_codes: str = Query(""),
+    awarding_office: str = Query(""),
+    funding_office: str = Query(""),
+    recipient_uei: str = Query(""),
+    pop_state: str = Query(""),
+    extent_competed: str = Query(""),
+    type_of_set_aside: str = Query(""),
+    entity_value: str = Query(""),
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    from thread.intel.graph_trace import expand_node_neighbors
+    from thread.services.insights_explore import _facet_from_params
+
+    nid = node_id.strip()
+    if not nid:
+        return JSONResponse({"error": "node_id required"}, status_code=400)
+    query = _facet_from_params(
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        awarding_office=awarding_office,
+        funding_office=funding_office,
+        recipient_uei=recipient_uei,
+        pop_state=pop_state,
+        extent_competed=extent_competed,
+        type_of_set_aside=type_of_set_aside,
+    )
+    if query is None or not query.has_filters():
+        return JSONResponse({"error": "Active facet slice required"}, status_code=400)
+    seed = (entity_value or recipient or "").strip() or None
+    expansion = await expand_node_neighbors(
+        db, query, nid, batch=batch, seed_prime=seed
+    )
+    return JSONResponse({"expansion": expansion})
 
 
 @router.get("/partials/insights/award", response_class=HTMLResponse)

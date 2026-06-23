@@ -10,7 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from thread.config import Settings
 from thread.intel.facet_query import ADVANCED_FACET_FIELDS, InsightFacetQuery
 from thread.services.insights_entity import EntityContext, EntityProfileResult, build_entity_profile, entity_from_params
-from thread.services.insights_explore import RadarExploreResult, SamExploreResult, explore_radar, explore_sam
+from thread.services.insights_explore import (
+    RadarExploreResult,
+    SamExploreResult,
+    _facet_from_params,
+    explore_radar,
+    explore_sam,
+)
+from thread.services.insights_lens_bundles import LensBundleResult, build_competition_bundle, build_trace_bundle
 from thread.services.insights_overview import OverviewResult, build_overview
 
 INSIGHTS_LENS_TABS: tuple[dict[str, str], ...] = (
@@ -43,6 +50,12 @@ class SlicePanelContext:
     entity_ready: bool
     entity_idle: bool
     entity_error: str | None
+    competition_bundle: dict[str, Any]
+    competition_ready: bool
+    competition_error: str | None
+    trace_bundle: dict[str, Any]
+    trace_ready: bool
+    trace_error: str | None
     cache_hit: bool
     cache_age_seconds: float | None
 
@@ -142,15 +155,24 @@ async def build_slice_panel(
         entity_value=entity_value,
         entity_scope=entity_scope,
     )
-    explore = await explore_radar(
-        session,
-        settings,
-        run=run,
-        entity_kind=entity_kind,
-        entity_value=entity_value,
-        entity_scope=entity_scope,
-        **facet_kwargs,
-    )
+    if lens == "recompete" and run:
+        explore = await explore_radar(
+            session,
+            settings,
+            run=True,
+            entity_kind=entity_kind,
+            entity_value=entity_value,
+            entity_scope=entity_scope,
+            **facet_kwargs,
+        )
+    else:
+        explore = RadarExploreResult(
+            query=_facet_from_params(**facet_kwargs) if run else None,
+            summary="",
+            rows=(),
+            intel_live=overview_result.intel_live,
+            status="idle",
+        )
 
     sam_form = {
         "title": sam_title.strip(),
@@ -170,18 +192,35 @@ async def build_slice_panel(
     )
 
     query = overview_result.query
-    has_slice = bool(query and query.has_filters())
+    has_slice = bool(query and query.has_filters() and run)
 
-    entity_result: EntityProfileResult = await build_entity_profile(
-        session,
-        settings,
-        query,
-        entity,
-        lens=lens,
-    )
-    if lens in {"agency", "competitor"} and entity is None:
+    if lens == "competition" and has_slice:
+        competition_result = await build_competition_bundle(session, query)
+    else:
+        competition_result = LensBundleResult(bundle={"idle": True}, status="idle")
+
+    if lens == "trace" and has_slice:
+        trace_result = await build_trace_bundle(session, query, settings)
+    else:
+        trace_result = LensBundleResult(bundle={"idle": True}, status="idle")
+
+    if lens in {"agency", "competitor"} and has_slice:
+        entity_result = await build_entity_profile(
+            session,
+            settings,
+            query,
+            entity,
+            lens=lens,
+        )
+        if entity is None:
+            entity_result = EntityProfileResult(
+                entity=EntityContext(kind=lens, value="", scope="agency"),
+                profile={"idle": True},
+                status="idle",
+            )
+    else:
         entity_result = EntityProfileResult(
-            entity=EntityContext(kind=lens, value="", scope="agency"),
+            entity=entity or EntityContext(kind=lens, value="", scope="agency"),
             profile={"idle": True},
             status="idle",
         )
@@ -216,6 +255,12 @@ async def build_slice_panel(
         entity_ready=entity_result.status == "ready",
         entity_idle=entity_result.status == "idle",
         entity_error=entity_result.error,
+        competition_bundle=competition_result.bundle,
+        competition_ready=competition_result.status == "ready",
+        competition_error=competition_result.error,
+        trace_bundle=trace_result.bundle,
+        trace_ready=trace_result.status == "ready",
+        trace_error=trace_result.error,
         cache_hit=cache_hit,
         cache_age_seconds=cache_age_seconds,
     )

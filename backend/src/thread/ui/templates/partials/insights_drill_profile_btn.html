@@ -1,0 +1,13 @@
+{# entity_kind: competitor|agency; entity_scope: recipient|agency|sub_agency|office; value: entity label #}
+<button
+  type="button"
+  class="insights-drill-chip btn btn-ghost btn-compact text-[10px] {{ extra_class or '' }}"
+  data-drill-field="{{ 'recipient' if entity_kind == 'competitor' else 'agency' }}"
+  data-drill-value="{{ value|e }}"
+  hx-get="/partials/insights/slice"
+  hx-target="#insights-slice-panel"
+  hx-swap="outerHTML"
+  hx-indicator="#insights-slice-loading"
+  hx-include="#insights-radar-form, #insights-entity-state"
+  hx-vals='{"run": "1", "lens": "{{ 'competitor' if entity_kind == 'competitor' else 'agency' }}", "entity_kind": "{{ entity_kind }}", "entity_scope": "{{ entity_scope }}", "entity_value": "{{ value|e }}"}'
+>{{ label or 'Profile →' }}</button>

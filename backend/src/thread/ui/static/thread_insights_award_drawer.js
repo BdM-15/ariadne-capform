@@ -100,21 +100,25 @@
     if (window.persistInsightsSession) window.persistInsightsSession();
   };
 
-  document.body.addEventListener("click", function (event) {
-    var profileBtn = event.target.closest("[data-insights-award-key]");
-    if (profileBtn) {
-      event.preventDefault();
-      event.stopPropagation();
-      var profileKey = profileBtn.getAttribute("data-insights-award-key");
-      if (profileKey) window.openInsightsAwardDrawer(profileKey);
-      return;
-    }
-    var row = event.target.closest("[data-insights-award-open]");
-    if (!row) return;
-    if (event.target.closest("button, a, form")) return;
-    var rowKey = row.getAttribute("data-award-key");
-    if (rowKey) window.openInsightsAwardDrawer(rowKey);
-  });
+  document.body.addEventListener(
+    "click",
+    function (event) {
+      var profileBtn = event.target.closest("[data-insights-award-key]");
+      if (profileBtn) {
+        event.preventDefault();
+        event.stopPropagation();
+        var profileKey = profileBtn.getAttribute("data-insights-award-key");
+        if (profileKey) window.openInsightsAwardDrawer(profileKey);
+        return;
+      }
+      var row = event.target.closest("[data-insights-award-open]");
+      if (!row) return;
+      if (event.target.closest("button, a, form, .insights-drill-chip")) return;
+      var rowKey = row.getAttribute("data-award-key");
+      if (rowKey) window.openInsightsAwardDrawer(rowKey);
+    },
+    true
+  );
 
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && drawerOpen()) closeInsightsAwardDrawer();

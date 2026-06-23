@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-22 (Phase 17e design locked — operator NAICS portfolio, shared viz layer, entity profile tabs, SAM lens tab)
+**Last updated:** 2026-06-23 (Phase 17e-g — DR methods embedded in Insights; Competition FFP/vehicles; Trace inline Sankeys; Clew stays standalone workbench)
 
 ---
 
@@ -26,7 +26,7 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | LLM router (Grok + Ollama) | ✅ Done | Reasoning → xAI; admin → Ollama |
 | Web research module | ✅ MVP | SearXNG/Crawl4AI adapters + `/api/research/*` |
 | Skill runtime + MCP | ✅ MVP | 8 MCP manifests + skills run UX on `/tools/skills` |
-| Frontend command center | 🟡 Product gap | Shell + Pulse + Filament ✅ — **Data Insights analytics page incomplete** (17e) |
+| Frontend command center | 🟡 Product gap | Shell + Pulse + Filament ✅ — **Data Insights 17e-g in progress** (funnel plumbing ✅; full viz depth 🟡) |
 | Theseus visual language | ✅ Done | `frontend/styles/theseus.css` synced from proj-theseus |
 | Orchestration (LangGraph) | 🟡 Placeholder | Env + tracing bootstrap; runtime deferred |
 | Git | ✅ Done | Repo pushed; commit early/often |
@@ -760,7 +760,7 @@ Core idea from the site: *“Connecting the dots between government grants, char
 |------------|----------------------------------|---------------------|---------------------------------------------|
 | [expose](https://datarepublican.com/expose/) | Multi-root **BFS** from seed EINs → subgraph; taxpayer $ on nodes; **edge-click zoom**; force/graph canvas | Facet slice → top-N SQL paths → **static** ECharts Sankey/bar on `/clew` | BFS subgraph expansion from recipient/agency/UEI seed; force-directed canvas (**17c-graph**) |
 | [browse](https://datarepublican.com/browse/) | **Exploratory** Sankey — click node → reveal hidden flows; focus/remove; trace back to USG | Same static Sankey from facet; zoom/hover only | Click node → narrow facet → re-run; progressive disclosure (**17b-interact**) |
-| [relations](https://datarepublican.com/relations/) | **People/entity** graph; name search; hover **trace connections** | `teaming` = prime→sub org edges only | People graph (SAM principals + vault entities); `intel_relationships` + `edges.jsonl` (**17c-graph**) |
+| [relations](https://datarepublican.com/relations/) | **Entity web** — people is one relation family; also org/teaming/vehicle ties; hover trace | `graph_trace.py` multi-hop BFS (**17e-g** ✅ started) | People overlay (SAM MCP); full `intel_relationships` (**17c-graph**) |
 | [award_search](https://datarepublican.com/award_search/) | Map federal funds to connected orgs | Facet explore + `recipient_landscape` on `intel_usaspending_prime_awards` | — |
 | [officers](https://datarepublican.com/officers/) | Cross-reference people across orgs | Deferred — SAM entity MCP + vault `entities/competitors/` (not DR 990 officers) | SAM + vault people cross-ref (**20+**) |
 
@@ -800,9 +800,29 @@ Note: facets today use `ILIKE '%text%'` substring match — not exact equality. 
 | Teaming edges | `teaming` prime→sub | Competitor profile subs | Sankey + MCP supplement |
 | Recipient landscape | `recipient_landscape` | Top recipients, adjacent competitors | Bar + table |
 | Spend trend | `spend_trend` | Overview FY trend | Clew chart |
-| BFS subgraph / relations | deferred **17c-graph** | Entity profile heat maps | expose-style canvas |
+| BFS subgraph / relations | **`thread/intel/graph_trace.py`** (17e-g / 17c-graph) | Trace expose graph; competitor relations web | expose canvas + `?path=` handoff |
 
-**Rule:** New chart modes land in the **shared intel layer** first; Clew and Insights are thin HTMX/ECharts shells — no duplicate SQL per surface.
+**DR method catalog → Thread mapping (2026-06-23):**
+
+| DR tool | DR interaction | Thread entity model | Data plane | Viz mode | Phase |
+|---------|----------------|---------------------|------------|----------|-------|
+| [expose](https://datarepublican.com/expose/) | Seed EIN → **BFS** until ≥5 nodes; $ on nodes; edge-click zoom; force canvas | Seed **recipient/agency/UEI** → BFS over obligation + teaming + vehicle-peer edges | PG prime + subawards (facet-scoped) | ECharts **graph** force layout (`expose_graph`) | **17e-g** Trace lens ✅ started |
+| [browse](https://datarepublican.com/browse/) | US Govt root; trapezoid funnel; **click +3 hidden flows**; Focus/Remove; 🐷 trace to source | **Agency as funder root** → prime → sub; progressive `expand_node_neighbors` | PG + facet slice | Sankey (browse) + server expand batches | **17b-interact** next |
+| [relations](https://datarepublican.com/relations/) | Name search → **people/associate graph**; hover trace | **Competitor web:** primes, subs, sister primes (shared parent PIID), shared agencies | PG historical; SAM principals MCP; vault entities | graph + matrix | **17e-g** competitor profile + **17c-graph** people |
+| [officers](https://datarepublican.com/officers/) | Officer search → **`?custom_graph=`** deep-link | Recompete row / award drawer → encoded path → Trace/Clew | PG + precomputed edges | `clew/path_link.py` ✅ | **17b.1** ✅ |
+| [award_search](https://datarepublican.com/award_search/) | Federal $ → connected orgs | Facet slice + recipient landscape + Watch | PG | tables + drill to graph | Overview ✅ |
+
+**Relationship edge types (`graph_trace.py`):**
+
+| Edge | Meaning | SQL / MCP source |
+|------|---------|------------------|
+| `obligation` | agency → prime $ | prime awards rollup |
+| `teaming` | prime → sub | FFATA subawards |
+| `vehicle_member` | parent PIID vehicle → prime (sister awardees) | `parent_award_id_piid` group-by |
+| `child_order` | parent vehicle → task-order prime | USAspending MCP child orders (**17e-g-e**) |
+| `co_buyer` | prime ↔ second agency (browse back-trace) | reverse obligation paths |
+
+**Rule:** New chart modes land in the **shared intel layer** first; Clew and Insights are thin HTMX/ECharts shells — no duplicate SQL per surface. **Sankey alone is not DR** — always pair with expose graph + progressive expand where relationships matter.
 
 ### GovDash inspiration (captured 2026-06)
 
@@ -984,8 +1004,15 @@ flowchart TD
 | Agency → sub-agency flow | Who buys, and through which sub-tiers? | Clew `money_flow` / stacked bars — **hone path before office** | **P0** |
 | Top agencies bar | Who buys? (supporting) | agency rollups | **P1** |
 | Expiring table | What recompetes soon? | current `/insights` explore rows | **P0** (exists — move under Recompete lens) |
-| Money-flow Sankey (full) | Deep recipient → agency paths | Clew `money_flow` | **P1** (Trace lens → `/clew`; Overview gets simplified flow bars) |
-| Geo / vehicles / combo | POP state, IDV mix, combos | capture-insights tabs | **Post-MVP** |
+| Agency×recipient heat map | Entrenched buyer–prime ties | `get_agency_recipient_relationships` | **P0** (17e-g — Agency + Competitor profiles, Trace lens) |
+| Money-flow Sankey | Deep recipient → agency paths | `money_flow` in `charts.py` | **P0** (Trace lens inline; entity profiles) |
+| Teaming Sankey | Prime → sub edges | `teaming` (FFATA bulk) | **P0** (Competitor profile + Trace lens) |
+| Adjacent competitors | Shared-agency niche primes | `get_teaming_candidates` / co-occurrence | **P0** (Competitor profile — not top-N leaders) |
+| Pricing bucket bar | FFP vs cost/T&M mix | `get_vehicle_analysis` / pricing buckets | **P0** (Competition lens + entity profiles) |
+| Vehicle×pricing stacked | How work is bought (IDIQ, FFP, etc.) | `get_vehicle_breakdown` | **P0** (Competition lens) |
+| FFP shaping radar | Non-fixed pressure + expiring targets | `get_ffp_shaping_radar` | **P0** (Competition lens — EO shaping qualification) |
+| Geo / POP state map | Regional footprint | `get_geo_breakdown` | **Post-MVP** |
+| Parent vehicle peer roster | Sister primes on same IDV | competitive-intel collector | **Post-MVP** (17c-graph / award-context MCP) |
 
 **17e slices (implementation order):**
 
@@ -997,9 +1024,21 @@ flowchart TD
 | **17e-d** ✅ | **Lens tabs** — Overview · Recompete · Competition · Trace · **Live (SAM)** | SAM moved off always-visible panel |
 | **17e-e** ✅ | **Sign-off E2E smoke** — facet → hone → Watch → Pulse → Track → packet fill one field | MVP sign-off test passes |
 | **17e-f** ✅ | **Extended facets** — office, UEI, POP state, competition/set-aside filters; **advanced** facet panel (collapsed) | Precision filters when known or after hone — not primary entry |
-| **17e-g** 🟡 | **Entity profile tabs** — Competitor + Agency dossiers from chart click; shared DR/Clew chart primitives | **17e-g lite ✅** — drill opens Agency/Competitor tab + breadcrumb back; heat maps + adjacent competitors deferred |
+| **17e-g** 🟡 | **Entity profile depth + lens DR integration** — heat maps, Sankeys, adjacent competitors, Competition FFP/vehicles, Trace inline | **In flight** — see **17e-g sub-slices** below; MVP blocker until entity dossiers + Competition/Trace lenses match capture-insights visual inventory |
 
-**Clew boundary:** `/clew` stays the deep trace workbench (Sankey, teaming, saved traces). `/insights` Overview links **Trace** lens with facets pre-filled; do not duplicate full Clew UI on Insights.
+**17e-g sub-slices (implementation order):**
+
+| Sub-slice | Scope | Done when |
+|-----------|--------|-----------|
+| **17e-g-a** 🟡 | **Agency profile** — relationship heat map, money-flow Sankey, pricing mix, sub-flow + top contractors | Chart click → dossier answers “who buys and who wins here?” |
+| **17e-g-b** 🟡 | **Competitor profile** — heat map, teaming Sankey, adjacent competitors (shared-agency co-occurrence), top agencies/NAICS | DR trace methods on entity — not Clew redirect |
+| **17e-g-c** 🟡 | **Competition lens (slice-wide)** — set-aside + extent + **pricing buckets** + **vehicle×pricing** + **FFP shaping radar** + shape-now targets table | Port `get_ffp_shaping_radar`, `get_vehicle_breakdown` from capture-insights |
+| **17e-g-d** 🟡 | **Trace lens (inline)** — money-flow + teaming Sankeys + agency×recipient heat map on active slice | Optional Clew link for saved traces; **default = Insights** |
+| **17e-g-e** | **Parent vehicle peers / BFS graph** | Post-MVP **17c-graph** — USAspending MCP roster when award context known |
+
+**DR integration doctrine (operator 2026-06-23):** DataRepublican / capture-insights analytics live in **`thread/intel/charts.py`** + **`echarts_options.py`**. Insights facet search **consumes** these primitives when context fits (competitor → parent/child/sister via adjacent + teaming; agency → relationship matrix; slice → Trace/Competition). **Do not** require a separate Clew navigation for standard identification drill — Clew is a **standalone workbench** (saved traces, deeper modes, MCP supplements).
+
+**Clew boundary:** `/clew` = saved traces, multi-mode workbench, MCP subaward supplements, future FH hierarchy. `/insights` = identification command surface with **inline DR viz** on Overview, entity profiles, Competition, and Trace lenses. Trace tab shows Sankeys + heat map first; “Open Clew workbench” is secondary.
 
 **Facet UX — peer SQL, tiered prominence (operator 2026-06-22):**
 
@@ -1048,7 +1087,7 @@ All facets remain **peer dimensions in SQL** (no platform defaults). **UI promin
 | Money flow | `money_flow` | Sub-tier and office breakdown |
 | Actions | — | Hone slice, Research → vault `entities/agencies/`, open Competitor tab |
 
-**MVP boundary:** Sign-off needs Overview + hone + Watch path. **17e-g lite** (competitor/agency tab with KPI + top lists + entity-scoped Recompete/Watch ✅) is acceptable stretch; full heat maps + adjacent-competitor graph ship in **17e-g** proper or **17c-graph**.
+**MVP boundary (revised 2026-06-23):** E2E funnel plumbing (facet → Watch → Track → one packet field) ✅ is **necessary but not sufficient**. Product MVP also requires **17e-g** depth: entity dossiers with DR viz (heat map, Sankeys, adjacent competitors) + Competition lens (FFP/vehicles/pricing) + Trace lens inline — not Clew-only redirects. **17e-h** exports remain deferred. **Living Briefing Packet** full MS-critical field fill + skill-wired chains = **Phase 20d** (honest gap post sign-off smoke).
 
 #### Entity profile doctrine — storytelling, exports, decision-grade data (17e-h+)
 
@@ -1550,7 +1589,7 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 | Priority | Work | Why |
 |----------|------|-----|
 | **P0** | **17e-e** ✅ E2E sign-off smoke — facet → hone → Watch → Pulse → Track → packet fill | `pytest test_insights_signoff_e2e` + `smoke_insights_signoff.py` |
-| **P1** | **17e-g** Entity profile tabs (Competitor · Agency) | **17e-g lite ✅** + entity→Recompete→Watch glue ✅; heat maps deferred |
+| **P0** | **17e-g** Entity depth + Competition/Trace DR integration | **17e-g-a–d** — heat maps, Sankeys, FFP shaping, adjacent competitors; Clew secondary |
 | **P1** | **17e-i** ✅ Query cache — disk-backed 10m TTL for overview + explore + entity profiles (`.thread/insights_slice_cache/`) | Tab switch / drill-back without re-querying PG |
 | **Defer** | **17e-h** Profile exports (docx/pptx/vault) + schema registry | Storytelling doctrine locked; build after cache + 17e-g depth |
 | **Defer** | 21b–21d Incubator Develop/Publish | Capture ingest polish |
@@ -1586,7 +1625,9 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
   - [x] 17e-e — E2E sign-off smoke
   - [x] 17e-f — Extended facets (advanced panel)
   - [x] 17e-g lite — Entity profile tabs + entity-scoped Recompete/Watch
-  - [ ] 17e-g — Heat maps + adjacent competitors (depth)
+  - [ ] 17e-g — Entity depth + Competition FFP/vehicles + Trace inline DR (17e-g-a–d)
+  - [ ] 17e-g-e — Parent vehicle peers / BFS graph (defer → 17c-graph)
+  - [ ] **20d** — Packet MS-critical field execution + skill-wired fill chains (post-MVP blocker, honest)
   - [ ] 17e-h — Profile schema registry + docx/pptx/vault export (deferred)
   - [x] 17e-i — Slice query cache (10m disk TTL + Cached pill in slice bar)
 - [x] MVP sign-off E2E (find → watch → track → packet fill)

@@ -42,19 +42,25 @@
     {% if award.agency %}
     <div class="flex flex-wrap items-center gap-2">
       <span class="text-slate-300">{{ award.agency }}</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-cyan" data-drill-field="agency" data-drill-value="{{ award.agency|e }}">Agency profile →</button>
+      {% with entity_kind='agency', entity_scope='agency', value=award.agency, label='Agency profile →', extra_class='text-neon-cyan' %}
+      {% include "partials/insights_drill_profile_btn.html" %}
+      {% endwith %}
     </div>
     {% endif %}
     {% if award.awarding_sub_agency and award.awarding_sub_agency != award.agency %}
     <div class="flex flex-wrap items-center gap-2 text-slate-400">
       <span>Sub: {{ award.awarding_sub_agency }}</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px]" data-drill-field="sub_agency" data-drill-value="{{ award.awarding_sub_agency|e }}">Sub-agency →</button>
+      {% with entity_kind='agency', entity_scope='sub_agency', value=award.awarding_sub_agency, label='Sub-agency →' %}
+      {% include "partials/insights_drill_profile_btn.html" %}
+      {% endwith %}
     </div>
     {% endif %}
     {% if award.awarding_office %}
     <div class="flex flex-wrap items-center gap-2 text-slate-400">
       <span>Office: {{ award.awarding_office }}</span>
-      <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px]" data-drill-field="awarding_office" data-drill-value="{{ award.awarding_office|e }}">Office →</button>
+      {% with entity_kind='agency', entity_scope='office', value=award.awarding_office, label='Office →' %}
+      {% include "partials/insights_drill_profile_btn.html" %}
+      {% endwith %}
     </div>
     {% endif %}
     {% if award.funding_agency and award.funding_agency != award.agency %}
@@ -83,7 +89,9 @@
 
   <div class="task-drawer-section px-4 py-3 flex flex-wrap gap-2">
     {% if award.recipient %}
-    <button type="button" class="insights-drill-chip btn btn-ghost btn-compact text-[10px] text-neon-lime" data-drill-field="recipient" data-drill-value="{{ award.recipient|e }}">Competitor profile →</button>
+    {% with entity_kind='competitor', entity_scope='recipient', value=award.recipient, label='Competitor profile →', extra_class='text-neon-lime' %}
+    {% include "partials/insights_drill_profile_btn.html" %}
+    {% endwith %}
     {% endif %}
     {% with recipient=award.recipient or '', agency=award.agency or '', naics_codes=award.naics_code or '', mode='teaming', run='1', from_insights=true, extra_class='btn btn-ghost btn-compact text-[10px] border border-neon-magenta/40 text-neon-magenta' %}
     {% include "partials/clew_link.html" %}
