@@ -61,6 +61,12 @@
     {% endfor %}
   </div>
   {% endif %}
+  {% if explore.status != 'idle' %}
+  <div class="insights-slice-expiring mt-4 pt-3 border-t border-edge/50">
+    <p class="text-[10px] uppercase tracking-wide text-slate-600 mb-2">Expiring in slice (18 mo)</p>
+    {% include "partials/insights_radar_explore.html" %}
+  </div>
+  {% endif %}
   {% else %}
   <p class="insights-idle-hint">Run slice to load Overview charts.</p>
   {% endif %}

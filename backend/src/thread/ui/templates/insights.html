@@ -15,6 +15,7 @@
 {% block page_overlays %}
 {% include "partials/insights_award_drawer_shell.html" %}
 {% include "partials/insights_bookmarks_drawer.html" %}
-<script src="/static/thread_insights_session.js?v={{ asset_v() }}"></script>
-<script src="/static/thread_insights_award_drawer.js?v={{ asset_v() }}"></script>
+{% endblock %}
+{% block page_scripts %}
+<script src="/static/thread_insights.js?v={{ asset_v() }}"></script>
 {% endblock %}

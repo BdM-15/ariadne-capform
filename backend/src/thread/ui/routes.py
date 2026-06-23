@@ -2735,7 +2735,7 @@ async def watchlist_add_recompete(
     end_date: str = Form(""),
     obligation: str = Form(""),
     months_to_end: str = Form(""),
-    return_lens: str = Form("recompete"),
+    return_lens: str = Form("overview"),
     agency: str = Form(""),
     sub_agency: str = Form(""),
     recipient: str = Form(""),
@@ -2778,7 +2778,7 @@ async def watchlist_add_recompete(
     flash = f"Watching {item.title} — see Pulse watchlist."
     hx_target = (request.headers.get("HX-Target") or "").strip()
     if hx_target in {"insights-slice-panel", "insights-stage-content"}:
-        lens = (return_lens or "recompete").strip() or "recompete"
+        lens = (return_lens or "overview").strip() or "overview"
         panel = await build_slice_panel(
             db,
             settings,

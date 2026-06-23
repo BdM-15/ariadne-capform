@@ -169,7 +169,7 @@ def test_insights_award_partial():
     assert "Missing award key" in route.text
 
 
-def test_insights_slice_four_tabs_when_run():
+def test_insights_slice_three_tabs_when_run():
     client = TestClient(create_app())
     idle = client.get("/partials/insights/slice?lens=overview&run=0")
     assert idle.status_code == 200
@@ -184,6 +184,6 @@ def test_insights_slice_four_tabs_when_run():
     assert "insights-stage-content" in html
     assert ">Agency<" in html or ">Agency</button>" in html
     assert ">Competitor<" in html or ">Competitor</button>" in html
-    assert ">Recompete<" in html or ">Recompete</button>" in html
+    assert ">Recompete<" not in html
     assert ">Trace<" not in html
     assert ">Competition<" not in html

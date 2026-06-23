@@ -81,6 +81,7 @@
     </aside>
 
     <section class="insights-stage" aria-label="Lens results">
+      <p id="insights-slice-loading" class="insights-stage-status htmx-indicator" aria-live="polite"></p>
       {% set has_slice = slice_panel %}
       {% include "partials/insights_stage_content.html" %}
     </section>
@@ -96,4 +97,3 @@
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" defer></script>
 <script src="/static/scripts/clew_charts.js?v={{ asset_v() }}" defer></script>
 <script src="/static/scripts/insights_charts.js?v={{ asset_v() }}" defer></script>
-<script src="/static/thread_insights_ui.js?v={{ asset_v() }}"></script>

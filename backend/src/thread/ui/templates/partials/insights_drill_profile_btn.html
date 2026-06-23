@@ -1,4 +1,13 @@
+{# ponytail: hx-vals carries entity_* — do not hx-include #insights-entity-state (empty fields win in HTMX 2) #}
 {# entity_kind: competitor|agency; entity_scope: recipient|agency|sub_agency|office; value: entity label #}
+{% set drill_lens = 'competitor' if entity_kind == 'competitor' else 'agency' %}
+{% set drill_vals = {
+  'run': '1',
+  'lens': drill_lens,
+  'entity_kind': entity_kind,
+  'entity_scope': entity_scope,
+  'entity_value': value,
+} %}
 <button
   type="button"
   class="insights-drill-chip btn btn-ghost btn-compact text-[10px] {{ extra_class or '' }}"
@@ -8,6 +17,6 @@
   hx-target="#insights-stage-content"
   hx-swap="outerHTML"
   hx-indicator="#insights-slice-loading"
-  hx-include="#insights-radar-form, #insights-entity-state"
-  hx-vals='{"run": "1", "lens": "{{ 'competitor' if entity_kind == 'competitor' else 'agency' }}", "entity_kind": "{{ entity_kind }}", "entity_scope": "{{ entity_scope }}", "entity_value": "{{ value|e }}"}'
+  hx-include="#insights-radar-form"
+  hx-vals='{{ drill_vals | tojson }}'
 >{{ label or 'Profile →' }}</button>

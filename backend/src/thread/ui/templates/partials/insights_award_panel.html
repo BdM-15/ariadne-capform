@@ -1,4 +1,4 @@
-<div class="insights-award-panel task-drawer-panel" id="insights-award-panel" data-award-key="{{ award.award_key }}">
+<div class="insights-award-panel task-drawer-panel" id="insights-award-panel" data-award-key="{{ award.award_key if award else '' }}">
   {% if award_error %}
   <div class="task-drawer-section px-4 py-4">
     <p class="insights-explore-msg insights-explore-msg-warn">{{ award_error }}</p>
@@ -103,7 +103,7 @@
       hx-include="#insights-radar-form, #insights-entity-state"
       class="inline"
     >
-      <input type="hidden" name="return_lens" value="recompete" />
+      <input type="hidden" name="return_lens" value="{{ active_lens or 'overview' }}" />
       <input type="hidden" name="award_key" value="{{ award.award_key }}" />
       <input type="hidden" name="title" value="{{ award.recipient or '' }}" />
       <input type="hidden" name="watch_agency" value="{{ award.agency or '' }}" />
@@ -116,6 +116,10 @@
     {% if award.usaspending_permalink %}
     <a href="{{ award.usaspending_permalink }}" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-compact text-[10px] no-underline border border-edge text-slate-400">USAspending ↗</a>
     {% endif %}
+  </div>
+  {% else %}
+  <div class="task-drawer-section px-4 py-4">
+    <p class="insights-explore-msg insights-explore-msg-warn">No profile data for this award.</p>
   </div>
   {% endif %}
 </div>

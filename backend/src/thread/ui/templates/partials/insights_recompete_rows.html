@@ -2,18 +2,17 @@
 <ul class="insights-result-list">
   {% for row in rows %}
   <li
-    class="insights-result-row insights-result-row-clickable"
-    data-insights-award-open
-    data-award-key="{{ row.award_key|e }}"
-    title="Open in-platform contract profile"
-    onclick="if(!event.target.closest('button,a,form,.insights-drill-chip'))openInsightsAwardDrawer(this.getAttribute('data-award-key'))"
+    class="insights-result-row insights-result-row-clickable{% if row.award_key %} insights-award-open{% endif %}"
+    {% if row.award_key %}data-award-key="{{ row.award_key|e }}"{% endif %}
+    {% if row.award_key %}title="Open in-platform contract profile"{% endif %}
   >
+    {% if row.award_key %}
     <div class="insights-result-main">
       <span class="insights-result-title">{{ row.recipient or 'Unknown recipient' }}</span>
       {% if row.description %}
       <span class="insights-result-desc" title="{{ row.description }}">{{ row.description[:160] }}{% if row.description|length > 160 %}…{% endif %}</span>
       {% elif row.piid %}
-      <span class="insights-result-desc text-slate-500 font-mono">PIID {{ row.piid }} — click row for contract profile</span>
+      <span class="insights-result-desc text-slate-500 font-mono">PIID {{ row.piid }} — click for contract profile</span>
       {% endif %}
       <span class="insights-result-sub">{{ row.agency or 'Unknown agency' }}{% if row.piid %} · {{ row.piid }}{% endif %}</span>
       <span class="insights-result-mono">
@@ -25,14 +24,23 @@
         {% if row.pop_state %} · POP {{ row.pop_state }}{% endif %}
       </span>
     </div>
-    <div class="insights-result-actions flex flex-col gap-1 shrink-0" onclick="event.stopPropagation()">
+    {% else %}
+    <div class="insights-result-main">
+      <span class="insights-result-title">{{ row.recipient or 'Unknown recipient' }}</span>
+      <span class="insights-result-desc text-slate-500">No award key — re-run slice</span>
+    </div>
+    {% endif %}
+    <div class="insights-result-actions flex flex-col gap-1 shrink-0">
+      {% if row.award_key %}
       <button
         type="button"
-        class="btn btn-ghost btn-compact text-[10px] border border-neon-magenta/40 text-neon-magenta"
-        data-insights-award-key="{{ row.award_key|e }}"
+        class="insights-award-open btn btn-ghost btn-compact text-[10px] border border-neon-magenta/40 text-neon-magenta"
+        data-award-key="{{ row.award_key|e }}"
         title="In-platform contract profile"
-        onclick="openInsightsAwardDrawer(this.getAttribute('data-insights-award-key'))"
       >Contract</button>
+      {% else %}
+      <button type="button" class="btn btn-ghost btn-compact text-[10px] opacity-50" disabled>Contract</button>
+      {% endif %}
       {% if row.recipient %}
       {% with entity_kind='competitor', entity_scope='recipient', value=row.recipient, label='Competitor →', extra_class='border border-neon-lime/40 text-neon-lime' %}
       {% include "partials/insights_drill_profile_btn.html" %}
@@ -47,7 +55,7 @@
         hx-swap="outerHTML"
         hx-include="#insights-radar-form, #insights-entity-state"
       >
-        <input type="hidden" name="return_lens" value="{{ active_lens or 'recompete' }}" />
+        <input type="hidden" name="return_lens" value="{{ active_lens or 'overview' }}" />
         <input type="hidden" name="award_key" value="{{ row.award_key }}" />
         <input type="hidden" name="title" value="{{ row.recipient or '' }}" />
         <input type="hidden" name="watch_agency" value="{{ row.agency or '' }}" />

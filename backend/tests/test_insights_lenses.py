@@ -83,13 +83,14 @@ def test_insights_lens_tab_not_stuck_on_prior_lens():
     assert "insights-agency-lens" in stuck.text
     assert "insights-radar-explore" not in stuck.text
 
-    recompete = client.get(
+    legacy_recompete = client.get(
         "/partials/insights/slice",
         params={"run": 1, "lens": "recompete", "naics_codes": "561210"},
     )
-    assert recompete.status_code == 200
-    assert 'data-active-lens="recompete"' in recompete.text
-    assert "insights-radar-explore" in recompete.text
+    assert legacy_recompete.status_code == 200
+    assert 'data-active-lens="overview"' in legacy_recompete.text
+    assert "insights-slice-expiring" in legacy_recompete.text or "insights-result-row" in legacy_recompete.text
+    assert ">Recompete<" not in legacy_recompete.text
 
 
 def test_insights_agency_tab_browse_mode_after_slice():
@@ -163,6 +164,84 @@ async def _dispose_app_engine_after_insights_ui_test():
         await db_session_module.engine.dispose()
 
 
+def test_insights_award_partial_route():
+    client = TestClient(create_app())
+    res = client.get("/partials/insights/award", params={"award_key": "CONT_AWD_TEST"})
+    assert res.status_code == 200
+    assert "insights-award-panel" in res.text or "award" in res.text.lower()
+
+
+def test_entity_state_is_div_not_form():
+    """JS must not use FormData() on #insights-entity-state — it's a hidden-field div."""
+    client = TestClient(create_app())
+    res = client.get("/partials/insights/slice", params={"lens": "overview", "run": 0})
+    assert res.status_code == 200
+    assert '<div id="insights-entity-state"' in res.text
+    assert '<form id="insights-entity-state"' not in res.text
+
+
+@pytest.mark.asyncio
+async def test_expiring_award_partial_returns_profile():
+    import re
+    import socket
+    from urllib.parse import urlparse
+
+    from httpx import ASGITransport, AsyncClient
+
+    from thread.config import Settings
+
+    try:
+        url = Settings().database_url
+        host = urlparse(url.replace("+asyncpg", "")).hostname or "127.0.0.1"
+        port = urlparse(url.replace("+asyncpg", "")).port or 5432
+        with socket.create_connection((host, port), timeout=2):
+            pass
+    except OSError:
+        pytest.skip("Postgres not ready")
+
+    transport = ASGITransport(app=create_app())
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        slice_res = await client.get(
+            "/partials/insights/slice",
+            params={"run": 1, "lens": "overview", "naics_codes": "561210"},
+        )
+        keys = re.findall(r'data-award-key="([^"]+)"', slice_res.text)
+        assert keys, "expiring rows should include award keys"
+        award_res = await client.get("/partials/insights/award", params={"award_key": keys[0]})
+    assert award_res.status_code == 200
+    assert "Database error loading award" not in award_res.text
+    assert "Award not found" not in award_res.text
+    assert "insights-award-panel" in award_res.text
+    assert "task-drawer-section" in award_res.text
+    assert "Could not load contract profile" not in award_res.text
+    assert "FormData" not in award_res.text
+
+
+def test_expiring_rows_use_award_drawer_htmx():
+    import socket
+    from urllib.parse import urlparse
+
+    from thread.config import Settings
+
+    try:
+        url = Settings().database_url
+        host = urlparse(url.replace("+asyncpg", "")).hostname or "127.0.0.1"
+        port = urlparse(url.replace("+asyncpg", "")).port or 5432
+        with socket.create_connection((host, port), timeout=2):
+            pass
+    except OSError:
+        pytest.skip("Postgres not ready")
+
+    client = TestClient(create_app())
+    res = client.get(
+        "/partials/insights/slice",
+        params={"run": 1, "lens": "overview", "naics_codes": "561210"},
+    )
+    assert res.status_code == 200
+    assert 'class="insights-award-open' in res.text
+    assert 'data-award-key="' in res.text
+
+
 def test_insights_page_renders_live_explore():
     client = TestClient(create_app())
     res = client.get("/insights")
@@ -180,8 +259,8 @@ def test_insights_page_renders_live_explore():
     assert 'hx-target="#insights-stage-content"' in html
     assert 'hx-vals=\'{"lens": "overview"}\'' in html
     assert "insights-award-drawer-root" in html
-    assert "thread_insights_award_drawer" in html
-    assert "thread_insights_session.js" in html
+    assert "thread_insights.js" in html
+    assert ">Recompete<" not in html
     assert 'id="insights-clear-btn"' in html
     assert "NAICS portfolio" in html
     assert "Add at least one facet" not in html

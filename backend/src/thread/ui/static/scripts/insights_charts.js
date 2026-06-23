@@ -35,8 +35,16 @@
     var state = document.getElementById("insights-entity-state");
     var params = new URLSearchParams();
     if (!state) return params;
-    new FormData(state).forEach(function (value, key) {
-      if (value != null && String(value).length) params.append(key, String(value));
+    if (state.tagName === "FORM") {
+      new FormData(state).forEach(function (value, key) {
+        if (value != null && String(value).length) params.append(key, String(value));
+      });
+      return params;
+    }
+    state.querySelectorAll("input[name], select[name], textarea[name]").forEach(function (field) {
+      if (field.name && field.value != null && String(field.value).length) {
+        params.append(field.name, String(field.value));
+      }
     });
     return params;
   }
@@ -74,9 +82,11 @@
   function requestSliceDrill(field, value, meta) {
     var params = sliceDrillParams(field, value, meta);
     if (!params || !window.htmx) return;
+    if (window.showInsightsSliceLoading) window.showInsightsSliceLoading("Opening profile…");
     window.htmx.ajax("GET", "/partials/insights/slice?" + params.toString(), {
       target: SLICE_TARGET,
       swap: "outerHTML",
+      indicator: "#insights-slice-loading",
     });
   }
 
@@ -222,39 +232,6 @@
     patchIntensityCharts();
     bindChartDrill();
   };
-
-  function isSliceSwapTarget(t) {
-    if (!t) return false;
-    return (
-      t.id === "insights-stage-content" ||
-      t.id === "insights-slice-panel" ||
-      (t.closest && t.closest("#insights-stage-content"))
-    );
-  }
-
-  document.body.addEventListener("htmx:afterSwap", function (e) {
-    var t = e.detail && e.detail.target;
-    if (!isSliceSwapTarget(t)) return;
-    if (window.clearInsightsSliceLoading) window.clearInsightsSliceLoading();
-    var stage = document.getElementById("insights-stage-content");
-    var lensInput = document.getElementById("insights-active-lens");
-    if (lensInput && stage && stage.dataset.activeLens) {
-      lensInput.value = stage.dataset.activeLens;
-    }
-    if (window.initInsightsPage) window.initInsightsPage();
-    else {
-      if (window.initClewCharts) window.initClewCharts();
-      window.initInsightsHone();
-    }
-  });
-
-  document.body.addEventListener("htmx:responseError", function (e) {
-    var cfg = e.detail && e.detail.requestConfig;
-    var target = cfg && cfg.target;
-    if (target === SLICE_TARGET || target === "insights-stage-content") {
-      if (window.clearInsightsSliceLoading) window.clearInsightsSliceLoading();
-    }
-  });
 
   document.addEventListener("DOMContentLoaded", function () {
     window.initInsightsHone();

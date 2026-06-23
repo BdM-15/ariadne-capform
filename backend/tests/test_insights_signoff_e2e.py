@@ -90,12 +90,12 @@ async def test_insights_mvp_signoff_funnel(db_session, tmp_path, monkeypatch):
             or "obligated" in html.lower()
         ), "Overview lens should show market picture"
 
-        recompete = await client.get(
+        overview_expiring = await client.get(
             "/partials/insights/slice",
-            params={"run": 1, "lens": "recompete", "naics_codes": naics},
+            params={"run": 1, "lens": "overview", "naics_codes": naics},
         )
-        assert recompete.status_code == 200
-        assert award_key in recompete.text or seed["recipient"][:12] in recompete.text
+        assert overview_expiring.status_code == 200
+        assert award_key in overview_expiring.text or seed["recipient"][:12] in overview_expiring.text
 
         watch = await client.post(
             "/watchlist/add/recompete",

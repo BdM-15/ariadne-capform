@@ -22,11 +22,10 @@ INSIGHTS_LENS_TABS: tuple[dict[str, str], ...] = (
     {"id": "overview", "label": "Overview"},
     {"id": "agency", "label": "Agency"},
     {"id": "competitor", "label": "Competitor"},
-    {"id": "recompete", "label": "Recompete"},
 )
 
-# Trace/flow viz lives inside entity + overview lenses — not separate tabs.
-_LEGACY_LENS_IDS = frozenset({"trace", "competition", "sam"})
+# ponytail: slice-wide expiring rows live on Overview; entity-scoped rows on Agency/Competitor profiles
+_LEGACY_LENS_IDS = frozenset({"trace", "competition", "sam", "recompete"})
 
 
 @dataclass(frozen=True)
@@ -149,7 +148,10 @@ async def build_slice_panel(
         entity_value=entity_value,
         entity_scope=entity_scope,
     )
-    if lens == "recompete" and run:
+    query = overview_result.query
+    has_slice = bool(query and query.has_filters() and run)
+
+    if has_slice and lens == "overview":
         explore = await explore_radar(
             session,
             settings,
@@ -161,15 +163,12 @@ async def build_slice_panel(
         )
     else:
         explore = RadarExploreResult(
-            query=_facet_from_params(**facet_kwargs) if run else None,
+            query=query if has_slice else None,
             summary="",
             rows=(),
             intel_live=overview_result.intel_live,
             status="idle",
         )
-
-    query = overview_result.query
-    has_slice = bool(query and query.has_filters() and run)
 
     if lens in {"agency", "competitor"} and has_slice:
         entity_result = await build_entity_profile(
