@@ -133,6 +133,22 @@ async def get_opportunity(session: AsyncSession, opp_id: uuid.UUID) -> Opportuni
     return await session.get(Opportunity, opp_id)
 
 
+async def get_opportunity_by_award_key(
+    session: AsyncSession,
+    award_key: str,
+) -> Opportunity | None:
+    key = (award_key or "").strip()
+    if not key:
+        return None
+    result = await session.execute(
+        select(Opportunity)
+        .where(Opportunity.intel_provenance["award_key"].as_string() == key)
+        .order_by(Opportunity.freshness_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def update_milestone_gate(
     session: AsyncSession,
     opp_id: uuid.UUID,

@@ -2705,16 +2705,20 @@ async def track_signal_form(
     naics_code: str = Form(""),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    opp = await opp_svc.create_opportunity(
-        db,
-        OpportunityCreate(
-            name=signal_opportunity_name(title=title, agency=agency),
-            award_key=award_key,
-            naics_code=naics_code or None,
-            entry_reason="intel_signal",
-            lifecycle_state=LifecycleState.PURSUING,
-        ),
-    )
+    existing = await opp_svc.get_opportunity_by_award_key(db, award_key)
+    if existing is not None:
+        opp = existing
+    else:
+        opp = await opp_svc.create_opportunity(
+            db,
+            OpportunityCreate(
+                name=signal_opportunity_name(title=title, agency=agency),
+                award_key=award_key,
+                naics_code=naics_code or None,
+                entry_reason="intel_signal",
+                lifecycle_state=LifecycleState.PURSUING,
+            ),
+        )
     await db.commit()
     target = capture_workspace_href(opp.id)
     if request.headers.get("HX-Request"):

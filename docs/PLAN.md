@@ -599,7 +599,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 
 | Step | MVP must prove | Current gap |
 |------|----------------|-------------|
-| **Find** | Run facet slice on `/insights`, see **market picture** (capture intensity hero + charts), spot agency/competitor worth pursuing | **17e 🟡** — Overview + lens tabs shipped; **17e-e** E2E smoke + **17e-g** entity tabs remain |
+| **Find** | Run facet slice on `/insights`, see **market picture** (capture intensity hero + charts), spot agency/competitor worth pursuing | **17e 🟡** — Overview + lens tabs + **17e-e** E2E smoke ✅; **17e-g** entity tabs remain |
 | **Watch** | One-click Watch from Insights row → Pulse watchlist with provenance | ✅ wired |
 | **Track** | Pulse watchlist → Track form → opportunity `pursuing` | ✅ wired — needs E2E smoke |
 | **Open packet** | `/capture/{id}` slide workspace loads | ✅ wired |
@@ -654,7 +654,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 |--------|------------|-------------|
 | Command Center (`/`) | Attention widgets, compact nav, pursuit rail — **not** analytics home | Widget row (12c–12h): reviews, phase band, hot signals, health strip, **quick actions**; anti-pattern: metrics dump |
 | Portfolio Pulse (`/pulse`) | Morning briefing: **watchlist** + inbox + digest + capture snapshot | Identify-only; Track → `/capture/{id}`; not packet home |
-| Data Insights (`/insights`) | 🟡 Overview + lens tabs + hone (17e-a–d ✅/🟡) | **17e-e** E2E smoke · **17e-f** advanced facets · **17e-g** entity profile tabs |
+| Data Insights (`/insights`) | 🟡 Overview + lens tabs + hone (17e-a–d ✅/🟡) | **17e-e** ✅ · **17e-f** advanced facets · **17e-g** entity profile tabs |
 | **Filament** (`/capture`) | ✅ Post-identify pursuit list; nav **Filament** (connected packets, not hand-jammed decks) | CRM pipeline board (deferred) |
 | Filament workspace (`/capture/{id}`) | ✅ Slide canvas + **connected fill routes** (14j/20a/20b) + evidence inspector; MS pills | Phase 20c ranked routing matrix + optional Grok advisor |
 | Sidebar nav | Command / Identify / **Filament** (home first) / **Tools** / Win / System | Studio route (Phase 21) |
@@ -979,7 +979,7 @@ flowchart TD
 | **17e-b** ✅ | **Overview lens** — KPI strip + **capture intensity scatter (hero)** + agency→sub flow + FY trend + set-aside + extent competed + top recipients + UEI rows | `thread/intel/charts.py` + `/partials/insights/slice` |
 | **17e-c** 🟡 | **Hone interactions** — scatter/flow/recipient click + hone chips → re-run slice | Agency/sub/recipient wired; office hone awaits **17e-f** |
 | **17e-d** ✅ | **Lens tabs** — Overview · Recompete · Competition · Trace · **Live (SAM)** | SAM moved off always-visible panel |
-| **17e-e** | **Sign-off E2E smoke** — facet → hone → Watch → Pulse → Track → packet fill one field | MVP sign-off test passes |
+| **17e-e** ✅ | **Sign-off E2E smoke** — facet → hone → Watch → Pulse → Track → packet fill one field | MVP sign-off test passes |
 | **17e-f** | **Extended facets** — office, UEI, POP state, competition/set-aside filters; **advanced** facet panel (collapsed) | Precision filters when known or after hone — not primary entry |
 | **17e-g** | **Entity profile tabs** — Competitor + Agency dossiers from chart click; shared DR/Clew chart primitives | Click Lockheed → UEI, $, top NAICS/agencies/subs, adjacent competitors, relationship heat map |
 
@@ -1498,7 +1498,7 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 
 | Priority | Work | Why |
 |----------|------|-----|
-| **P0** | **17e-e** E2E sign-off smoke — facet → hone → Watch → Pulse → Track → packet fill | MVP blocker — Overview path exists, needs proof |
+| **P0** | **17e-e** ✅ E2E sign-off smoke — facet → hone → Watch → Pulse → Track → packet fill | `pytest test_insights_signoff_e2e` + `smoke_insights_signoff.py` |
 | **P0** | **17e-c** finish hone — office from chart (needs **17e-f** facet field) | Sub-agency/recipient/agency wired |
 | **P1** | **17e-f** Extended facets (advanced panel) | Office/UEI precision when known |
 | **P1** | **17e-g** Entity profile tabs (Competitor · Agency) | Full dossier + heat maps |
@@ -1533,10 +1533,10 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
   - [x] 17e-b — Overview lens (intensity hero + charts)
   - [ ] 17e-c — Hone interactions (agency/sub/recipient ✅; office → 17e-f)
   - [x] 17e-d — Lens tabs (incl. Live SAM)
-  - [ ] 17e-e — E2E sign-off smoke
+  - [x] 17e-e — E2E sign-off smoke
   - [ ] 17e-f — Extended facets (advanced panel)
   - [ ] 17e-g — Entity profile tabs (P1 stretch)
-- [ ] MVP sign-off E2E (find → watch → track → packet fill)
+- [x] MVP sign-off E2E (find → watch → track → packet fill)
 - [ ] Incubator Develop → Publish (Phase 21b–21d — deferred)
 - [x] `pg_queries` intel layer
 - [x] LLM router (Grok primary)
