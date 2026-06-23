@@ -15,9 +15,7 @@ from thread.services.insights_explore import (
     SamExploreResult,
     _facet_from_params,
     explore_radar,
-    explore_sam,
 )
-from thread.services.insights_lens_bundles import LensBundleResult, build_competition_bundle, build_trace_bundle
 from thread.services.insights_overview import OverviewResult, build_overview
 
 INSIGHTS_LENS_TABS: tuple[dict[str, str], ...] = (
@@ -25,10 +23,10 @@ INSIGHTS_LENS_TABS: tuple[dict[str, str], ...] = (
     {"id": "agency", "label": "Agency"},
     {"id": "competitor", "label": "Competitor"},
     {"id": "recompete", "label": "Recompete"},
-    {"id": "competition", "label": "Competition"},
-    {"id": "trace", "label": "Trace"},
-    {"id": "sam", "label": "Live (SAM)"},
 )
+
+# Trace/flow viz lives inside entity + overview lenses — not separate tabs.
+_LEGACY_LENS_IDS = frozenset({"trace", "competition", "sam"})
 
 
 @dataclass(frozen=True)
@@ -50,12 +48,6 @@ class SlicePanelContext:
     entity_ready: bool
     entity_idle: bool
     entity_error: str | None
-    competition_bundle: dict[str, Any]
-    competition_ready: bool
-    competition_error: str | None
-    trace_bundle: dict[str, Any]
-    trace_ready: bool
-    trace_error: str | None
     cache_hit: bool
     cache_age_seconds: float | None
 
@@ -113,7 +105,9 @@ async def build_slice_panel(
     entity_value: str = "",
     entity_scope: str = "",
 ) -> SlicePanelContext:
-    if lens not in {t["id"] for t in INSIGHTS_LENS_TABS}:
+    if lens in _LEGACY_LENS_IDS:
+        lens = "overview"
+    elif lens not in {t["id"] for t in INSIGHTS_LENS_TABS}:
         lens = "overview"
 
     facet_form = facet_form_from_params(
@@ -174,35 +168,8 @@ async def build_slice_panel(
             status="idle",
         )
 
-    sam_form = {
-        "title": sam_title.strip(),
-        "agency_keyword": (sam_agency_keyword or agency).strip(),
-        "naics_code": (sam_naics_code or naics_codes.split(",")[0] if naics_codes else "").strip(),
-        "psc_code": sam_psc_code.strip(),
-        "days_back": str(sam_days_back),
-    }
-    sam_explore = await explore_sam(
-        settings,
-        title=sam_form["title"],
-        agency_keyword=sam_form["agency_keyword"],
-        naics_code=sam_form["naics_code"],
-        psc_code=sam_form["psc_code"],
-        days_back=sam_days_back,
-        run=sam_run and lens == "sam",
-    )
-
     query = overview_result.query
     has_slice = bool(query and query.has_filters() and run)
-
-    if lens == "competition" and has_slice:
-        competition_result = await build_competition_bundle(session, query)
-    else:
-        competition_result = LensBundleResult(bundle={"idle": True}, status="idle")
-
-    if lens == "trace" and has_slice:
-        trace_result = await build_trace_bundle(session, query, settings)
-    else:
-        trace_result = LensBundleResult(bundle={"idle": True}, status="idle")
 
     if lens in {"agency", "competitor"} and has_slice:
         entity_result = await build_entity_profile(
@@ -248,19 +215,20 @@ async def build_slice_panel(
         overview_idle=overview_result.status == "idle",
         overview_error=overview_result.error,
         explore=explore,
-        sam_explore=sam_explore,
-        sam_form=sam_form,
+        sam_explore=SamExploreResult(
+            query=None,
+            summary="",
+            notices=(),
+            status="idle",
+            error=None,
+            configured=False,
+        ),
+        sam_form={},
         entity=entity_result.entity if entity_result.entity and entity_result.entity.is_active() else entity,
         entity_profile=entity_result.profile,
         entity_ready=entity_result.status == "ready",
         entity_idle=entity_result.status == "idle",
         entity_error=entity_result.error,
-        competition_bundle=competition_result.bundle,
-        competition_ready=competition_result.status == "ready",
-        competition_error=competition_result.error,
-        trace_bundle=trace_result.bundle,
-        trace_ready=trace_result.status == "ready",
-        trace_error=trace_result.error,
         cache_hit=cache_hit,
         cache_age_seconds=cache_age_seconds,
     )

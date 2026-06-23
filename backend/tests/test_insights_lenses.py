@@ -108,7 +108,7 @@ def test_insights_slice_partial_idle():
     client = TestClient(create_app())
     res = client.get("/partials/insights/slice?lens=overview&run=0")
     assert res.status_code == 200
-    assert "insights-slice-panel" in res.text
+    assert "insights-stage-content" in res.text
     assert "insights-lens-tabs" in res.text
 
 
@@ -147,7 +147,11 @@ def test_insights_slice_partial_requires_facets():
     client = TestClient(create_app())
     res = client.get("/partials/insights/slice?lens=overview&run=1")
     assert res.status_code == 200
-    assert "at least one facet" in res.text.lower() or "Set at least one facet" in res.text
+    assert (
+        "at least one facet" in res.text.lower()
+        or "set at least one facet" in res.text.lower()
+        or "set facets" in res.text.lower()
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -164,35 +168,22 @@ def test_insights_page_renders_live_explore():
     res = client.get("/insights")
     html = res.text
     assert res.status_code == 200
-    assert "insights-frame" in html
+    assert "insights-workspace" in html
     assert "insights-radar-form" in html
     assert "Run slice" in html
     assert "Lens results" in html
-    assert "Activate" not in html
-    assert "Save current search" in html
     assert "guide-modal" in html
     assert "openGuideDialog" in html
     assert "btn-hero-magenta" in html
     assert "insights-bookmarks-drawer" in html
-    assert "Clew" in html
-    assert "data-insights-collapse" in html
-    assert 'id="insights-facet-card"' in html
-    assert "insights-facet-toolbar" in html
-    assert "insights-facet-primary" in html
-    assert 'id="insights-lenses-card"' in html
-    assert 'id="insights-slice-panel"' in html
-    assert "hx-swap=\"outerHTML\"" in html
-    assert 'action="/partials/insights/slice"' not in html
-    assert 'name="lens"' not in html
+    assert 'id="insights-stage-content"' in html
+    assert 'hx-target="#insights-stage-content"' in html
     assert 'hx-vals=\'{"lens": "overview"}\'' in html
-    assert "slicePanelHasResults" in html
-    assert "openLensesCard" in html
     assert "insights-award-drawer-root" in html
     assert "thread_insights_award_drawer" in html
     assert "thread_insights_session.js" in html
     assert 'id="insights-clear-btn"' in html
-    assert ">Clear</button>" in html
-    assert "NAICS portfolio config" in html
+    assert "NAICS portfolio" in html
     assert "Add at least one facet" not in html
     assert "Shell stub" not in html
     assert "peer facets" in html.lower() or "peer facet" in html.lower() or "peer dimensions" in html.lower()

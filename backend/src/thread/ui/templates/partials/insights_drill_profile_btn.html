@@ -5,7 +5,7 @@
   data-drill-field="{{ 'recipient' if entity_kind == 'competitor' else 'agency' }}"
   data-drill-value="{{ value|e }}"
   hx-get="/partials/insights/slice"
-  hx-target="#insights-slice-panel"
+  hx-target="#insights-stage-content"
   hx-swap="outerHTML"
   hx-indicator="#insights-slice-loading"
   hx-include="#insights-radar-form, #insights-entity-state"

@@ -8,31 +8,4 @@
 <div id="insights-radar-explore">
   {% include "partials/insights_radar_explore.html" %}
 </div>
-{% elif active_lens == 'competition' %}
-{% include "partials/insights_competition_lens.html" %}
-{% elif active_lens == 'trace' %}
-{% include "partials/insights_trace_lens.html" %}
-{% elif active_lens == 'sam' %}
-<div class="insights-sam-lens">
-  <form
-    id="insights-sam-form"
-    hx-get="/partials/insights/sam-explore"
-    hx-target="#insights-sam-explore"
-    hx-trigger="submit"
-    hx-include="#insights-sam-form"
-  >
-    <input type="hidden" name="run" value="1" />
-    <div class="insights-form-grid mb-3">
-      <input class="thread-input" name="title" placeholder="Title keyword" value="{{ sam_form.title if sam_form else '' }}" />
-      <input class="thread-input" name="agency_keyword" placeholder="Agency keyword" value="{{ sam_form.agency_keyword if sam_form else (facet_form.agency if facet_form else '') }}" />
-      <input class="thread-input" name="naics_code" placeholder="NAICS" value="{{ sam_form.naics_code if sam_form else (facet_form.naics_codes.split(',')[0] if facet_form and facet_form.naics_codes else '') }}" />
-      <input class="thread-input" name="psc_code" placeholder="PSC" value="{{ sam_form.psc_code if sam_form else '' }}" />
-      <input class="thread-input" name="days_back" type="number" min="1" max="90" value="{{ sam_form.days_back if sam_form else 14 }}" />
-    </div>
-    <button type="submit" class="btn btn-hero-cyan">Run SAM.gov explore</button>
-  </form>
-  <div class="insights-results-shell mt-3" id="insights-sam-explore">
-    {% include "partials/insights_sam_explore.html" %}
-  </div>
-</div>
 {% endif %}

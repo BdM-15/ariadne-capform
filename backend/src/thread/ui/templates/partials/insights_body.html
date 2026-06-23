@@ -9,7 +9,7 @@
         id="insights-radar-form"
         class="insights-facet-form"
         hx-get="/partials/insights/slice"
-        hx-target="#insights-slice-panel"
+        hx-target="#insights-stage-content"
         hx-swap="outerHTML"
         hx-indicator="#insights-slice-loading, #insights-slice-working"
         hx-vals='{"lens": "overview"}'
@@ -81,17 +81,9 @@
     </aside>
 
     <section class="insights-stage" aria-label="Lens results">
-      <header class="insights-stage-head">
-        <p id="insights-slice-loading" class="insights-stage-status htmx-indicator" aria-live="polite"></p>
-        {% set has_slice = slice_panel %}
-        {% include "partials/insights_lens_tabs.html" %}
-      </header>
-
-      <div id="insights-slice-panel" class="insights-slice-panel" data-active-lens="{{ active_lens or 'overview' }}" data-has-slice="{{ '1' if slice_panel else '0' }}">
-        <div id="insights-lens-body" class="insights-lens-body insights-lens-idle">
-          <p class="insights-idle-hint">Set facets in the slice navigator, then <strong>Run slice</strong>. Lens tabs activate after the first query.</p>
-        </div>
-      </div>
+      <p id="insights-slice-loading" class="insights-stage-status htmx-indicator" aria-live="polite"></p>
+      {% set has_slice = slice_panel %}
+      {% include "partials/insights_stage_content.html" %}
     </section>
   </div>
 

@@ -270,25 +270,6 @@ async def _competitor_profile(
     matrix = await agency_recipient_matrix(session, scoped, limit=100)
     flow = await money_flow(session, scoped, limit=14)
     adjacent = await adjacent_competitors(session, slice_query, entity.value, limit=8)
-    from thread.intel.graph_trace import (
-        build_browse_funnel,
-        build_relations_graph,
-        enrich_relations_graph,
-    )
-
-    relations = await build_relations_graph(
-        session,
-        scoped,
-        seed_recipient=entity.value,
-        max_hops=3,
-    )
-    relations = await enrich_relations_graph(
-        relations,
-        settings,
-        recipient_uei=identity.get("recipient_uei") or scoped.recipient_uei,
-        seed_prime=entity.value,
-    )
-    browse = build_browse_funnel(relations)
 
     return {
         "status": "ready",
@@ -309,8 +290,6 @@ async def _competitor_profile(
         "agency_recipient_matrix": matrix,
         "money_flow": flow.get("flows") or [],
         "adjacent_competitors": adjacent,
-        "relations_graph": relations,
-        "browse_funnel": browse,
         "slice_summary": _slice_hint(slice_query),
         **competition,
     }

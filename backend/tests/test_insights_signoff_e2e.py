@@ -82,7 +82,7 @@ async def test_insights_mvp_signoff_funnel(db_session, tmp_path, monkeypatch):
         )
         assert overview.status_code == 200, overview.text[:500]
         html = overview.text
-        assert "insights-slice-panel" in html
+        assert "insights-stage-content" in html
         assert (
             "insights-echarts-hero" in html
             or "insights-kpi-strip" in html

@@ -55,9 +55,9 @@
     new FormData(form).forEach(function (value, key) {
       if (value != null && String(value).length) session[key] = String(value);
     });
-    var panel = document.getElementById("insights-slice-panel");
-    if (panel && panel.getAttribute("data-active-lens")) {
-      session.lens = panel.getAttribute("data-active-lens");
+    var stage = document.getElementById("insights-stage-content");
+    if (stage && stage.getAttribute("data-active-lens")) {
+      session.lens = stage.getAttribute("data-active-lens");
     }
     var lens = document.getElementById("insights-active-lens");
     if (lens && lens.value) session.lens = lens.value;
@@ -107,8 +107,8 @@
   window.restoreInsightsSessionIfIdle = function () {
     if (window._insightsSessionRestored) return;
     if (window.location.pathname !== "/insights") return;
-    var panel = document.getElementById("insights-slice-panel");
-    if (panel && panel.getAttribute("data-has-slice") === "1") return;
+    var stage = document.getElementById("insights-stage-content");
+    if (stage && stage.getAttribute("data-has-slice") === "1") return;
     var urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("run") === "1") return;
 
@@ -124,7 +124,7 @@
     window._insightsSessionRestored = true;
     fillFormFromSession(session);
     window.htmx.ajax("GET", "/partials/insights/slice?" + sliceParamsFromSession(session).toString(), {
-      target: "#insights-slice-panel",
+      target: "#insights-stage-content",
       swap: "outerHTML",
     });
     var card = document.getElementById("insights-lenses-card");
@@ -165,13 +165,15 @@
     var tabs = document.getElementById("insights-lens-tabs");
     if (tabs) tabs.classList.add("insights-lens-tabs-hidden");
 
-    var panel = document.getElementById("insights-slice-panel");
-    if (panel) {
-      panel.outerHTML =
-        '<div id="insights-slice-panel" class="insights-slice-panel" data-active-lens="overview" data-has-slice="0">' +
+    var stage = document.getElementById("insights-stage-content");
+    if (stage) {
+      stage.outerHTML =
+        '<div id="insights-stage-content" class="insights-stage-content" data-active-lens="overview" data-has-slice="0">' +
+        '<nav id="insights-lens-tabs" class="insights-lens-tabs insights-lens-tabs-hidden" role="tablist" aria-label="Insights lenses"></nav>' +
+        '<div id="insights-slice-panel" class="insights-slice-panel">' +
         '<div id="insights-lens-body" class="insights-lens-body insights-lens-idle">' +
         '<p class="insights-idle-hint">Set facets in the slice navigator, then <strong>Run slice</strong>. Lens tabs activate after the first query.</p>' +
-        "</div></div>";
+        "</div></div></div>";
     }
     var card = document.getElementById("insights-lenses-card");
     if (card) card.open = true;
@@ -206,7 +208,7 @@
   document.body.addEventListener("htmx:afterSwap", function (e) {
     var t = e.detail && e.detail.target;
     if (!t) return;
-    if (t.id === "insights-slice-panel" || (t.closest && t.closest("#insights-slice-panel"))) {
+    if (t.id === "insights-stage-content" || (t.closest && t.closest("#insights-stage-content"))) {
       window.persistInsightsSession();
     }
   });

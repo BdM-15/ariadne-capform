@@ -359,12 +359,6 @@ def _slice_template_ctx(
         "entity_ready": panel.entity_ready,
         "entity_idle": panel.entity_idle,
         "entity_error": panel.entity_error,
-        "competition_bundle": panel.competition_bundle,
-        "competition_ready": panel.competition_ready,
-        "competition_error": panel.competition_error,
-        "trace_bundle": panel.trace_bundle,
-        "trace_ready": panel.trace_ready,
-        "trace_error": panel.trace_error,
         "cache_hit": panel.cache_hit,
         "cache_age_seconds": panel.cache_age_seconds,
         "slice_flash": slice_flash,
@@ -447,7 +441,7 @@ async def insights_slice_partial(
     )
     return templates.TemplateResponse(
         request,
-        "partials/insights_slice_panel.html",
+        "partials/insights_stage_content.html",
         _slice_template_ctx(panel, htmx_request=bool(request.headers.get("HX-Request"))),
     )
 
@@ -2783,7 +2777,7 @@ async def watchlist_add_recompete(
     add_watchlist_item(settings, item)
     flash = f"Watching {item.title} — see Pulse watchlist."
     hx_target = (request.headers.get("HX-Target") or "").strip()
-    if hx_target == "insights-slice-panel":
+    if hx_target in {"insights-slice-panel", "insights-stage-content"}:
         lens = (return_lens or "recompete").strip() or "recompete"
         panel = await build_slice_panel(
             db,
@@ -2809,7 +2803,7 @@ async def watchlist_add_recompete(
         )
         return templates.TemplateResponse(
             request,
-            "partials/insights_slice_panel.html",
+            "partials/insights_stage_content.html",
             _slice_template_ctx(panel, slice_flash=flash),
         )
     return await _render_insights_body(

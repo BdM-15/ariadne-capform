@@ -1203,6 +1203,7 @@ body {
   content: "Loading… PG query may take 30–90s.";
 }
 
+.insights-stage-content.is-loading,
 .insights-slice-panel.is-loading {
   opacity: 0.85;
 }

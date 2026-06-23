@@ -111,8 +111,8 @@
     if (!t) return;
     if (
       t.id === "clew-results-panel" ||
-      t.id === "insights-slice-panel" ||
-      (t.closest && (t.closest("#clew-results-panel") || t.closest("#insights-slice-panel")))
+      t.id === "insights-stage-content" ||
+      (t.closest && (t.closest("#clew-results-panel") || t.closest("#insights-stage-content")))
     ) {
       scheduleChartInit();
     }
@@ -122,8 +122,8 @@
     var t = e.detail && e.detail.target;
     if (!t) return;
     if (
-      t.id === "insights-slice-panel" ||
-      (t.closest && t.closest("#insights-slice-panel"))
+      t.id === "insights-stage-content" ||
+      (t.closest && t.closest("#insights-stage-content"))
     ) {
       scheduleChartInit();
     }

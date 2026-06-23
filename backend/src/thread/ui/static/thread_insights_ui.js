@@ -1,7 +1,9 @@
 /**
- * Insights page chrome — bookmarks drawer, slice loading status, facet helpers.
+ * Insights page chrome — loading status, facet helpers, HTMX reprocess.
  */
 (function () {
+  var SLICE_TARGET = "#insights-stage-content";
+
   function stageStatusEl() {
     return document.getElementById("insights-slice-loading");
   }
@@ -14,6 +16,27 @@
     if (kind === "error") el.classList.add("is-error");
     if (kind === "loading") el.classList.add("is-loading");
   }
+
+  function setSliceLoading(active, message) {
+    var banner = stageStatusEl();
+    var stage = document.getElementById("insights-stage-content");
+    if (banner) {
+      banner.textContent = message || "";
+      banner.classList.toggle("is-loading", !!active);
+    }
+    if (stage) stage.classList.toggle("is-loading", !!active);
+  }
+
+  window.showInsightsSliceLoading = function (message) {
+    setSliceLoading(true, message || "Loading…");
+  };
+
+  window.clearInsightsSliceLoading = function () {
+    setSliceLoading(false, "");
+    document.querySelectorAll(".insights-drill-chip.is-loading").forEach(function (el) {
+      el.classList.remove("is-loading");
+    });
+  };
 
   window.openInsightsBookmarksDrawer = function () {
     var root = document.getElementById("insights-bookmarks-drawer-root");
@@ -74,8 +97,7 @@
       setStageStatus("Running slice… PostgreSQL query may take 30–90 seconds.", "loading");
       var body = document.getElementById("insights-lens-body");
       if (body) {
-        body.innerHTML =
-          '<p class="insights-lens-loading">Querying intel tables…</p>';
+        body.innerHTML = '<p class="insights-lens-loading">Querying intel tables…</p>';
       }
     });
   }
@@ -84,10 +106,8 @@
     if (!window.htmx) return;
     var form = document.getElementById("insights-radar-form");
     if (form) window.htmx.process(form);
-    var tabs = document.getElementById("insights-lens-tabs");
-    if (tabs) window.htmx.process(tabs);
-    var panel = document.getElementById("insights-slice-panel");
-    if (panel) window.htmx.process(panel);
+    var stage = document.getElementById("insights-stage-content");
+    if (stage) window.htmx.process(stage);
   }
 
   function initInsightsPage() {
@@ -102,10 +122,19 @@
 
   window.initInsightsPage = initInsightsPage;
 
-  document.body.addEventListener("htmx:beforeRequest", function (e) {
+  function isSliceRequest(e) {
     var cfg = e.detail && e.detail.requestConfig;
     var target = cfg && cfg.target;
-    if (target !== "#insights-slice-panel" && target !== "insights-slice-panel") return;
+    var elt = e.detail && e.detail.elt;
+    return (
+      target === SLICE_TARGET ||
+      target === "insights-stage-content" ||
+      (elt && elt.id === "insights-radar-form")
+    );
+  }
+
+  document.body.addEventListener("htmx:beforeRequest", function (e) {
+    if (!isSliceRequest(e)) return;
     var elt = e.detail && e.detail.elt;
     if (elt && elt.id === "insights-radar-form") return;
     if (elt && elt.classList && elt.classList.contains("insights-lens-tab")) {
@@ -114,37 +143,29 @@
     }
     if (elt && elt.classList && elt.classList.contains("insights-drill-chip")) {
       setStageStatus("Opening profile…", "loading");
+      return;
     }
+    setStageStatus("Loading lens results…", "loading");
   });
 
   document.body.addEventListener("htmx:afterSwap", function (e) {
     var t = e.detail && e.detail.target;
     if (!t) return;
-    if (t.id === "insights-slice-panel" || t.id === "insights-body" || (t.closest && t.closest("#insights-slice-panel"))) {
+    if (
+      t.id === "insights-stage-content" ||
+      t.id === "insights-body" ||
+      (t.closest && t.closest("#insights-stage-content"))
+    ) {
       setStageStatus("", "");
-      var panel = document.getElementById("insights-slice-panel");
+      var stage = document.getElementById("insights-stage-content");
       var lensInput = document.getElementById("insights-active-lens");
-      if (lensInput && panel && panel.dataset.activeLens) {
-        lensInput.value = panel.dataset.activeLens;
+      if (lensInput && stage && stage.dataset.activeLens) {
+        lensInput.value = stage.dataset.activeLens;
       }
       if (window.persistInsightsSession) window.persistInsightsSession();
       initInsightsPage();
     }
-    if (t.id === "insights-lens-tabs") {
-      initInsightsPage();
-    }
   });
-
-  function isSliceRequest(e) {
-    var cfg = e.detail && e.detail.requestConfig;
-    var target = cfg && cfg.target;
-    var elt = e.detail && e.detail.elt;
-    return (
-      target === "#insights-slice-panel" ||
-      target === "insights-slice-panel" ||
-      (elt && elt.id === "insights-radar-form")
-    );
-  }
 
   document.body.addEventListener("htmx:responseError", function (e) {
     if (!isSliceRequest(e)) return;
@@ -164,9 +185,7 @@
   });
 
   document.body.addEventListener("htmx:sendError", function (e) {
-    var cfg = e.detail && e.detail.requestConfig;
-    var target = cfg && cfg.target;
-    if (target !== "#insights-slice-panel") return;
+    if (!isSliceRequest(e)) return;
     setStageStatus("Network error — could not reach server.", "error");
   });
 

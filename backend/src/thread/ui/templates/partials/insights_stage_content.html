@@ -1,0 +1,25 @@
+<div
+  id="insights-stage-content"
+  class="insights-stage-content"
+  data-active-lens="{{ active_lens }}"
+  data-has-slice="{{ '1' if has_slice else '0' }}"
+>
+  {% include "partials/insights_lens_tabs.html" %}
+
+  <div id="insights-slice-panel" class="insights-slice-panel">
+    {% include "partials/insights_slice_context.html" %}
+    {% include "partials/insights_entity_breadcrumb.html" %}
+
+    {% if slice_flash %}
+    <div class="insights-slice-flash">{{ slice_flash }}</div>
+    {% endif %}
+
+    <div id="insights-lens-body" class="insights-lens-body{% if not has_slice %} insights-lens-idle{% endif %}" role="tabpanel">
+      {% if has_slice %}
+      {% include "partials/insights_lens_body.html" %}
+      {% else %}
+      <p class="insights-idle-hint">Set facets in the slice navigator, then <strong>Run slice</strong>. Lens tabs activate after the first query.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>

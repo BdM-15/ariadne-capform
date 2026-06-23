@@ -1,13 +1,8 @@
 /**
- * Insights entity drill-down, relations graph expand (DR browse +), intensity tooltips.
+ * Insights — ECharts drill + graph expand. Profile buttons use HTMX (insights_drill_profile_btn).
  */
 (function () {
-  var DRILL_MAP = {
-    agency: { lens: "agency", scope: "agency" },
-    sub_agency: { lens: "agency", scope: "sub_agency" },
-    awarding_office: { lens: "agency", scope: "office" },
-    recipient: { lens: "competitor", scope: "recipient" },
-  };
+  var SLICE_TARGET = "#insights-stage-content";
 
   function intensityTooltip(params) {
     var d = params.data || {};
@@ -46,63 +41,21 @@
     return params;
   }
 
-  function openLensesCard() {
-    var card = document.getElementById("insights-lenses-card");
-    if (card) card.open = true;
-  }
-
-  function sliceLoadingEl() {
-    return document.getElementById("insights-slice-loading");
-  }
-
-  function sliceLoadingMessage(lens, kind) {
-    if (kind === "competitor" || lens === "competitor") {
-      return "Loading competitor profile… PG + multi-hop relations graph may take 30–90s.";
-    }
-    if (kind === "agency" || lens === "agency") {
-      return "Loading agency profile… PG query may take 30–90s.";
-    }
-    if (lens === "trace") {
-      return "Loading Trace lens… relations graph + Sankeys may take 30–90s.";
-    }
-    if (lens === "competition") {
-      return "Loading Competition lens…";
-    }
-    return "Loading lens results…";
-  }
-
-  function setSliceLoading(active, message, chip) {
-    var banner = sliceLoadingEl();
-    var panel = document.getElementById("insights-slice-panel");
-    if (banner) {
-      banner.textContent = message || "Loading…";
-      banner.classList.toggle("is-loading", !!active);
-    }
-    if (panel) panel.classList.toggle("is-loading", !!active);
-    if (chip) chip.classList.toggle("is-loading", !!active);
-  }
-
-  window.showInsightsSliceLoading = function (message) {
-    setSliceLoading(true, message || "Loading…");
-  };
-
-  window.clearInsightsSliceLoading = function () {
-    setSliceLoading(false, "");
-    document.querySelectorAll(".insights-drill-chip.is-loading").forEach(function (el) {
-      el.classList.remove("is-loading");
-    });
-  };
-
-  function navigateEntityDrill(field, value, meta, chip) {
+  function sliceDrillParams(field, value, meta) {
     var form = document.getElementById("insights-radar-form");
     value = (value || "").trim();
-    if (!form || !value) return;
+    if (!form || !value) return null;
     if (window.closeInsightsAwardDrawer) window.closeInsightsAwardDrawer();
-    var map = DRILL_MAP[field];
-    if (!map && !(meta && meta.drillLens)) return;
 
-    var lens = (meta && meta.drillLens) || (map && map.lens) || "overview";
-    var scope = (meta && meta.entityScope) || (map && map.scope) || field;
+    var map = {
+      agency: { lens: "agency", kind: "agency", scope: "agency" },
+      sub_agency: { lens: "agency", kind: "agency", scope: "sub_agency" },
+      awarding_office: { lens: "agency", kind: "agency", scope: "office" },
+      recipient: { lens: "competitor", kind: "competitor", scope: "recipient" },
+    };
+    var row = map[field] || {};
+    var lens = (meta && meta.drillLens) || row.lens || "overview";
+    var scope = (meta && meta.entityScope) || row.scope || field;
     var kind = lens === "competitor" ? "competitor" : "agency";
 
     var params = formParams(form);
@@ -114,16 +67,17 @@
 
     var lensInput = document.getElementById("insights-active-lens");
     if (lensInput) lensInput.value = lens;
-    openLensesCard();
     if (window.persistInsightsSession) window.persistInsightsSession();
-    setSliceLoading(true, sliceLoadingMessage(lens, kind), chip);
+    return params;
+  }
 
-    if (window.htmx) {
-      window.htmx.ajax("GET", "/partials/insights/slice?" + params.toString(), {
-        target: "#insights-slice-panel",
-        swap: "outerHTML",
-      });
-    }
+  function requestSliceDrill(field, value, meta) {
+    var params = sliceDrillParams(field, value, meta);
+    if (!params || !window.htmx) return;
+    window.htmx.ajax("GET", "/partials/insights/slice?" + params.toString(), {
+      target: SLICE_TARGET,
+      swap: "outerHTML",
+    });
   }
 
   function mergeGraphSeries(chart, expansion) {
@@ -179,9 +133,7 @@
       });
     });
 
-    chart.setOption({
-      series: [{ data: nodes, links: links }],
-    });
+    chart.setOption({ series: [{ data: nodes, links: links }] });
   }
 
   function expandGraphNode(host, nodeId) {
@@ -205,18 +157,6 @@
       .catch(function () {});
   }
 
-  function drillRelationsNode(params) {
-    var kind = params.data.kind || "";
-    var label = params.data.name || params.name || "";
-    if (kind === "prime" || kind === "sub") {
-      navigateEntityDrill("recipient", label, { drillLens: "competitor", entityScope: "recipient" });
-    } else if (kind === "agency") {
-      navigateEntityDrill("agency", label, { drillLens: "agency", entityScope: "agency" });
-    } else if (kind === "person") {
-      return;
-    }
-  }
-
   function drillFromChart(host, params, ev) {
     var raw = host.getAttribute("data-chart-option");
     if (!raw) return;
@@ -235,7 +175,13 @@
         return;
       }
       if (params.data) {
-        drillRelationsNode(params);
+        var kind = params.data.kind || "";
+        var label = params.data.name || params.name || "";
+        if (kind === "prime" || kind === "sub") {
+          requestSliceDrill("recipient", label, { drillLens: "competitor", entityScope: "recipient" });
+        } else if (kind === "agency") {
+          requestSliceDrill("agency", label, { drillLens: "agency", entityScope: "agency" });
+        }
       }
       return;
     }
@@ -243,10 +189,7 @@
       var yi = params.data[1];
       var recipient = meta.recipients[yi];
       if (recipient) {
-        navigateEntityDrill("recipient", recipient, {
-          drillLens: "competitor",
-          entityScope: "recipient",
-        });
+        requestSliceDrill("recipient", recipient, { drillLens: "competitor", entityScope: "recipient" });
       }
       return;
     }
@@ -259,7 +202,7 @@
     }
     if (!value && params.name) value = params.name;
     if (!value) return;
-    navigateEntityDrill(field, value, meta);
+    requestSliceDrill(field, value, meta);
   }
 
   function bindChartDrill() {
@@ -280,68 +223,35 @@
     bindChartDrill();
   };
 
-  if (!document.body.dataset.insightsDrillDelegated) {
-    document.body.dataset.insightsDrillDelegated = "1";
-    document.body.addEventListener("click", function (event) {
-      var chip = event.target.closest(".insights-drill-chip, .insights-hone-chip");
-      if (!chip) return;
-      if (chip.hasAttribute("hx-get")) return;
-      event.preventDefault();
-      event.stopPropagation();
-      navigateEntityDrill(
-        chip.getAttribute("data-drill-field") || chip.getAttribute("data-hone-field"),
-        chip.getAttribute("data-drill-value") || chip.getAttribute("data-hone-value"),
-        null,
-        chip
-      );
-    });
+  function isSliceSwapTarget(t) {
+    if (!t) return false;
+    return (
+      t.id === "insights-stage-content" ||
+      t.id === "insights-slice-panel" ||
+      (t.closest && t.closest("#insights-stage-content"))
+    );
   }
-
-  document.body.addEventListener("htmx:beforeRequest", function (e) {
-    var cfg = e.detail && e.detail.requestConfig;
-    var elt = e.detail && e.detail.elt;
-    var target = cfg && cfg.target;
-    if (target !== "#insights-slice-panel" && target !== "insights-slice-panel") return;
-    var banner = sliceLoadingEl();
-    if (!banner || banner.classList.contains("htmx-request") || banner.classList.contains("is-loading")) {
-      return;
-    }
-    var msg = "Loading lens results…";
-    if (elt && elt.getAttribute && elt.getAttribute("role") === "tab") {
-      msg = "Switching to " + (elt.textContent || "lens").trim() + "… PG may take 30–90s.";
-    } else {
-      var lensInput = document.getElementById("insights-active-lens");
-      var lens = lensInput && lensInput.value ? lensInput.value : "overview";
-      msg = sliceLoadingMessage(lens);
-    }
-    setSliceLoading(true, msg);
-  });
 
   document.body.addEventListener("htmx:afterSwap", function (e) {
     var t = e.detail && e.detail.target;
-    if (!t) return;
-    if (t.id === "insights-slice-panel" || (t.closest && t.closest("#insights-slice-panel"))) {
-      if (window.clearInsightsSliceLoading) window.clearInsightsSliceLoading();
-      var lensInput = document.getElementById("insights-active-lens");
-      var panel = document.getElementById("insights-slice-panel");
-      if (lensInput && panel && panel.dataset.activeLens) {
-        lensInput.value = panel.dataset.activeLens;
-      }
-      if (window.initInsightsPage) window.initInsightsPage();
-      else {
-        if (window.initClewCharts) window.initClewCharts();
-        window.initInsightsHone();
-      }
+    if (!isSliceSwapTarget(t)) return;
+    if (window.clearInsightsSliceLoading) window.clearInsightsSliceLoading();
+    var stage = document.getElementById("insights-stage-content");
+    var lensInput = document.getElementById("insights-active-lens");
+    if (lensInput && stage && stage.dataset.activeLens) {
+      lensInput.value = stage.dataset.activeLens;
     }
-    if (t.id === "insights-lens-tabs") {
-      if (window.initInsightsPage) window.initInsightsPage();
+    if (window.initInsightsPage) window.initInsightsPage();
+    else {
+      if (window.initClewCharts) window.initClewCharts();
+      window.initInsightsHone();
     }
   });
 
   document.body.addEventListener("htmx:responseError", function (e) {
     var cfg = e.detail && e.detail.requestConfig;
     var target = cfg && cfg.target;
-    if (target === "#insights-slice-panel" || target === "insights-slice-panel") {
+    if (target === SLICE_TARGET || target === "insights-stage-content") {
       if (window.clearInsightsSliceLoading) window.clearInsightsSliceLoading();
     }
   });

@@ -95,7 +95,7 @@ def test_explore_query_for_entity_scopes_recipient():
     assert scoped.recipient == "Acme Federal LLC"
 
 
-def test_insights_competition_lens_slice_wide_ffp():
+def test_insights_legacy_competition_lens_redirects_to_overview():
     client = TestClient(create_app())
     res = client.get(
         "/partials/insights/slice",
@@ -107,8 +107,9 @@ def test_insights_competition_lens_slice_wide_ffp():
     )
     assert res.status_code == 200
     html = res.text
-    assert "insights-competition-lens" in html
-    assert "FFP shaping" in html or "competition posture" in html or "non-fixed" in html
+    assert "insights-stage-content" in html
+    assert "insights-overview-lens" in html
+    assert "insights-competition-lens" not in html
 
 
 def test_insights_graph_expand_requires_node_id():
@@ -121,7 +122,7 @@ def test_insights_graph_expand_requires_node_id():
     assert "node_id" in res.json().get("error", "")
 
 
-def test_insights_trace_lens_inline_not_clew_only():
+def test_insights_legacy_trace_lens_redirects_to_overview():
     client = TestClient(create_app())
     res = client.get(
         "/partials/insights/slice",
@@ -133,11 +134,9 @@ def test_insights_trace_lens_inline_not_clew_only():
     )
     assert res.status_code == 200
     html = res.text
-    assert "insights-trace-lens" in html
-    assert "Deep money-path tracing lives on Clew" not in html
-    assert "active slice" in html or "money" in html.lower()
-    assert "multi-hop" in html or "Relations trace" in html
-    assert "people-only" in html or "not people-only" in html
+    assert "insights-stage-content" in html
+    assert "insights-overview-lens" in html
+    assert "insights-trace-lens" not in html
 
 
 def test_insights_competitor_drill_relations_multi_hop_copy():
@@ -156,28 +155,7 @@ def test_insights_competitor_drill_relations_multi_hop_copy():
     assert res.status_code == 200
     html = res.text
     assert "insights-competitor-lens" in html
-    assert "Relations web" in html or "relations_graph" in html or "insights-explore-msg" in html
-    if "Relations web" in html:
-        assert "hops" in html
-
-
-def test_insights_competition_lens_entity_scoped_copy():
-    client = TestClient(create_app())
-    res = client.get(
-        "/partials/insights/slice",
-        params={
-            "run": 1,
-            "lens": "competition",
-            "naics_codes": "561210",
-            "entity_kind": "competitor",
-            "entity_value": "SAVANNAH RIVER NUCLEAR SOLUTIONS LLC",
-            "entity_scope": "recipient",
-        },
-    )
-    assert res.status_code == 200
-    html = res.text
-    assert "insights-competition-lens" in html
-    assert "not slice-wide totals" in html or "whole slice" in html
+    assert "Money flow" in html or "insights-explore-msg" in html
 
 
 def test_insights_award_partial():
@@ -191,9 +169,21 @@ def test_insights_award_partial():
     assert "Missing award key" in route.text
 
 
-def test_insights_slice_has_entity_tabs():
+def test_insights_slice_four_tabs_when_run():
     client = TestClient(create_app())
-    res = client.get("/partials/insights/slice?lens=overview&run=0")
+    idle = client.get("/partials/insights/slice?lens=overview&run=0")
+    assert idle.status_code == 200
+    assert "insights-lens-tabs-hidden" in idle.text
+
+    res = client.get(
+        "/partials/insights/slice",
+        params={"run": 1, "lens": "overview", "naics_codes": "561210"},
+    )
     assert res.status_code == 200
-    assert ">Agency<" in res.text or ">Agency</button>" in res.text
-    assert ">Competitor<" in res.text or ">Competitor</button>" in res.text
+    html = res.text
+    assert "insights-stage-content" in html
+    assert ">Agency<" in html or ">Agency</button>" in html
+    assert ">Competitor<" in html or ">Competitor</button>" in html
+    assert ">Recompete<" in html or ">Recompete</button>" in html
+    assert ">Trace<" not in html
+    assert ">Competition<" not in html

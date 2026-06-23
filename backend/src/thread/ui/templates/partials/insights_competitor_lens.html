@@ -40,28 +40,8 @@
     <span class="pill pill-compact border border-edge text-slate-400">{{ kpis.agency_count or 0 }} agencies</span>
     <span class="pill pill-compact border border-edge text-slate-400">{{ "{:,}".format(kpis.award_count or 0) }} actions</span>
   </div>
-  {% set rel_summary = (entity_profile.relations_graph or {}).summary or {} %}
-  {% set rel_families = (entity_profile.relations_graph or {}).relation_families or [] %}
-  {% if rel_summary.node_count %}
-  <p class="text-[11px] text-slate-500 mb-2">
-    Relations web — {{ rel_summary.node_count }} nodes · {{ rel_summary.edge_count or 0 }} edges ·
-    {{ rel_summary.max_hop or 0 }} hops across
-    {% if rel_families %}{{ rel_families | join(', ') }}{% else %}org money, teaming, vehicle, co-occurrence{% endif %}
-    (people is one optional family via SAM POCs).
-    <span class="text-neon-cyan">Shift+click</span> graph node to expand.
-  </p>
-  {% endif %}
+  <p class="text-[11px] text-slate-500 mb-2">Money flow, teaming, and buyer ties for this competitor within the active slice.</p>
   <div class="insights-overview-grid">
-    {% if charts.relations_graph %}
-    <div class="clew-echarts-host insights-echarts-hero" data-chart-key="relations_graph" data-chart-option='{{ charts.relations_graph | tojson }}'></div>
-    {% elif entity_profile.relations_graph and entity_profile.relations_graph.error %}
-    <p class="insights-explore-msg insights-explore-msg-warn text-[10px]">{{ entity_profile.relations_graph.error }}</p>
-    {% elif entity_profile.relations_graph and not rel_summary.node_count %}
-    <p class="insights-idle-hint text-[10px]">Relations graph needs more award/subaward edges in this slice — try widening NAICS or agency.</p>
-    {% endif %}
-    {% if charts.browse_funnel %}
-    <div class="clew-echarts-host insights-echarts-sub" data-chart-key="browse_funnel" data-chart-option='{{ charts.browse_funnel | tojson }}'></div>
-    {% endif %}
     {% if charts.relationship_heatmap %}
     <div class="clew-echarts-host insights-echarts-sub" data-chart-key="relationship_heatmap" data-chart-option='{{ charts.relationship_heatmap | tojson }}'></div>
     {% endif %}
