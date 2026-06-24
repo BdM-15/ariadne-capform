@@ -13,7 +13,7 @@
   class="insights-drill-chip btn btn-ghost btn-compact text-[10px] {{ extra_class or '' }}"
   data-drill-field="{{ 'recipient' if entity_kind == 'competitor' else 'agency' }}"
   data-drill-value="{{ value|e }}"
-  hx-get="/partials/insights/slice"
+  hx-post="/partials/insights/slice"
   hx-target="#insights-stage-content"
   hx-swap="outerHTML"
   hx-indicator="#insights-slice-loading"

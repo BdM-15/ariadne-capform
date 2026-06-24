@@ -14,7 +14,7 @@
     return params;
   }
 
-  function sliceDrillParams(field, value, meta) {
+  function sliceDrillValues(field, value, meta) {
     var form = document.getElementById("insights-radar-form");
     value = (value || "").trim();
     if (!form || !value) return null;
@@ -32,18 +32,17 @@
     var scope = (meta && meta.entityScope) || row.scope || field;
     var kind = lens === "competitor" ? "competitor" : "agency";
 
-    var params = formParams(form);
-    params.set("run", "1");
-    params.set("lens", lens);
-    params.set("entity_kind", kind);
-    params.set("entity_value", value);
-    params.set("entity_scope", scope);
-
     var lensInput = document.getElementById("insights-active-lens");
     if (lensInput) lensInput.value = lens;
     syncEntityState(kind, scope, value);
     if (window.persistInsightsSession) window.persistInsightsSession();
-    return params;
+    return {
+      run: "1",
+      lens: lens,
+      entity_kind: kind,
+      entity_value: value,
+      entity_scope: scope,
+    };
   }
 
   function syncEntityState(kind, scope, value) {
@@ -59,13 +58,17 @@
 
   function requestSliceDrill(field, value, meta) {
     if (intensityDrillLock) return;
-    var params = sliceDrillParams(field, value, meta);
-    if (!params || !window.htmx) return;
+    var form = document.getElementById("insights-radar-form");
+    var values = sliceDrillValues(field, value, meta);
+    if (!form || !values || !window.htmx) return;
     intensityDrillLock = true;
     if (window.showInsightsSliceLoading) window.showInsightsSliceLoading("Opening Agency profile…");
-    window.htmx.ajax("GET", "/partials/insights/slice?" + params.toString(), {
+    // POST + form body — long office names must not ride on a GET URL (truncation drops facets → idle pane).
+    window.htmx.ajax("POST", "/partials/insights/slice", {
       target: SLICE_TARGET,
       swap: "outerHTML",
+      source: form,
+      values: values,
       indicator: "#insights-slice-loading",
     });
   }

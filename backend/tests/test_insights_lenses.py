@@ -175,6 +175,30 @@ def test_insights_slice_partial_requires_facets():
     )
 
 
+def test_insights_slice_post_entity_drill_keeps_facets():
+    """Long office names must POST with form body — GET URLs truncate and drop facets."""
+    client = TestClient(create_app())
+    long_office = "W6QK ACC-APG " + ("FIELD OFFICE " * 60)
+    res = client.post(
+        "/partials/insights/slice",
+        data={
+            "run": "1",
+            "lens": "agency",
+            "naics_codes": "541512",
+            "agency": "Department of Energy",
+            "min_contract_value": "1M",
+            "entity_kind": "agency",
+            "entity_scope": "office",
+            "entity_value": long_office,
+        },
+        headers={"HX-Request": "true"},
+    )
+    assert res.status_code == 200
+    assert 'data-has-slice="1"' in res.text
+    assert "Back to Overview" in res.text
+    assert long_office[:32] in res.text
+
+
 @pytest.fixture(autouse=True)
 async def _dispose_app_engine_after_insights_ui_test():
     yield

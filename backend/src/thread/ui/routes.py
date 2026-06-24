@@ -421,6 +421,35 @@ async def insights_page(
     )
 
 
+async def _insights_slice_partial_response(
+    request: Request,
+    db: AsyncSession,
+    settings: Settings,
+    *,
+    lens: str,
+    run: int,
+    entity_kind: str,
+    entity_value: str,
+    entity_scope: str,
+    facet_kwargs: dict[str, str],
+) -> HTMLResponse:
+    panel = await build_slice_panel(
+        db,
+        settings,
+        lens=lens,
+        run=bool(run),
+        entity_kind=entity_kind,
+        entity_value=entity_value,
+        entity_scope=entity_scope,
+        **facet_kwargs,
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/insights_stage_content.html",
+        _slice_template_ctx(panel, htmx_request=bool(request.headers.get("HX-Request"))),
+    )
+
+
 @router.get("/partials/insights/slice", response_class=HTMLResponse)
 async def insights_slice_partial(
     request: Request,
@@ -446,15 +475,16 @@ async def insights_slice_partial(
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
-    panel = await build_slice_panel(
+    return await _insights_slice_partial_response(
+        request,
         db,
         settings,
         lens=lens,
-        run=bool(run),
+        run=run,
         entity_kind=entity_kind,
         entity_value=entity_value,
         entity_scope=entity_scope,
-        **_advanced_facet_kwargs(
+        facet_kwargs=_advanced_facet_kwargs(
             agency=agency,
             sub_agency=sub_agency,
             recipient=recipient,
@@ -471,10 +501,60 @@ async def insights_slice_partial(
             exclude_agencies=exclude_agencies,
         ),
     )
-    return templates.TemplateResponse(
+
+
+@router.post("/partials/insights/slice", response_class=HTMLResponse)
+async def insights_slice_partial_post(
+    request: Request,
+    lens: str = Form("overview"),
+    agency: str = Form(""),
+    sub_agency: str = Form(""),
+    recipient: str = Form(""),
+    naics_codes: str = Form(""),
+    psc_codes: str = Form(""),
+    awarding_office: str = Form(""),
+    funding_office: str = Form(""),
+    recipient_uei: str = Form(""),
+    pop_state: str = Form(""),
+    extent_competed: str = Form(""),
+    type_of_set_aside: str = Form(""),
+    min_contract_value: str = Form(""),
+    min_value_basis: str = Form("potential"),
+    exclude_agencies: str = Form(""),
+    run: int = Form(0),
+    entity_kind: str = Form(""),
+    entity_value: str = Form(""),
+    entity_scope: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    """POST slice — entity drills send long office names in body, not a truncated GET URL."""
+    run_flag = 1 if str(run).strip() in {"1", "true", "True"} else 0
+    return await _insights_slice_partial_response(
         request,
-        "partials/insights_stage_content.html",
-        _slice_template_ctx(panel, htmx_request=bool(request.headers.get("HX-Request"))),
+        db,
+        settings,
+        lens=lens,
+        run=run_flag,
+        entity_kind=entity_kind,
+        entity_value=entity_value,
+        entity_scope=entity_scope,
+        facet_kwargs=_advanced_facet_kwargs(
+            agency=agency,
+            sub_agency=sub_agency,
+            recipient=recipient,
+            naics_codes=naics_codes,
+            psc_codes=psc_codes,
+            awarding_office=awarding_office,
+            funding_office=funding_office,
+            recipient_uei=recipient_uei,
+            pop_state=pop_state,
+            extent_competed=extent_competed,
+            type_of_set_aside=type_of_set_aside,
+            min_contract_value=min_contract_value,
+            min_value_basis=min_value_basis,
+            exclude_agencies=exclude_agencies,
+        ),
     )
 
 

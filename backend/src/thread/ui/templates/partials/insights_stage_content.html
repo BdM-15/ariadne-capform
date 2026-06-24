@@ -20,7 +20,17 @@
       {% if has_slice %}
       {% include "partials/insights_lens_body.html" %}
       {% else %}
+      {% if entity and entity.value %}
+      <p class="insights-idle-hint insights-idle-hint-warn">
+        Office profile could not load — slice context was lost. Click <strong>Run slice</strong> again, then retry
+        {% with entity_kind=entity.kind, entity_scope=entity.scope, value=entity.value, label='Open office', extra_class='text-neon-cyan' %}
+        {% include "partials/insights_drill_profile_btn.html" %}
+        {% endwith %}
+        or <strong>← Back to Overview</strong> above.
+      </p>
+      {% else %}
       <p class="insights-idle-hint">Set at least one facet in the Slice navigator (NAICS portfolio chips are shortcuts), then <strong>Run slice</strong>. No default market filter — lens tabs activate after the first run.</p>
+      {% endif %}
       {% endif %}
     </div>
   </div>
