@@ -16,15 +16,40 @@ from thread.intel.pg_queries import table_exists
 from thread.intel.sql_expressions import (
     AGENCY_EXPR,
     AGENCY_NORMALIZED_EXPR,
+    CAPTURE_CHANNEL_EXPR,
     EXTENT_COMPETED_NORMALIZED_EXPR,
     IDV_FLAG_EXPR,
     PRICING_BUCKET_EXPR,
     PRIME_TABLE,
+    FY_EXPR,
+    QUARTER_EXPR,
     SET_ASIDE_CHART_EXPR,
+    SET_ASIDE_PARENT_BACKED_EXPR,
     SUB_TABLE,
     VEHICLE_EXPR,
     round_numeric,
 )
+
+CAPTURE_CHANNEL_LABELS: dict[str, str] = {
+    "open_competed": "Open · competed",
+    "open_non_competed": "Open · sole/limited",
+    "set_aside_competed": "Set-aside · competed",
+    "set_aside_non_competed": "Set-aside · sole/NC",
+    "vehicle_gated": "IDV / vehicle",
+    "other": "Other",
+}
+
+CAPTURE_CHANNEL_ORDER: tuple[str, ...] = (
+    "open_competed",
+    "open_non_competed",
+    "set_aside_competed",
+    "set_aside_non_competed",
+    "vehicle_gated",
+    "other",
+)
+
+_SUB_ONLY_CHANNELS = frozenset({"set_aside_competed", "set_aside_non_competed"})
+_DIRECT_PRIME_CHANNELS = frozenset({"open_competed"})
 
 ANALYSIS_MODES = frozenset({"spend_trend", "money_flow", "teaming", "recipient_landscape"})
 
@@ -114,10 +139,17 @@ async def run_slice_overview(
     kpis = await _slice_kpis(session, facet_sql, facet_params)
     spend = await spend_trend(session, query, limit=limit)
     intensity = await agency_intensity(session, query, limit=limit)
-    sub_flow = await agency_sub_flow(session, query, limit=limit)
     set_aside = await set_aside_breakdown(session, facet_sql, facet_params, limit=limit)
     extent = await extent_competed_breakdown(session, facet_sql, facet_params, limit=limit)
     recipients = await top_recipients(session, query, limit=limit)
+    pricing = await pricing_bucket_breakdown(session, facet_sql, facet_params, limit=limit)
+    idv_split = await idv_channel_split(session, facet_sql, facet_params)
+    motion_channels = await capture_channel_breakdown(session, facet_sql, facet_params)
+    motion_timing = await capture_channel_timing(session, facet_sql, facet_params)
+    motion_teaming = await teaming_targets(session, facet_sql, facet_params)
+    motion_parent = await set_aside_parent_shadow(session, facet_sql, facet_params)
+    motion_expiring = await expiring_capture_channels(session, facet_sql, facet_params)
+    motion_paths = await motion_money_paths(session, facet_sql, facet_params)
 
     result: dict[str, Any] = {
         "status": "ready",
@@ -125,11 +157,19 @@ async def run_slice_overview(
         "kpis": kpis,
         "spend_trend": spend.get("bars") or [],
         "agency_intensity": intensity,
-        "agency_sub_flow": sub_flow.get("rows") or [],
-        "agency_sub_flow_group": sub_flow.get("group"),
         "set_aside": set_aside,
         "extent_competed": extent,
         "top_recipients": recipients,
+        "pricing_buckets": pricing,
+        "idv_split": idv_split,
+        "motion": {
+            "channels": motion_channels,
+            "timing": motion_timing,
+            "teaming_targets": motion_teaming,
+            "parent_shadow": motion_parent,
+            "expiring_channels": motion_expiring,
+            "money_paths": motion_paths,
+        },
         "summary": "Slice overview",
     }
     _OVERVIEW_CACHE[cache_key] = (time.monotonic(), dict(result))
@@ -169,14 +209,14 @@ async def spend_trend(
     facet_sql, facet_params = build_facet_sql(query)
     sql = f"""
         SELECT
-            EXTRACT(YEAR FROM action_date)::int AS fiscal_year,
+            ({FY_EXPR}) AS fiscal_year,
             {round_numeric("SUM(federal_action_obligation) / 1000000.0")} AS millions,
             COUNT(*) AS actions
         FROM {PRIME_TABLE}
         WHERE action_date IS NOT NULL
           {facet_sql}
-        GROUP BY fiscal_year
-        ORDER BY fiscal_year ASC
+        GROUP BY ({FY_EXPR})
+        ORDER BY ({FY_EXPR}) ASC
         LIMIT :limit
     """
     rows = (await session.execute(text(sql), {**facet_params, "limit": limit})).all()
@@ -193,10 +233,302 @@ async def spend_trend(
         b["pct"] = round(100.0 * b["millions"] / peak, 1)
     return {
         "mode": "spend_trend",
-        "method": "Yearly obligation totals on facet-filtered prime awards.",
+        "method": "Government FY obligation totals on facet-filtered prime awards.",
         "bars": bars,
         "summary": f"{len(bars)} fiscal years in slice",
     }
+
+
+def _normalize_channel_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    total_m = sum(float(r.get("millions") or 0) for r in rows) or 0.0
+    by_id = {str(r.get("channel") or "other"): r for r in rows}
+    ordered: list[dict[str, Any]] = []
+    for channel_id in CAPTURE_CHANNEL_ORDER:
+        row = by_id.get(channel_id)
+        if not row:
+            continue
+        millions = float(row.get("millions") or 0)
+        if millions <= 0:
+            continue
+        ordered.append(
+            {
+                "channel": channel_id,
+                "label": CAPTURE_CHANNEL_LABELS.get(channel_id, channel_id),
+                "millions": millions,
+                "actions": int(row.get("actions") or 0),
+                "pct": round(100.0 * millions / total_m, 1) if total_m > 0 else 0.0,
+            }
+        )
+    return ordered
+
+
+async def capture_channel_breakdown(
+    session: AsyncSession,
+    facet_sql: str,
+    facet_params: dict[str, Any],
+) -> list[dict[str, Any]]:
+    sql = f"""
+        SELECT
+            ({CAPTURE_CHANNEL_EXPR}) AS channel,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE 1=1
+          {facet_sql}
+        GROUP BY channel
+    """
+    rows = (await session.execute(text(sql), facet_params)).all()
+    raw = [
+        {"channel": str(r.channel or "other"), "actions": int(r.actions), "millions": float(r.millions or 0)}
+        for r in rows
+    ]
+    return _normalize_channel_rows(raw)
+
+
+async def capture_channel_timing(
+    session: AsyncSession,
+    facet_sql: str,
+    facet_params: dict[str, Any],
+) -> dict[str, Any]:
+    """Q4 vs rest-of-year channel mix — surfaces year-end offload lane shifts."""
+    sql = f"""
+        SELECT
+            ({CAPTURE_CHANNEL_EXPR}) AS channel,
+            CASE WHEN ({QUARTER_EXPR}) = 4 THEN 'q4' ELSE 'rest' END AS period,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE action_date IS NOT NULL
+          {facet_sql}
+        GROUP BY channel, period
+    """
+    rows = (await session.execute(text(sql), facet_params)).all()
+    lookup: dict[tuple[str, str], float] = {}
+    for r in rows:
+        lookup[(str(r.channel or "other"), str(r.period))] = float(r.millions or 0)
+
+    rest_total = sum(lookup.get((ch, "rest"), 0.0) for ch in CAPTURE_CHANNEL_ORDER)
+    q4_total = sum(lookup.get((ch, "q4"), 0.0) for ch in CAPTURE_CHANNEL_ORDER)
+
+    periods: list[dict[str, Any]] = []
+    for channel_id in CAPTURE_CHANNEL_ORDER:
+        rest_m = lookup.get((channel_id, "rest"), 0.0)
+        q4_m = lookup.get((channel_id, "q4"), 0.0)
+        total = rest_m + q4_m
+        if total <= 0:
+            continue
+        periods.append(
+            {
+                "channel": channel_id,
+                "label": CAPTURE_CHANNEL_LABELS.get(channel_id, channel_id),
+                "rest_millions": round(rest_m, 2),
+                "q4_millions": round(q4_m, 2),
+                "rest_pct": round(100.0 * rest_m / total, 1),
+                "q4_pct": round(100.0 * q4_m / total, 1),
+                "rest_mix_pct": round(100.0 * rest_m / rest_total, 1) if rest_total > 0 else 0.0,
+                "q4_mix_pct": round(100.0 * q4_m / q4_total, 1) if q4_total > 0 else 0.0,
+            }
+        )
+
+    rest_sub = sum(lookup.get((ch, "rest"), 0.0) for ch in _SUB_ONLY_CHANNELS)
+    q4_sub = sum(lookup.get((ch, "q4"), 0.0) for ch in _SUB_ONLY_CHANNELS)
+    rest_sub_pct = round(100.0 * rest_sub / rest_total, 1) if rest_total > 0 else 0.0
+    q4_sub_pct = round(100.0 * q4_sub / q4_total, 1) if q4_total > 0 else 0.0
+    delta_sub = round(q4_sub_pct - rest_sub_pct, 1)
+    insight = ""
+    if abs(delta_sub) >= 5.0:
+        direction = "more" if delta_sub > 0 else "less"
+        insight = (
+            f"Q4 skews {direction} set-aside — {q4_sub_pct:.0f}% of Q4 obligations vs "
+            f"{rest_sub_pct:.0f}% Oct–Jun (year-end offload pattern)."
+        )
+    return {
+        "periods": periods,
+        "rest_total_millions": round(rest_total, 2),
+        "q4_total_millions": round(q4_total, 2),
+        "rest_sub_pct": rest_sub_pct,
+        "q4_sub_pct": q4_sub_pct,
+        "delta_sub_pct": delta_sub,
+        "insight": insight,
+    }
+
+
+async def teaming_targets(
+    session: AsyncSession,
+    facet_sql: str,
+    facet_params: dict[str, Any],
+    *,
+    buckets_limit: int = 5,
+    primes_per_bucket: int = 3,
+) -> list[dict[str, Any]]:
+    sql = f"""
+        SELECT
+            ({SET_ASIDE_CHART_EXPR}) AS bucket,
+            recipient_name AS recipient,
+            recipient_uei,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE recipient_name IS NOT NULL
+          AND ({SET_ASIDE_CHART_EXPR}) NOT IN ('(Not Applicable)', 'NO SET ASIDE USED')
+          {facet_sql}
+        GROUP BY bucket, recipient_name, recipient_uei
+        ORDER BY bucket ASC, millions DESC NULLS LAST
+    """
+    rows = (await session.execute(text(sql), facet_params)).all()
+    bucket_totals: dict[str, float] = {}
+    bucket_primes: dict[str, list[dict[str, Any]]] = {}
+    for r in rows:
+        bucket = str(r.bucket or "")
+        millions = float(r.millions or 0)
+        bucket_totals[bucket] = bucket_totals.get(bucket, 0.0) + millions
+        primes = bucket_primes.setdefault(bucket, [])
+        if len(primes) < primes_per_bucket:
+            primes.append(
+                {
+                    "recipient": r.recipient,
+                    "recipient_uei": r.recipient_uei,
+                    "millions": millions,
+                    "actions": int(r.actions),
+                }
+            )
+    top_buckets = sorted(bucket_totals.items(), key=lambda x: x[1], reverse=True)[:buckets_limit]
+    return [
+        {
+            "bucket": bucket,
+            "millions": round(total_m, 2),
+            "primes": bucket_primes.get(bucket, []),
+        }
+        for bucket, total_m in top_buckets
+        if total_m > 0
+    ]
+
+
+async def set_aside_parent_shadow(
+    session: AsyncSession,
+    facet_sql: str,
+    facet_params: dict[str, Any],
+    *,
+    top_limit: int = 5,
+) -> dict[str, Any]:
+    sql = f"""
+        SELECT
+            recipient_name AS recipient,
+            recipient_parent_name AS parent,
+            ({SET_ASIDE_CHART_EXPR}) AS bucket,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions,
+            BOOL_OR({SET_ASIDE_PARENT_BACKED_EXPR}) AS parent_backed,
+            BOOL_OR(
+                ({SET_ASIDE_CHART_EXPR}) ILIKE '%8(A)%'
+                OR ({SET_ASIDE_CHART_EXPR}) ILIKE '%8A%'
+            ) AS is_eight_a
+        FROM {PRIME_TABLE}
+        WHERE recipient_name IS NOT NULL
+          AND ({SET_ASIDE_CHART_EXPR}) NOT IN ('(Not Applicable)', 'NO SET ASIDE USED')
+          {facet_sql}
+        GROUP BY recipient_name, recipient_parent_name, bucket
+    """
+    rows = (await session.execute(text(sql), facet_params)).all()
+    set_aside_m = 0.0
+    parent_m = 0.0
+    independent_m = 0.0
+    eight_a_parent_m = 0.0
+    parent_rows: list[dict[str, Any]] = []
+    for r in rows:
+        millions = float(r.millions or 0)
+        set_aside_m += millions
+        if r.parent_backed:
+            parent_m += millions
+            if r.is_eight_a:
+                eight_a_parent_m += millions
+            parent_rows.append(
+                {
+                    "recipient": r.recipient,
+                    "parent": r.parent,
+                    "bucket": r.bucket,
+                    "millions": millions,
+                    "actions": int(r.actions),
+                }
+            )
+        else:
+            independent_m += millions
+    parent_rows.sort(key=lambda x: x["millions"], reverse=True)
+    total = set_aside_m or 1.0
+    return {
+        "set_aside_millions": round(set_aside_m, 2),
+        "parent_backed_millions": round(parent_m, 2),
+        "independent_millions": round(independent_m, 2),
+        "parent_backed_pct": round(100.0 * parent_m / total, 1),
+        "independent_pct": round(100.0 * independent_m / total, 1),
+        "eight_a_parent_millions": round(eight_a_parent_m, 2),
+        "eight_a_parent_pct": round(100.0 * eight_a_parent_m / total, 1),
+        "top_parent_backed": parent_rows[:top_limit],
+    }
+
+
+async def expiring_capture_channels(
+    session: AsyncSession,
+    facet_sql: str,
+    facet_params: dict[str, Any],
+    *,
+    months_ahead: int = 18,
+) -> list[dict[str, Any]]:
+    sql = f"""
+        SELECT
+            ({CAPTURE_CHANNEL_EXPR}) AS channel,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE period_of_performance_current_end_date IS NOT NULL
+          AND period_of_performance_current_end_date <= CURRENT_DATE + (:months_ahead || ' months')::interval
+          AND period_of_performance_current_end_date >= CURRENT_DATE
+          {facet_sql}
+        GROUP BY channel
+    """
+    params = {**facet_params, "months_ahead": str(months_ahead)}
+    rows = (await session.execute(text(sql), params)).all()
+    raw = [
+        {"channel": str(r.channel or "other"), "actions": int(r.actions), "millions": float(r.millions or 0)}
+        for r in rows
+    ]
+    return _normalize_channel_rows(raw)
+
+
+async def motion_money_paths(
+    session: AsyncSession,
+    facet_sql: str,
+    facet_params: dict[str, Any],
+    *,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    sql = f"""
+        SELECT
+            ({AGENCY_EXPR}) AS agency,
+            ({CAPTURE_CHANNEL_EXPR}) AS channel,
+            recipient_name AS recipient,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE recipient_name IS NOT NULL
+          {facet_sql}
+        GROUP BY agency, channel, recipient_name
+        ORDER BY millions DESC NULLS LAST
+        LIMIT :limit
+    """
+    rows = (
+        await session.execute(text(sql), {**facet_params, "limit": limit})
+    ).all()
+    return [
+        {
+            "agency": r.agency,
+            "channel": str(r.channel or "other"),
+            "channel_label": CAPTURE_CHANNEL_LABELS.get(str(r.channel or "other"), str(r.channel)),
+            "recipient": r.recipient,
+            "millions": float(r.millions or 0),
+            "actions": int(r.actions),
+        }
+        for r in rows
+    ]
 
 
 async def money_flow(

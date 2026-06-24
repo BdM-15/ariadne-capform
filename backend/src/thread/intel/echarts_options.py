@@ -193,12 +193,29 @@ def attach_overview_echarts(overview: dict[str, Any]) -> dict[str, Any]:
     intensity = _agency_intensity_scatter(overview.get("agency_intensity") or {})
     if intensity:
         charts["intensity"] = intensity
-    sub_flow = _agency_sub_flow_chart(overview.get("agency_sub_flow") or [], overview)
-    if sub_flow:
-        charts["sub_flow"] = sub_flow
-    spend = _spend_trend_chart({"bars": overview.get("spend_trend") or [], "mode": "spend_trend"})
-    if spend:
-        charts["spend_trend"] = spend
+    motion_fy = _motion_fy_trend_chart(overview.get("spend_trend") or [])
+    if motion_fy:
+        charts["motion_fy_trend"] = motion_fy
+    motion_payload = overview.get("motion") or {}
+    channel_mix = _motion_channel_mix_chart(motion_payload.get("channels") or [])
+    if channel_mix:
+        charts["motion_channels"] = channel_mix
+    q4_timing = _motion_q4_mix_shift_chart(motion_payload.get("timing") or {})
+    if q4_timing:
+        charts["motion_q4_timing"] = q4_timing
+    expiring_ch = _motion_channel_bars_chart(
+        motion_payload.get("expiring_channels") or [],
+        title="Recompete channel split",
+        mode="motion_expiring_channels",
+    )
+    if expiring_ch:
+        charts["motion_expiring_channels"] = expiring_ch
+    parent_shadow = _motion_parent_shadow_chart(motion_payload.get("parent_shadow") or {})
+    if parent_shadow:
+        charts["motion_parent_shadow"] = parent_shadow
+    money_paths = _motion_money_paths_sankey(motion_payload.get("money_paths") or [])
+    if money_paths:
+        charts["motion_money_paths"] = money_paths
     set_aside = _donut_chart(
         overview.get("set_aside") or [],
         title="Set-aside mix",
@@ -220,6 +237,16 @@ def attach_overview_echarts(overview: dict[str, Any]) -> dict[str, Any]:
     )
     if recipients:
         charts["top_recipients"] = recipients
+    pricing = _pricing_bucket_chart(overview.get("pricing_buckets") or [])
+    if pricing:
+        charts["pricing_buckets"] = pricing
+    idv = _donut_chart(
+        [{"bucket": r["channel"], "millions": r["millions"]} for r in overview.get("idv_split") or []],
+        title="IDV vs standalone",
+        name_key="bucket",
+    )
+    if idv:
+        charts["idv_split"] = idv
     if charts:
         overview["charts"] = charts
     return overview
@@ -436,6 +463,343 @@ def _horizontal_bar_chart(
             "recipient" if hone_field == "recipient" else ("agency" if hone_field == "agency" else hone_field)
         )
     return chart
+
+
+def _motion_fy_trend_chart(bars: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not bars:
+        return None
+    labels = [f"FY{b['year']}" for b in bars]
+    millions = [b.get("millions", 0) for b in bars]
+    actions = [b.get("actions", 0) for b in bars]
+    return {
+        "backgroundColor": "transparent",
+        "textStyle": {"color": TEXT},
+        "title": _title("FY obligation pulse"),
+        "tooltip": {**_tooltip("axis")},
+        "legend": {
+            "top": 28,
+            "data": ["$ obligated", "Actions"],
+            "textStyle": {"color": AXIS, "fontSize": 10},
+        },
+        "grid": _grid(top=72),
+        "xAxis": {
+            "type": "category",
+            "data": labels,
+            "axisLine": {"lineStyle": {"color": GRID}},
+            "axisLabel": {"color": AXIS},
+        },
+        "yAxis": [
+            {
+                "type": "value",
+                "name": "$M",
+                "axisLabel": {"color": AXIS},
+                "splitLine": {"lineStyle": {"color": GRID, "type": "dashed"}},
+            },
+            {
+                "type": "value",
+                "name": "Actions",
+                "axisLabel": {"color": AXIS},
+                "splitLine": {"show": False},
+            },
+        ],
+        "series": [
+            {
+                "name": "$ obligated",
+                "type": "bar",
+                "data": [
+                    {"value": m, "actions": actions[i]}
+                    for i, m in enumerate(millions)
+                ],
+                "itemStyle": {"color": MAGENTA},
+                "barMaxWidth": 40,
+            },
+            {
+                "name": "Actions",
+                "type": "line",
+                "yAxisIndex": 1,
+                "smooth": True,
+                "symbol": "circle",
+                "symbolSize": 7,
+                "data": actions,
+                "lineStyle": {"color": LIME, "width": 2},
+                "itemStyle": {"color": LIME},
+            },
+        ],
+        "_intel": {"mode": "motion_fy_trend", "tooltipTemplate": "motion_fy_trend"},
+    }
+
+
+_CHANNEL_COLORS: dict[str, str] = {
+    "open_competed": LIME,
+    "open_non_competed": AMBER,
+    "set_aside_competed": CYAN,
+    "set_aside_non_competed": MAGENTA,
+    "vehicle_gated": TIER_MED,
+    "other": TIER_LOW,
+}
+
+
+def _motion_channel_mix_chart(channels: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not channels:
+        return None
+    series = [
+        {
+            "name": ch.get("label") or ch.get("channel"),
+            "type": "bar",
+            "stack": "tam",
+            "emphasis": {"focus": "series"},
+            "label": {
+                "show": True,
+                "color": TEXT_BRIGHT,
+                "fontSize": 9,
+                "formatter": "{c}%",
+            },
+            "data": [
+                {
+                    "value": ch.get("pct", 0),
+                    "millions": ch.get("millions", 0),
+                    "actions": ch.get("actions", 0),
+                    "channel": ch.get("channel"),
+                    "label": {"show": float(ch.get("pct") or 0) >= 5.0},
+                }
+            ],
+            "itemStyle": {"color": _CHANNEL_COLORS.get(str(ch.get("channel")), CYAN)},
+            "barMaxWidth": 40,
+        }
+        for ch in channels
+    ]
+    return {
+        "backgroundColor": "transparent",
+        "textStyle": {"color": TEXT},
+        "title": _title("Entry lane mix"),
+        "tooltip": {**_tooltip("item")},
+        "legend": {
+            "type": "scroll",
+            "bottom": 0,
+            "textStyle": {"color": AXIS, "fontSize": 9},
+        },
+        "grid": _grid(top=72, bottom=52, left="4%", right="4%"),
+        "xAxis": {
+            "type": "value",
+            "max": 100,
+            "axisLabel": {"color": AXIS, "formatter": "{value}%"},
+            "splitLine": {"lineStyle": {"color": GRID, "type": "dashed"}},
+        },
+        "yAxis": {
+            "type": "category",
+            "data": ["Slice obligations"],
+            "axisLine": {"lineStyle": {"color": GRID}},
+            "axisLabel": {"color": AXIS},
+        },
+        "series": series,
+        "_intel": {"mode": "motion_channels", "tooltipTemplate": "motion_channel_pct"},
+    }
+
+
+def _motion_q4_mix_shift_chart(timing: dict[str, Any]) -> dict[str, Any] | None:
+    periods = timing.get("periods") or []
+    if not periods:
+        return None
+    series = [
+        {
+            "name": p.get("label") or p.get("channel"),
+            "type": "bar",
+            "stack": "mix",
+            "emphasis": {"focus": "series"},
+            "data": [
+                {
+                    "value": p.get("rest_mix_pct", 0),
+                    "millions": p.get("rest_millions", 0),
+                    "channel": p.get("channel"),
+                },
+                {
+                    "value": p.get("q4_mix_pct", 0),
+                    "millions": p.get("q4_millions", 0),
+                    "channel": p.get("channel"),
+                },
+            ],
+            "itemStyle": {"color": _CHANNEL_COLORS.get(str(p.get("channel")), CYAN)},
+        }
+        for p in periods
+    ]
+    return {
+        "backgroundColor": "transparent",
+        "textStyle": {"color": TEXT},
+        "title": _title("Q4 mix shift"),
+        "tooltip": {**_tooltip("axis"), "axisPointer": {"type": "shadow"}},
+        "legend": {
+            "type": "scroll",
+            "top": 28,
+            "textStyle": {"color": AXIS, "fontSize": 9},
+        },
+        "grid": _grid(top=96, bottom=40, left="6%", right="4%"),
+        "xAxis": {
+            "type": "category",
+            "data": ["Oct–Jun mix", "Q4 mix"],
+            "axisLabel": {"color": AXIS, "fontSize": 10},
+            "axisLine": {"lineStyle": {"color": GRID}},
+        },
+        "yAxis": {
+            "type": "value",
+            "max": 100,
+            "name": "% of period $",
+            "axisLabel": {"color": AXIS, "formatter": "{value}%"},
+            "splitLine": {"lineStyle": {"color": GRID, "type": "dashed"}},
+        },
+        "series": series,
+        "_intel": {
+            "mode": "motion_q4_timing",
+            "tooltipTemplate": "motion_q4_mix",
+            "insight": timing.get("insight") or "",
+            "rest_total_millions": timing.get("rest_total_millions"),
+            "q4_total_millions": timing.get("q4_total_millions"),
+        },
+    }
+
+
+def _motion_channel_bars_chart(
+    channels: list[dict[str, Any]],
+    *,
+    title: str,
+    mode: str,
+) -> dict[str, Any] | None:
+    if not channels:
+        return None
+    labels = [ch.get("label") or ch.get("channel") for ch in channels]
+    values = [ch.get("millions", 0) for ch in channels]
+    colors = [_CHANNEL_COLORS.get(str(ch.get("channel")), CYAN) for ch in channels]
+    return {
+        "backgroundColor": "transparent",
+        "textStyle": {"color": TEXT},
+        "title": _title(title),
+        "tooltip": {**_tooltip("axis")},
+        "grid": _grid(top=72, left="28%"),
+        "xAxis": {
+            "type": "value",
+            "axisLabel": {"color": AXIS},
+            "splitLine": {"lineStyle": {"color": GRID, "type": "dashed"}},
+        },
+        "yAxis": {
+            "type": "category",
+            "data": labels,
+            "axisLabel": {"color": AXIS, "fontSize": 9},
+            "axisLine": {"lineStyle": {"color": GRID}},
+        },
+        "series": [
+            {
+                "type": "bar",
+                "data": [
+                    {
+                        "value": v,
+                        "millions": v,
+                        "pct": ch.get("pct", 0),
+                        "actions": ch.get("actions", 0),
+                        "itemStyle": {"color": colors[i]},
+                    }
+                    for i, (v, ch) in enumerate(zip(values, channels))
+                ],
+                "barMaxWidth": 22,
+            }
+        ],
+        "_intel": {"mode": mode, "tooltipTemplate": "motion_channel_value"},
+    }
+
+
+def _motion_parent_shadow_chart(shadow: dict[str, Any]) -> dict[str, Any] | None:
+    independent = float(shadow.get("independent_millions") or 0)
+    parent_backed = float(shadow.get("parent_backed_millions") or 0)
+    eight_a_parent = float(shadow.get("eight_a_parent_millions") or 0)
+    if independent + parent_backed <= 0:
+        return None
+    rows: list[tuple[str, float, str]] = [
+        ("Independent SB prime", independent, LIME),
+        ("Parent-backed prime", max(parent_backed - eight_a_parent, 0), AMBER),
+    ]
+    if eight_a_parent > 0:
+        rows.append(("Parent-backed 8(a)", eight_a_parent, MAGENTA))
+    labels = [r[0] for r in rows]
+    return {
+        "backgroundColor": "transparent",
+        "textStyle": {"color": TEXT},
+        "title": _title("Set-aside parent shadow"),
+        "tooltip": {**_tooltip("axis")},
+        "grid": _grid(top=72, left="32%"),
+        "xAxis": {
+            "type": "value",
+            "axisLabel": {"color": AXIS},
+            "splitLine": {"lineStyle": {"color": GRID, "type": "dashed"}},
+        },
+        "yAxis": {
+            "type": "category",
+            "data": labels,
+            "axisLabel": {"color": AXIS, "fontSize": 9},
+            "axisLine": {"lineStyle": {"color": GRID}},
+        },
+        "series": [
+            {
+                "type": "bar",
+                "data": [
+                    {
+                        "value": v,
+                        "millions": v,
+                        "pct": shadow.get("independent_pct") if i == 0 else shadow.get("parent_backed_pct"),
+                        "itemStyle": {"color": color},
+                    }
+                    for i, (label, v, color) in enumerate(rows)
+                ],
+                "barMaxWidth": 22,
+            }
+        ],
+        "_intel": {"mode": "motion_parent_shadow", "tooltipTemplate": "motion_channel_value"},
+    }
+
+
+def _motion_money_paths_sankey(paths: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not paths:
+        return None
+    nodes: dict[str, dict[str, Any]] = {}
+    links: list[dict[str, Any]] = []
+
+    def _node(key: str, display: str, color: str) -> str:
+        if key not in nodes:
+            nodes[key] = {"name": key, "display": display, "itemStyle": {"color": color}}
+        return key
+
+    for row in paths[:MAX_SANKEY_LINKS]:
+        agency = str(row.get("agency") or "(Agency)")[:42]
+        channel = str(row.get("channel_label") or row.get("channel") or "Channel")[:36]
+        recipient = str(row.get("recipient") or "(Prime)")[:42]
+        millions = _non_negative_float(row.get("millions"))
+        if millions <= 0:
+            continue
+        agency_key = _node(f"A::{agency}", agency, MAGENTA)
+        channel_key = _node(f"C::{channel}", channel, AMBER)
+        recipient_key = _node(f"R::{recipient}", recipient, CYAN)
+        links.append({"source": agency_key, "target": channel_key, "value": millions})
+        links.append({"source": channel_key, "target": recipient_key, "value": millions})
+
+    if not links:
+        return None
+    return {
+        "backgroundColor": "transparent",
+        "textStyle": {"color": TEXT},
+        "title": _title("Top money paths"),
+        "tooltip": _tooltip(),
+        "series": [
+            {
+                "type": "sankey",
+                "emphasis": {"focus": "adjacency"},
+                "nodeAlign": "justify",
+                "layoutIterations": 32,
+                "lineStyle": {"color": "gradient", "curveness": 0.45, "opacity": 0.4},
+                "itemStyle": {"borderWidth": 0},
+                "label": {"color": TEXT_BRIGHT, "fontSize": 9},
+                "data": [{"name": n["name"], "itemStyle": n["itemStyle"]} for n in nodes.values()],
+                "links": [{"source": l["source"], "target": l["target"], "value": max(l["value"], 0.01)} for l in links],
+            }
+        ],
+        "_intel": {"mode": "motion_money_paths", "displayKey": "display"},
+    }
 
 
 def _spend_trend_chart(analysis: dict[str, Any]) -> dict[str, Any] | None:

@@ -7,46 +7,201 @@
   {% set kpis = overview.kpis or {} %}
   {% set intensity = overview.agency_intensity or {} %}
   {% set charts = overview.charts or {} %}
-  <div class="insights-kpi-strip flex flex-wrap gap-2 mb-4">
-    <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">${{ "%.1f"|format(kpis.millions or 0) }}M obligated</span>
-    <span class="pill pill-compact border border-edge text-slate-400">{{ "{:,}".format(kpis.award_count or 0) }} actions</span>
-    <span class="pill pill-compact border border-edge text-slate-400">{{ kpis.agency_count or 0 }} agencies</span>
-    <span class="pill pill-compact border border-edge text-slate-400">{{ kpis.recipient_count or 0 }} recipients</span>
-  </div>
-  {% if intensity.hot_agencies %}
-  <p class="insights-hot-callout text-[11px] text-neon-lime mb-3">
-    Above the line:
-    {% for ag in intensity.hot_agencies[:5] %}
-    {% with entity_kind='agency', entity_scope='agency', value=ag, label=ag, extra_class='text-neon-lime' %}
-    {% include "partials/insights_drill_profile_btn.html" %}
-    {% endwith %}{% if not loop.last %} · {% endif %}
+  {% set verdict = overview_verdict or {} %}
+  {% set brief = verdict.brief or {} %}
+  {% set chart_guides = verdict.chart_guides or {} %}
+  <div class="insights-metric-cards">
+    {% for card in verdict.cards or [] %}
+    <div class="insights-metric-card" data-metric="{{ card.id }}"{% if card.tooltip %} title="{{ card.tooltip }}"{% endif %}>
+      <span class="insights-metric-label">
+        {{ card.label }}
+        {% if card.tooltip %}
+        <button type="button" class="insights-metric-tip" title="{{ card.tooltip }}" aria-label="{{ card.tooltip }}">?</button>
+        {% endif %}
+      </span>
+      <span class="insights-metric-value">{{ card.value }}</span>
+      <span class="insights-metric-hint">{{ card.hint }}</span>
+    </div>
     {% endfor %}
-  </p>
-  {% endif %}
-  <div class="insights-overview-grid">
+  </div>
+  <div class="insights-overview-hero-row">
     {% if charts.intensity %}
-    <div class="clew-echarts-host insights-echarts-hero" data-chart-key="intensity" data-chart-option='{{ charts.intensity | tojson }}'></div>
+    {% with chart_key='intensity', chart_option=charts.intensity, host_class='insights-echarts-hero', panel_class='insights-chart-panel-hero' %}
+    {% include "partials/insights_chart_panel.html" %}
+    {% endwith %}
     {% endif %}
-    <div class="insights-overview-secondary">
-      {% if charts.sub_flow %}
-      <div class="clew-echarts-host insights-echarts-sub" data-chart-key="sub_flow" data-chart-option='{{ charts.sub_flow | tojson }}'></div>
+    <aside class="insights-slice-brief">
+      <p class="insights-slice-brief-kicker">{{ brief.title or 'Slice brief' }}</p>
+      <h3 class="insights-slice-brief-headline">{{ brief.headline or 'Slice overview' }}</h3>
+      {% if brief.bullets %}
+      <ul class="insights-slice-brief-bullets">
+        {% for line in brief.bullets %}
+        <li>{{ line }}</li>
+        {% endfor %}
+      </ul>
       {% endif %}
-      {% if charts.spend_trend %}
-      <div class="clew-echarts-host insights-echarts-sub" data-chart-key="spend_trend" data-chart-option='{{ charts.spend_trend | tojson }}'></div>
+      {% if brief.actions %}
+      <ol class="insights-slice-brief-actions">
+        {% for action in brief.actions %}
+        <li>
+          {% if action.kind == 'drill' %}
+          {% with entity_kind=action.entity_kind, entity_scope=action.entity_scope, value=action.value, label=action.label %}
+          {% include "partials/insights_drill_profile_btn.html" %}
+          {% endwith %}
+          {% elif action.kind == 'anchor' %}
+          <a href="{{ action.href }}" class="insights-slice-brief-link">{{ action.label }}</a>
+          {% else %}
+          <span class="insights-slice-brief-hint">{{ action.label }}</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+      {% endif %}
+    </aside>
+  </div>
+  {% set motion_brief = verdict.motion or {} %}
+  {% if charts.motion_fy_trend or charts.motion_channels or charts.motion_q4_timing or charts.motion_expiring_channels or charts.motion_parent_shadow or charts.motion_money_paths %}
+  <section class="insights-overview-section" aria-label="Slice motion">
+    <div class="insights-overview-section-head">
+      <h4 class="insights-overview-section-title">Motion</h4>
+      <p class="insights-overview-section-hint">Where dollars move — direct-prime vs sub/teaming lanes, year-end skew, and top paths.</p>
+    </div>
+    {% if motion_brief.headline or motion_brief.bullets %}
+    <aside class="insights-motion-brief">
+      <p class="insights-slice-brief-kicker">Motion brief</p>
+      <h3 class="insights-motion-brief-headline">{{ motion_brief.headline }}</h3>
+      {% if motion_brief.bullets %}
+      <ul class="insights-slice-brief-bullets">
+        {% for line in motion_brief.bullets %}
+        <li>{{ line }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if motion_brief.actions %}
+      <ol class="insights-slice-brief-actions">
+        {% for action in motion_brief.actions %}
+        <li>
+          {% if action.kind == 'drill' %}
+          {% with entity_kind=action.entity_kind, entity_scope=action.entity_scope, value=action.value, label=action.label %}
+          {% include "partials/insights_drill_profile_btn.html" %}
+          {% endwith %}
+          {% elif action.kind == 'anchor' %}
+          <a href="{{ action.href }}" class="insights-slice-brief-link">{{ action.label }}</a>
+          {% else %}
+          <span class="insights-slice-brief-hint">{{ action.label }}</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+      {% endif %}
+    </aside>
+    {% endif %}
+    <div class="insights-overview-two-up">
+      {% if charts.motion_fy_trend %}
+      {% with chart_key='motion_fy_trend', chart_option=charts.motion_fy_trend %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+      {% if charts.motion_channels %}
+      {% with chart_key='motion_channels', chart_option=charts.motion_channels %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
       {% endif %}
     </div>
-    <div class="insights-overview-tertiary">
+    <div class="insights-overview-two-up">
+      {% if charts.motion_q4_timing %}
+      {% with chart_key='motion_q4_timing', chart_option=charts.motion_q4_timing, caption_override=motion_brief.q4_insight %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+      {% if charts.motion_expiring_channels %}
+      {% with chart_key='motion_expiring_channels', chart_option=charts.motion_expiring_channels %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+    </div>
+    <div class="insights-overview-two-up">
+      {% if charts.motion_parent_shadow %}
+      {% with chart_key='motion_parent_shadow', chart_option=charts.motion_parent_shadow %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+      {% if charts.motion_money_paths %}
+      {% with chart_key='motion_money_paths', chart_option=charts.motion_money_paths, host_class='insights-echarts-sankey' %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+    </div>
+    {% if motion_brief.teaming_targets %}
+    <div id="insights-motion-teaming" class="insights-motion-teaming">
+      <p class="insights-motion-teaming-title">Teaming targets — set-aside primes by bucket</p>
+      <div class="insights-motion-teaming-grid">
+        {% for bucket in motion_brief.teaming_targets %}
+        <div class="insights-motion-teaming-bucket">
+          <p class="insights-motion-teaming-bucket-label">{{ bucket.bucket }} · ${{ "%.1f"|format(bucket.millions) }}M</p>
+          <ul class="insights-motion-teaming-primes">
+            {% for prime in bucket.primes or [] %}
+            <li>
+              <span class="insights-motion-teaming-prime-name">{{ prime.recipient }}</span>
+              <span class="insights-motion-teaming-prime-meta">${{ "%.2f"|format(prime.millions) }}M · {{ prime.actions }} actions</span>
+              {% with entity_kind='competitor', entity_scope='recipient', value=prime.recipient %}
+              {% include "partials/insights_drill_profile_btn.html" %}
+              {% endwith %}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+  {% if charts.set_aside or charts.extent_competed or charts.idv_split %}
+  <section class="insights-overview-section" aria-label="Market access">
+    <div class="insights-overview-section-head">
+      <h4 class="insights-overview-section-title">Market access</h4>
+      <p class="insights-overview-section-hint">Set-aside, competition extent, and vehicle channel — how open the slice is.</p>
+    </div>
+    <div class="insights-overview-three-up">
       {% if charts.set_aside %}
-      <div class="clew-echarts-host insights-echarts-compact" data-chart-key="set_aside" data-chart-option='{{ charts.set_aside | tojson }}'></div>
+      {% with chart_key='set_aside', chart_option=charts.set_aside, host_class='insights-echarts-compact' %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
       {% endif %}
       {% if charts.extent_competed %}
-      <div class="clew-echarts-host insights-echarts-compact" data-chart-key="extent_competed" data-chart-option='{{ charts.extent_competed | tojson }}'></div>
+      {% with chart_key='extent_competed', chart_option=charts.extent_competed, host_class='insights-echarts-compact' %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
       {% endif %}
-      {% if charts.top_recipients %}
-      <div class="clew-echarts-host insights-echarts-compact" data-chart-key="top_recipients" data-chart-option='{{ charts.top_recipients | tojson }}'></div>
+      {% if charts.idv_split %}
+      {% with chart_key='idv_split', chart_option=charts.idv_split, host_class='insights-echarts-compact' %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
       {% endif %}
     </div>
-  </div>
+  </section>
+  {% endif %}
+  {% if charts.pricing_buckets or charts.top_recipients %}
+  <section class="insights-overview-section" aria-label="Competitive landscape">
+    <div class="insights-overview-section-head">
+      <h4 class="insights-overview-section-title">Competitive landscape</h4>
+      <p class="insights-overview-section-hint">Pricing mix and incumbent concentration — who holds share today.</p>
+    </div>
+    <div class="insights-overview-two-up">
+      {% if charts.pricing_buckets %}
+      {% with chart_key='pricing_buckets', chart_option=charts.pricing_buckets %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+      {% if charts.top_recipients %}
+      {% with chart_key='top_recipients', chart_option=charts.top_recipients %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
   {% if overview.top_recipients %}
   <div class="insights-recipient-uei-table mt-3 text-[10px] font-mono text-slate-500">
     {% for row in overview.top_recipients[:5] %}
@@ -62,7 +217,7 @@
   </div>
   {% endif %}
   {% if explore.status != 'idle' %}
-  <div class="insights-slice-expiring mt-4 pt-3 border-t border-edge/50">
+  <div id="insights-slice-expiring" class="insights-slice-expiring mt-4 pt-3 border-t border-edge/50">
     <p class="text-[10px] uppercase tracking-wide text-slate-600 mb-2">Expiring in slice (18 mo)</p>
     {% include "partials/insights_radar_explore.html" %}
   </div>

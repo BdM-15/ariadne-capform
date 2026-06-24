@@ -85,7 +85,7 @@ async def test_insights_mvp_signoff_funnel(db_session, tmp_path, monkeypatch):
         assert "insights-stage-content" in html
         assert (
             "insights-echarts-hero" in html
-            or "insights-kpi-strip" in html
+            or "insights-metric-cards" in html
             or "Capture intensity" in html
             or "obligated" in html.lower()
         ), "Overview lens should show market picture"

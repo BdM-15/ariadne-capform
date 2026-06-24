@@ -4,6 +4,44 @@ from __future__ import annotations
 
 from typing import Any
 
+INSIGHTS_PAGE_GUIDE: dict[str, Any] = {
+    "title": "Data Insights — slice workflow",
+    "accent": "magenta",
+    "purpose": (
+        "Identify recompete and market motion on a facet-defined slice of migrated "
+        "USAspending intel — Overview for the capture story, Agency and Competitor "
+        "for entity drill-down."
+    ),
+    "when": (
+        "Morning market scans, NAICS portfolio reviews, agency-first qualification, "
+        "or incumbent/competitor positioning before Watch or Track."
+    ),
+    "output": (
+        "Verdict metric cards, capture-intensity scatter, slice brief with suggested "
+        "actions, expiring contract rows (award drawer, Watch → Pulse), and entity "
+        "profiles on Agency / Competitor tabs."
+    ),
+    "context_impact": (
+        "No platform default filter — you must set at least one facet and click "
+        "Run slice. NAICS portfolio chips (saved under Slice → NAICS portfolio) "
+        "are shortcuts only; they do not auto-run. Bookmarks reopen saved facet combos."
+    ),
+    "how_to_use": [
+        "Set NAICS, agency, recipient, or a combo in the Slice navigator (More facets for PSC, office, UEI, set-aside).",
+        "Click Run slice (~30–90s). Lens tabs activate after the first successful query.",
+        "Start on Overview — verdict cards, slice brief, capture-intensity scatter, then Motion (entry-lane brief, FY pulse, channel stack, Q4 skew, teaming targets), Market access, and Competitive sections.",
+        "Drill a hot agency (agency-first) or top contractor via brief actions or chart clicks.",
+        "Open expiring rows for contract profile; Watch adds potential to Pulse (Watch ≠ Track).",
+        "Switch to Agency or Competitor for entity-scoped charts and expiring lists.",
+    ],
+    "tips": [
+        "Metric card tooltips explain TAM, momentum, recompete pipe, hot agencies, concentration, and set-aside mix.",
+        "Phase 2f adds a Footprint lens — operator past performance vs the active slice (KBR R&S UEI + vault domain intel).",
+        "Pair with Clew (/clew) for money-path and teaming on the same facets.",
+        "Pinpoint award lookups: USAspending MCP on Tools → MCP Servers.",
+    ],
+}
+
 INSIGHTS_EXPLORE_GUIDES: dict[str, dict[str, Any]] = {
     "usaspending_explore": {
         "title": "USAspending live explore",
@@ -99,6 +137,10 @@ INSIGHTS_EXPLORE_GUIDES: dict[str, dict[str, Any]] = {
         ],
     },
 }
+
+
+def guide_for_data_insights() -> dict[str, Any]:
+    return dict(INSIGHTS_PAGE_GUIDE)
 
 
 def guide_for_explore(guide_id: str) -> dict[str, Any]:

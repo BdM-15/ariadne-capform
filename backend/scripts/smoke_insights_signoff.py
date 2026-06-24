@@ -84,7 +84,7 @@ def main() -> int:
             and "insights-slice-panel" in r.text
             and (
                 "insights-echarts-hero" in r.text
-                or "insights-kpi-strip" in r.text
+                or "insights-metric-cards" in r.text
                 or "Capture intensity" in r.text
             )
         )

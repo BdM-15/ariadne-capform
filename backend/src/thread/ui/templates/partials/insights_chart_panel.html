@@ -1,0 +1,28 @@
+{# chart_key: echarts key; chart_option: JSON option; host_class: insights-echarts-*; guides from verdict.chart_guides #}
+{% set guide = (chart_guides or {}).get(chart_key, {}) %}
+{% set tip = guide.read ~ (' Use: ' ~ guide.use if guide.use else '') %}
+<div class="insights-chart-panel {{ panel_class or '' }}">
+  {% if guide.label or guide.caption %}
+  <div class="insights-chart-panel-head">
+    {% if guide.label %}
+    <span class="insights-chart-panel-label">{{ guide.label }}</span>
+    {% endif %}
+    {% if guide.read %}
+    <button
+      type="button"
+      class="insights-chart-tip"
+      title="{{ tip }}"
+      aria-label="{{ tip }}"
+    >?</button>
+    {% endif %}
+  </div>
+  {% if caption_override or guide.caption %}
+  <p class="insights-chart-caption">{{ caption_override or guide.caption }}</p>
+  {% endif %}
+  {% endif %}
+  <div
+    class="clew-echarts-host {{ host_class or 'insights-echarts-sub' }}"
+    data-chart-key="{{ chart_key }}"
+    data-chart-option='{{ chart_option | tojson }}'
+  ></div>
+</div>

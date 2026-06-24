@@ -6,7 +6,18 @@
     <h1 class="text-base font-semibold tracking-tight h1-gradient shrink-0">Data Insights</h1>
     <span class="pill border border-neon-cyan/40 text-neon-cyan text-[10px] font-mono uppercase">Identify</span>
   </div>
-  <a href="/pulse#potential-watchlist" class="btn btn-ghost text-xs no-underline shrink-0">Watchlist →</a>
+  <div class="flex items-center gap-2 shrink-0">
+    <button
+      type="button"
+      class="btn btn-ghost btn-compact text-xs"
+      onclick="openGuideDialog('guide-data-insights')"
+      title="Data Insights guide — facets, lenses, verdict cards"
+    >
+      <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+      Guide
+    </button>
+    <a href="/pulse#potential-watchlist" class="btn btn-ghost text-xs no-underline">Watchlist →</a>
+  </div>
 </header>
 {% endblock %}
 {% block content %}

@@ -76,7 +76,7 @@ from thread.clew.saved_traces import (
     new_clew_trace_from_form,
     save_clew_trace,
 )
-from thread.ui.insights_guides import guide_for_clew, guide_for_explore
+from thread.ui.insights_guides import guide_for_clew, guide_for_data_insights, guide_for_explore
 from thread.services.insights_drilldown import build_drilldown
 from thread.services.insights_slice import build_slice_panel
 from thread.intel.operator_profile import save_naics_portfolio_from_text
@@ -321,6 +321,7 @@ async def _render_insights_body(
         "slice_panel": slice_panel,
         "has_slice": slice_panel,
         "lens_tabs": INSIGHTS_LENS_TABS,
+        "insights_guide": guide_for_data_insights(),
         "radar_guide": guide_for_explore("usaspending_explore"),
         "sam_guide": guide_for_explore("sam_explore"),
         "clew_guide": guide_for_clew(),
@@ -351,6 +352,7 @@ def _slice_template_ctx(
         "overview_ready": panel.overview_ready,
         "overview_idle": panel.overview_idle,
         "overview_error": panel.overview_error,
+        "overview_verdict": panel.overview_verdict,
         "explore": panel.explore,
         "sam_explore": panel.sam_explore,
         "sam_form": panel.sam_form,
@@ -388,6 +390,7 @@ async def insights_page(
             "slice_panel": False,
             "has_slice": False,
             "lens_tabs": INSIGHTS_LENS_TABS,
+            "insights_guide": guide_for_data_insights(),
             "radar_guide": guide_for_explore("usaspending_explore"),
             "sam_guide": guide_for_explore("sam_explore"),
             "clew_guide": guide_for_clew(),

@@ -57,6 +57,12 @@ SET_ASIDE_CHART_EXPR = f"COALESCE(({SET_ASIDE_NORMALIZED_EXPR}), '(Not Applicabl
 
 STATE_EXPR = "COALESCE(NULLIF(primary_place_of_performance_state_code, ''), '??')"
 
+# Government fiscal year (Oct 1 start) — matches bulk migration fy/quarter derivation.
+FY_EXPR = "EXTRACT(YEAR FROM (action_date + INTERVAL '3 months'))::int"
+QUARTER_EXPR = (
+    "((EXTRACT(MONTH FROM (action_date + INTERVAL '3 months')) - 1) / 3 + 1)::int"
+)
+
 PRICING_BUCKET_EXPR = """CASE
     WHEN UPPER(COALESCE(type_of_contract_pricing, '')) LIKE '%FIRM FIXED%'
       OR UPPER(COALESCE(type_of_contract_pricing, '')) LIKE '%FIXED PRICE%'
@@ -94,6 +100,36 @@ MONTHS_TO_END_EXPR = """(
     EXTRACT(YEAR FROM age(period_of_performance_current_end_date, CURRENT_DATE)) * 12
     + EXTRACT(MONTH FROM age(period_of_performance_current_end_date, CURRENT_DATE))
 )::int"""
+
+_OPEN_SET_ASIDE_CHART_BUCKETS = "'(Not Applicable)', 'NO SET ASIDE USED'"
+
+EXTENT_COMPETED_OPEN_EXPR = """(
+    {extent} IN (
+        'FULL AND OPEN COMPETITION',
+        'FULL AND OPEN COMPETITION AFTER EXCLUSION OF SOURCES',
+        'COMPETED UNDER SAP',
+        'COMPETED UNDER SIMPLIFIED ACQUISITION PROCEDURES'
+    )
+    OR ({extent} LIKE '%COMPETED%%' AND {extent} NOT LIKE '%NOT%')
+)""".format(extent=f"({EXTENT_COMPETED_NORMALIZED_EXPR})")
+
+# Entry channel for capture motion — vehicle gate, set-aside lanes, open competition.
+CAPTURE_CHANNEL_EXPR = f"""CASE
+    WHEN ({IDV_FLAG_EXPR}) = 'IDV / Task Order' THEN 'vehicle_gated'
+    WHEN ({SET_ASIDE_CHART_EXPR}) NOT IN ({_OPEN_SET_ASIDE_CHART_BUCKETS})
+         AND {EXTENT_COMPETED_OPEN_EXPR} THEN 'set_aside_competed'
+    WHEN ({SET_ASIDE_CHART_EXPR}) NOT IN ({_OPEN_SET_ASIDE_CHART_BUCKETS}) THEN 'set_aside_non_competed'
+    WHEN {EXTENT_COMPETED_OPEN_EXPR} THEN 'open_competed'
+    WHEN NULLIF(({EXTENT_COMPETED_NORMALIZED_EXPR}), '') IS NOT NULL THEN 'open_non_competed'
+    ELSE 'other'
+END"""
+
+# Set-aside prime with a different named parent — entity-owned 8(a) / LB portfolio heuristic.
+SET_ASIDE_PARENT_BACKED_EXPR = f"""(
+    ({SET_ASIDE_CHART_EXPR}) NOT IN ({_OPEN_SET_ASIDE_CHART_BUCKETS})
+    AND NULLIF(TRIM(COALESCE(recipient_parent_name, '')), '') IS NOT NULL
+    AND UPPER(TRIM(recipient_parent_name)) <> UPPER(TRIM(COALESCE(recipient_name, '')))
+)"""
 
 
 def round_numeric(expr: str, places: int = 2) -> str:

@@ -19,7 +19,7 @@
 
         <header class="insights-facet-nav-head">
           <span class="insights-facet-nav-title">Slice</span>
-          <button type="button" class="insights-facet-nav-icon" title="Explore guide" onclick="openGuideDialog('guide-usaspending-explore')">
+          <button type="button" class="insights-facet-nav-icon" title="Data Insights guide" onclick="openGuideDialog('guide-data-insights')">
             <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
           </button>
         </header>
@@ -62,7 +62,7 @@
           </div>
         </details>
 
-        <p class="insights-facet-footnote">One facet minimum · ~30–90s</p>
+        <p class="insights-facet-footnote">One facet minimum · no auto-run · ~30–90s</p>
       </form>
 
       <nav class="insights-facet-links" aria-label="Slice tools">
@@ -87,6 +87,9 @@
     </section>
   </div>
 
+  {% set guide_id = "data-insights" %}
+  {% set guide = insights_guide %}
+  {% include "partials/insights_guide_dialog.html" %}
   {% set guide_id = "usaspending-explore" %}
   {% set guide = radar_guide %}
   {% include "partials/insights_guide_dialog.html" %}

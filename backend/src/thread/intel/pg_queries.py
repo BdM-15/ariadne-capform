@@ -209,16 +209,18 @@ async def get_expiring_contracts(
     )
 
 
-async def count_expiring_for_query(
+async def expiring_pipeline_stats(
     session: AsyncSession,
     query: InsightFacetQuery,
     months_ahead: int = 18,
-) -> int:
+) -> dict[str, int | float]:
     if not query.has_filters():
-        return 0
+        return {"count": 0, "millions": 0.0}
     facet_sql, facet_params = build_facet_sql(query)
     sql = f"""
-        SELECT COUNT(*) AS n
+        SELECT
+            COUNT(*) AS n,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
         FROM {PRIME_TABLE}
         WHERE period_of_performance_current_end_date IS NOT NULL
           AND period_of_performance_current_end_date <= CURRENT_DATE + (:months_ahead || ' months')::interval
@@ -227,7 +229,20 @@ async def count_expiring_for_query(
     """
     params = {**facet_params, "months_ahead": str(months_ahead)}
     row = (await session.execute(text(sql), params)).first()
-    return int(row.n if row else 0)
+    if not row:
+        return {"count": 0, "millions": 0.0}
+    return {
+        "count": int(row.n or 0),
+        "millions": float(row.millions or 0),
+    }
+
+
+async def count_expiring_for_query(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    months_ahead: int = 18,
+) -> int:
+    return int((await expiring_pipeline_stats(session, query, months_ahead=months_ahead))["count"])
 
 
 async def get_award_profile(

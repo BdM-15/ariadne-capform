@@ -43,6 +43,76 @@
           " actions"
         );
       };
+    } else if (intelMeta.tooltipTemplate === "motion_fy_trend") {
+      option.tooltip = option.tooltip || {};
+      option.tooltip.formatter = function (params) {
+        if (!params || !params.length) return "";
+        var lines = [params[0].axisValue];
+        params.forEach(function (p) {
+          if (p.seriesName === "$ obligated" && p.data) {
+            var acts = p.data.actions != null ? p.data.actions : "—";
+            lines.push(formatMillions(p.data.value) + " obligated · " + acts + " actions");
+          } else if (p.seriesName === "Actions") {
+            lines.push(p.value + " actions (FY total line)");
+          }
+        });
+        return lines.join("<br/>");
+      };
+    } else if (intelMeta.tooltipTemplate === "motion_channel_pct") {
+      option.tooltip = option.tooltip || {};
+      option.tooltip.formatter = function (params) {
+        var d = params.data || {};
+        var acts = d.actions != null ? d.actions : "—";
+        return (
+          (params.seriesName || "Lane") +
+          "<br/>" +
+          Number(d.value || 0).toFixed(1) +
+          "% of slice · " +
+          formatMillions(d.millions) +
+          "<br/>" +
+          acts +
+          " actions"
+        );
+      };
+    } else if (intelMeta.tooltipTemplate === "motion_q4_mix") {
+      option.tooltip = option.tooltip || {};
+      option.tooltip.formatter = function (params) {
+        if (!params || !params.length) return "";
+        var period = params[0].axisValue || "";
+        var totalM =
+          period.indexOf("Q4") >= 0
+            ? intelMeta.q4_total_millions
+            : intelMeta.rest_total_millions;
+        var lines = [period + (totalM != null ? " · " + formatMillions(totalM) + " total" : "")];
+        params
+          .filter(function (p) {
+            return p.value > 0;
+          })
+          .sort(function (a, b) {
+            return b.value - a.value;
+          })
+          .forEach(function (p) {
+            var d = p.data || {};
+            lines.push(
+              (p.seriesName || "") +
+                ": " +
+                Number(p.value).toFixed(1) +
+                "% · " +
+                formatMillions(d.millions)
+            );
+          });
+        return lines.join("<br/>");
+      };
+    } else if (intelMeta.tooltipTemplate === "motion_channel_value") {
+      option.tooltip = option.tooltip || {};
+      option.tooltip.formatter = function (params) {
+        var p = params[0];
+        if (!p || !p.data) return "";
+        var d = p.data;
+        var pct = d.pct != null ? Number(d.pct).toFixed(1) + "% · " : "";
+        var acts = d.actions != null ? " · " + d.actions + " actions" : "";
+        return p.name + "<br/>" + pct + formatMillions(d.millions || d.value) + acts;
+      };
     } else if (option.tooltip && option.tooltip.trigger === "item") {
       option.tooltip.formatter = function (params) {
         if (params.data && params.data.value != null) {

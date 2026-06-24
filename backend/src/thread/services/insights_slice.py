@@ -16,13 +16,15 @@ from thread.services.insights_explore import (
     _facet_from_params,
     explore_radar,
 )
-from thread.services.insights_overview import OverviewResult, build_overview
+from thread.intel import pg_queries as intel_queries
+from thread.services.insights_overview import OverviewResult, build_overview, overview_capture_verdict
 
 INSIGHTS_LENS_TABS: tuple[dict[str, str], ...] = (
     {"id": "overview", "label": "Overview"},
     {"id": "agency", "label": "Agency"},
     {"id": "competitor", "label": "Competitor"},
 )
+# Phase 2f: {"id": "footprint", "label": "Footprint"} — operator stance vs slice (UEI + vault domain intel)
 
 # ponytail: slice-wide expiring rows live on Overview; entity-scoped rows on Agency/Competitor profiles
 _LEGACY_LENS_IDS = frozenset({"trace", "competition", "sam", "recompete"})
@@ -39,6 +41,7 @@ class SlicePanelContext:
     overview_ready: bool
     overview_idle: bool
     overview_error: str | None
+    overview_verdict: dict[str, Any]
     explore: RadarExploreResult
     sam_explore: SamExploreResult
     sam_form: dict[str, str]
@@ -203,6 +206,19 @@ async def build_slice_panel(
     cache_hit = bool(cache_ages)
     cache_age_seconds = max(cache_ages) if cache_ages else None
 
+    pipeline_stats: dict[str, int | float] = {"count": 0, "millions": 0.0}
+    if has_slice and query is not None and overview_result.status == "ready":
+        pipeline_stats = await intel_queries.expiring_pipeline_stats(session, query, months_ahead=18)
+    overview_verdict = (
+        overview_capture_verdict(
+            overview_result.overview,
+            query=query,
+            pipeline=pipeline_stats,
+        )
+        if overview_result.status == "ready"
+        else {"cards": (), "brief": {}}
+    )
+
     return SlicePanelContext(
         facet_form=facet_form,
         active_lens=lens,
@@ -213,6 +229,7 @@ async def build_slice_panel(
         overview_ready=overview_result.status == "ready",
         overview_idle=overview_result.status == "idle",
         overview_error=overview_result.error,
+        overview_verdict=overview_verdict,
         explore=explore,
         sam_explore=SamExploreResult(
             query=None,

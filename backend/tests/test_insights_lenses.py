@@ -252,7 +252,8 @@ def test_insights_page_renders_live_explore():
     assert "Run slice" in html
     assert "Lens results" in html
     assert "guide-modal" in html
-    assert "openGuideDialog" in html
+    assert "openGuideDialog('guide-data-insights')" in html
+    assert "guide-data-insights" in html
     assert "btn-hero-magenta" in html
     assert "insights-bookmarks-drawer" in html
     assert 'id="insights-stage-content"' in html

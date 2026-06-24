@@ -17,16 +17,20 @@ def test_attach_overview_echarts_builds_intensity_and_kpi_charts():
             "median_millions": 3.0,
             "hot_agencies": ["DEPT A"],
         },
-        "agency_sub_flow": [{"label": "ARMY", "kind": "sub_agency", "actions": 5, "millions": 3.0}],
-        "agency_sub_flow_group": "sub_agency",
         "set_aside": [{"bucket": "NO SET ASIDE USED", "actions": 10, "millions": 4.0}],
         "extent_competed": [{"extent": "FULL AND OPEN COMPETITION", "actions": 8, "millions": 3.5}],
         "top_recipients": [{"recipient": "ACME LLC", "actions": 4, "millions": 2.0}],
+        "pricing_buckets": [{"bucket": "Firm fixed", "pricing_bucket": "firm_fixed", "actions": 6, "millions": 3.0}],
+        "idv_split": [{"channel": "Standalone", "actions": 8, "millions": 5.0}],
     }
     out = attach_overview_echarts(overview)
     charts = out.get("charts") or {}
     assert "intensity" in charts
     assert charts["intensity"]["series"][0]["type"] == "scatter"
-    assert "sub_flow" in charts
+    assert "motion_fy_trend" in charts
+    assert charts["motion_fy_trend"]["series"][1]["type"] == "line"
+    assert "motion_fy_backload" not in charts
     assert "set_aside" in charts
     assert charts["set_aside"]["series"][0]["type"] == "pie"
+    assert "pricing_buckets" in charts
+    assert "idv_split" in charts
