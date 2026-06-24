@@ -1179,6 +1179,8 @@ body {
 .insights-stage-status.htmx-request,
 .insights-stage-status.is-loading {
   display: block;
+  opacity: 1;
+  visibility: visible;
   color: #e0f2fe;
   border: 1px solid rgba(var(--neon-cyan-rgb, 34, 211, 238), 0.45);
   background: rgba(var(--neon-cyan-rgb, 34, 211, 238), 0.12);

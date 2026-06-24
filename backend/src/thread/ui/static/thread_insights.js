@@ -41,9 +41,11 @@
     var el = stageStatusEl();
     if (!el) return;
     el.textContent = message || "";
-    el.classList.remove("is-error", "is-loading");
+    el.classList.remove("is-error", "is-loading", "htmx-request");
     if (kind === "error") el.classList.add("is-error");
-    if (kind === "loading") el.classList.add("is-loading");
+    if (kind === "loading") {
+      el.classList.add("is-loading", "htmx-request");
+    }
   }
 
   function clearLoadingStatus() {
@@ -181,7 +183,8 @@
         if (scopeInput && extra.entity_scope) scopeInput.value = extra.entity_scope;
       }
     }
-    if (loadingMsg) setStageStatus(loadingMsg, "loading");
+    if (window.showInsightsSliceLoading) window.showInsightsSliceLoading(loadingMsg || "Opening profile…");
+    else if (loadingMsg) setStageStatus(loadingMsg, "loading");
     stage.classList.add("is-loading");
     return fetch("/partials/insights/slice", {
       method: "POST",
