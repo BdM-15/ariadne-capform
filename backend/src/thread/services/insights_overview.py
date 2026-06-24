@@ -542,45 +542,6 @@ def overview_capture_verdict(
         },
     ]
 
-    slice_label = describe_query(query) if query else "Active slice"
-    top_agency = hot_agencies[0] if hot_agencies else None
-    top_recipient = (recipients[0].get("recipient") if recipients else None) or None
-
-    bullets: list[str] = [slice_label]
-    if top_agency:
-        bullets.append(f"Lead agency motion: {top_agency} is above the capture-intensity line.")
-    if momentum_pct is not None:
-        direction = "up" if momentum_pct >= 0 else "down"
-        bullets.append(f"Spend trending {direction} {abs(momentum_pct):.1f}% into the latest fiscal year.")
-    if recompete_count:
-        bullets.append(f"{recompete_count:,} contracts (${recompete_m:.1f}M) expire in the next 18 months.")
-
-    actions: list[dict[str, Any]] = []
-    if top_agency:
-        actions.append(
-            {
-                "label": f"Profile {top_agency[:48]}",
-                "kind": "drill",
-                "entity_kind": "agency",
-                "entity_scope": "agency",
-                "value": top_agency,
-            }
-        )
-    if recompete_count:
-        actions.append({"label": "Review expiring pipeline", "kind": "anchor", "href": "#insights-slice-expiring"})
-    if top_recipient:
-        actions.append(
-            {
-                "label": f"Profile {str(top_recipient)[:40]}",
-                "kind": "drill",
-                "entity_kind": "competitor",
-                "entity_scope": "recipient",
-                "value": top_recipient,
-            }
-        )
-    while len(actions) < 3:
-        actions.append({"label": "Refine facets and re-run slice", "kind": "hint"})
-
     motion_data = overview.get("motion") or {}
     motion_brief = overview_motion_brief(motion_data, recompete_m=recompete_m)
     shipley_cards = overview_shipley_cards(
@@ -595,12 +556,6 @@ def overview_capture_verdict(
         "chart_guides": overview_chart_guides(),
         "motion": motion_brief,
         "shipley": shipley_cards,
-        "brief": {
-            "title": "Slice brief",
-            "headline": f"${tam:.1f}M market · {int(kpis.get('agency_count') or 0)} agencies",
-            "bullets": bullets[:4],
-            "actions": actions[:3],
-        },
     }
 
 

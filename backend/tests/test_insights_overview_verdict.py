@@ -76,12 +76,8 @@ def test_overview_capture_verdict_builds_six_cards():
     assert verdict["cards"][0]["value"] == "$120.5M"
     assert verdict["cards"][1]["value"] == "+25.0%"
     assert verdict["cards"][2]["hint"].startswith("12")
-    assert verdict["brief"]["headline"].startswith("$120.5M")
-    actions = verdict["brief"]["actions"]
-    assert actions[0]["kind"] == "drill"
-    assert actions[0]["entity_kind"] == "agency"
-    assert any(a.get("kind") == "anchor" for a in actions)
     assert len(verdict["shipley"]) == 4
+    assert "brief" not in verdict
 
 
 def test_overview_capture_verdict_shipley_shape_now_pursue():
@@ -138,7 +134,8 @@ async def test_overview_slice_renders_metric_cards_and_brief():
     assert res.status_code == 200, res.text[:400]
     html = res.text
     assert "insights-metric-cards" in html
-    assert "insights-slice-brief" in html
+    assert "insights-slice-brief" not in html
+    assert "insights-slice-bar" in html or "Explain slice" in html
     assert "insights-overview-hero-row" in html
     assert "insights-overview-section" in html
     assert "FY obligation pulse" in html or "motion_fy_trend" in html
@@ -149,7 +146,7 @@ async def test_overview_slice_renders_metric_cards_and_brief():
     assert "Quarterly action rhythm" not in html
     assert "Market access" in html
     assert "Competitive landscape" in html
-    assert "Slice brief" in html
+    assert "Capture gates" in html or "insights-shipley-section" in html
     assert "insights-kpi-strip" not in html
     assert "insights-metric-tip" in html
     assert "insights-chart-tip" in html

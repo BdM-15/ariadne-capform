@@ -57,6 +57,8 @@
       target.closest("#education-lesson-panel") ||
       target.id === "education-studio-mount" ||
       target.closest("#education-studio-mount") ||
+      target.id === "insights-slice-explain-mount" ||
+      target.closest("#insights-slice-explain-mount") ||
       target.id === "knowledge-candidate-editor" ||
       target.closest("#knowledge-candidate-editor") ||
       target.id === "knowledge-capture-studio-mount" ||

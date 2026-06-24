@@ -365,6 +365,7 @@ def _slice_template_ctx(
         "cache_age_seconds": panel.cache_age_seconds,
         "slice_flash": slice_flash,
         "slice_panel": True,
+        "slice_explain": panel.slice_explain,
     }
 
 
@@ -446,6 +447,86 @@ async def insights_slice_partial(
         request,
         "partials/insights_stage_content.html",
         _slice_template_ctx(panel, htmx_request=bool(request.headers.get("HX-Request"))),
+    )
+
+
+@router.post("/partials/insights/explain-slice", response_class=HTMLResponse)
+async def insights_explain_slice_partial(
+    request: Request,
+    lens: str = Form("overview"),
+    llm_provider: str = Form("cloud"),
+    agency: str = Form(""),
+    sub_agency: str = Form(""),
+    recipient: str = Form(""),
+    naics_codes: str = Form(""),
+    psc_codes: str = Form(""),
+    awarding_office: str = Form(""),
+    funding_office: str = Form(""),
+    recipient_uei: str = Form(""),
+    pop_state: str = Form(""),
+    extent_competed: str = Form(""),
+    type_of_set_aside: str = Form(""),
+    run: int = Form(1),
+    entity_kind: str = Form(""),
+    entity_value: str = Form(""),
+    entity_scope: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> HTMLResponse:
+    from thread.services.insights_slice_explain import (
+        SliceExplainError,
+        build_slice_explain_bundle,
+        explain_slice,
+    )
+
+    panel = await build_slice_panel(
+        db,
+        settings,
+        lens=lens or "overview",
+        run=bool(run),
+        entity_kind=entity_kind,
+        entity_value=entity_value,
+        entity_scope=entity_scope,
+        **_advanced_facet_kwargs(
+            agency=agency,
+            sub_agency=sub_agency,
+            recipient=recipient,
+            naics_codes=naics_codes,
+            psc_codes=psc_codes,
+            awarding_office=awarding_office,
+            funding_office=funding_office,
+            recipient_uei=recipient_uei,
+            pop_state=pop_state,
+            extent_competed=extent_competed,
+            type_of_set_aside=type_of_set_aside,
+        ),
+    )
+    ctx: dict = {
+        "slice_explain_text": None,
+        "slice_explain_error": None,
+        "slice_explain_provider": None,
+        "slice_explain_model": None,
+    }
+    if not panel.has_slice or not panel.overview_ready:
+        ctx["slice_explain_error"] = "Run a slice first — Explain needs Overview data."
+    else:
+        bundle = build_slice_explain_bundle(
+            query=panel.query,
+            overview_verdict=panel.overview_verdict,
+            overview=panel.overview,
+            expiring_rows=panel.explore.rows,
+        )
+        try:
+            result = await explain_slice(settings, bundle=bundle, provider_choice=llm_provider)
+            ctx["slice_explain_text"] = result.text
+            ctx["slice_explain_provider"] = result.provider
+            ctx["slice_explain_model"] = result.model
+        except SliceExplainError as exc:
+            ctx["slice_explain_error"] = str(exc)
+    return templates.TemplateResponse(
+        request,
+        "partials/insights_slice_explain_panel.html",
+        ctx,
     )
 
 

@@ -97,6 +97,8 @@
   {% set guide = sam_guide %}
   {% include "partials/insights_guide_dialog.html" %}
 </div>
+<script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" defer></script>
+<script src="/static/scripts/vault_markdown.js?v={{ asset_v() }}" defer></script>
 <script src="/static/scripts/clew_charts.js?v={{ asset_v() }}" defer></script>
 <script src="/static/scripts/insights_charts.js?v={{ asset_v() }}" defer></script>

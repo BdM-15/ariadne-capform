@@ -6,6 +6,7 @@ from thread.llm.router import (
     LlmTaskKind,
     LlmUnavailableError,
     resolve_provider,
+    resolve_provider_choice,
 )
 
 
@@ -32,6 +33,12 @@ def test_reasoning_raises_when_no_provider():
 def test_admin_prefers_ollama():
     s = Settings(local_admin_model_enabled=True, local_daily_model="qwen3:8b")
     resolved = resolve_provider(s, LlmTaskKind.ADMIN)
+    assert resolved.provider is LlmProvider.OLLAMA
+
+
+def test_provider_choice_local_uses_ollama():
+    s = Settings(local_admin_model_enabled=True, local_daily_model="qwen3:8b")
+    resolved = resolve_provider_choice(s, "local")
     assert resolved.provider is LlmProvider.OLLAMA
 
 

@@ -8,7 +8,6 @@
   {% set intensity = overview.agency_intensity or {} %}
   {% set charts = overview.charts or {} %}
   {% set verdict = overview_verdict or {} %}
-  {% set brief = verdict.brief or {} %}
   {% set chart_guides = verdict.chart_guides or {} %}
   <div class="insights-metric-cards">
     {% for card in verdict.cards or [] %}
@@ -24,41 +23,13 @@
     </div>
     {% endfor %}
   </div>
-  <div id="insights-overview-hero" class="insights-overview-hero-row">
-    {% if charts.intensity %}
+  {% if charts.intensity %}
+  <div id="insights-overview-hero" class="insights-overview-hero-row insights-overview-hero-full">
     {% with chart_key='intensity', chart_option=charts.intensity, host_class='insights-echarts-hero', panel_class='insights-chart-panel-hero' %}
     {% include "partials/insights_chart_panel.html" %}
     {% endwith %}
-    {% endif %}
-    <aside class="insights-slice-brief">
-      <p class="insights-slice-brief-kicker">{{ brief.title or 'Slice brief' }}</p>
-      <h3 class="insights-slice-brief-headline">{{ brief.headline or 'Slice overview' }}</h3>
-      {% if brief.bullets %}
-      <ul class="insights-slice-brief-bullets">
-        {% for line in brief.bullets %}
-        <li>{{ line }}</li>
-        {% endfor %}
-      </ul>
-      {% endif %}
-      {% if brief.actions %}
-      <ol class="insights-slice-brief-actions">
-        {% for action in brief.actions %}
-        <li>
-          {% if action.kind == 'drill' %}
-          {% with entity_kind=action.entity_kind, entity_scope=action.entity_scope, value=action.value, label=action.label %}
-          {% include "partials/insights_drill_profile_btn.html" %}
-          {% endwith %}
-          {% elif action.kind == 'anchor' %}
-          <a href="{{ action.href }}" class="insights-slice-brief-link">{{ action.label }}</a>
-          {% else %}
-          <span class="insights-slice-brief-hint">{{ action.label }}</span>
-          {% endif %}
-        </li>
-        {% endfor %}
-      </ol>
-      {% endif %}
-    </aside>
   </div>
+  {% endif %}
   {% set shipley_cards = verdict.shipley or [] %}
   {% include "partials/insights_shipley_cards.html" %}
   {% set motion_brief = verdict.motion or {} %}
@@ -66,38 +37,11 @@
   <section class="insights-overview-section" aria-label="Slice motion">
     <div class="insights-overview-section-head">
       <h4 class="insights-overview-section-title">Motion</h4>
-      <p class="insights-overview-section-hint">Where dollars move — direct-prime vs sub/teaming lanes, year-end skew, and top paths.</p>
+      <p class="insights-overview-section-hint">
+        {% if motion_brief.headline %}{{ motion_brief.headline }} — {% endif %}
+        Entry lanes, year-end skew, recompete channels, and top money paths.
+      </p>
     </div>
-    {% if motion_brief.headline or motion_brief.bullets %}
-    <aside class="insights-motion-brief">
-      <p class="insights-slice-brief-kicker">Motion brief</p>
-      <h3 class="insights-motion-brief-headline">{{ motion_brief.headline }}</h3>
-      {% if motion_brief.bullets %}
-      <ul class="insights-slice-brief-bullets">
-        {% for line in motion_brief.bullets %}
-        <li>{{ line }}</li>
-        {% endfor %}
-      </ul>
-      {% endif %}
-      {% if motion_brief.actions %}
-      <ol class="insights-slice-brief-actions">
-        {% for action in motion_brief.actions %}
-        <li>
-          {% if action.kind == 'drill' %}
-          {% with entity_kind=action.entity_kind, entity_scope=action.entity_scope, value=action.value, label=action.label %}
-          {% include "partials/insights_drill_profile_btn.html" %}
-          {% endwith %}
-          {% elif action.kind == 'anchor' %}
-          <a href="{{ action.href }}" class="insights-slice-brief-link">{{ action.label }}</a>
-          {% else %}
-          <span class="insights-slice-brief-hint">{{ action.label }}</span>
-          {% endif %}
-        </li>
-        {% endfor %}
-      </ol>
-      {% endif %}
-    </aside>
-    {% endif %}
     <div class="insights-overview-two-up">
       {% if charts.motion_fy_trend %}
       {% with chart_key='motion_fy_trend', chart_option=charts.motion_fy_trend %}

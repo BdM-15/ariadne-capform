@@ -1,38 +1,85 @@
 {% if has_slice and query %}
-<div class="insights-slice-bar flex flex-wrap items-center gap-2 mb-3 text-[11px]">
-  <span class="text-slate-500 font-mono uppercase tracking-wide shrink-0">Active slice</span>
-  {% if cache_hit and cache_age_seconds is not none %}
-  <span class="pill pill-compact border border-neon-lime/30 text-neon-lime/90 text-[10px]" title="Slice results served from cache — avoids re-querying PG">
-    Cached · {{ cache_age_seconds|round(0)|int }}s ago
-  </span>
-  {% endif %}
-  {% if query.naics_codes %}
-  {% for code in query.naics_codes %}
-  <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">NAICS {{ code }}</span>
-  {% endfor %}
-  {% endif %}
-  {% if query.agency %}
-  <span class="pill pill-compact border border-neon-cyan/40 text-neon-cyan">Agency: {{ query.agency }}</span>
-  {% endif %}
-  {% if query.sub_agency %}
-  <span class="pill pill-compact border border-neon-cyan/30 text-neon-cyan/90">Sub: {{ query.sub_agency }}</span>
-  {% endif %}
-  {% if query.recipient %}
-  <span class="pill pill-compact border border-neon-lime/40 text-neon-lime">Recipient: {{ query.recipient }}</span>
-  {% endif %}
-  {% if query.psc_codes %}
-  {% for code in query.psc_codes %}
-  <span class="pill pill-compact border border-edge text-slate-400">PSC {{ code }}</span>
-  {% endfor %}
-  {% endif %}
-  {% if query.awarding_office %}
-  <span class="pill pill-compact border border-edge text-slate-400">Office: {{ query.awarding_office }}</span>
-  {% endif %}
-  {% if query.recipient_uei %}
-  <span class="pill pill-compact border border-edge text-slate-400">UEI: {{ query.recipient_uei }}</span>
-  {% endif %}
-  {% if query.pop_state %}
-  <span class="pill pill-compact border border-edge text-slate-400">POP: {{ query.pop_state }}</span>
+<div class="insights-slice-bar" role="region" aria-label="Slice context">
+  <div class="insights-slice-bar-main">
+    <span class="insights-slice-bar-label">Slice</span>
+    <span class="insights-slice-bar-summary font-mono text-slate-400">
+      {% if query.naics_codes %}NAICS {{ query.naics_codes|join(', ') }}{% endif %}
+      {% if explore.rows|length %} · {{ explore.rows|length }} expiring in list{% endif %}
+      {% if overview_verdict.cards %}
+      {% set recompete_card = (overview_verdict.cards|selectattr('id', 'equalto', 'recompete')|list|first) %}
+      {% if recompete_card %} · pipe {{ recompete_card.value }}{% endif %}
+      {% endif %}
+    </span>
+    {% if cache_hit and cache_age_seconds is not none %}
+    <span class="insights-slice-bar-cache" title="Cached slice — Re-run slice to refresh PG">
+      cached {{ cache_age_seconds|round(0)|int }}s
+    </span>
+    {% endif %}
+  </div>
+  <div class="insights-slice-bar-facets">
+    {% if query.agency %}
+    <span class="pill pill-compact border border-neon-cyan/40 text-neon-cyan">{{ query.agency }}</span>
+    {% endif %}
+    {% if query.recipient %}
+    <span class="pill pill-compact border border-neon-lime/40 text-neon-lime">{{ query.recipient }}</span>
+    {% endif %}
+    {% if query.sub_agency %}
+    <span class="pill pill-compact border border-edge text-slate-400">{{ query.sub_agency }}</span>
+    {% endif %}
+    {% for code in query.psc_codes or [] %}
+    <span class="pill pill-compact border border-edge text-slate-500">PSC {{ code }}</span>
+    {% endfor %}
+  </div>
+  {% if active_lens == 'overview' and overview_ready and slice_explain %}
+  <form
+    id="insights-slice-explain-form"
+    class="insights-slice-explain-form"
+    hx-post="/partials/insights/explain-slice"
+    hx-target="#insights-slice-explain-mount"
+    hx-swap="innerHTML"
+    hx-indicator="#insights-slice-explain-working"
+    hx-include="#insights-radar-form, #insights-entity-state"
+  >
+    <input type="hidden" name="lens" value="overview" />
+    <input type="hidden" name="run" value="1" />
+    <fieldset class="insights-slice-explain-providers">
+      <legend class="insights-slice-explain-sr">LLM provider</legend>
+      <label class="insights-slice-explain-provider">
+        <input
+          type="radio"
+          name="llm_provider"
+          value="cloud"
+          {% if slice_explain.cloud_configured %}checked{% else %}disabled{% endif %}
+        />
+        <span>Cloud</span>
+        <span class="insights-slice-explain-provider-meta">{{ slice_explain.cloud_model }}</span>
+      </label>
+      <label class="insights-slice-explain-provider">
+        <input
+          type="radio"
+          name="llm_provider"
+          value="local"
+          {% if not slice_explain.cloud_configured and slice_explain.local_reachable %}checked{% endif %}
+          {% if not slice_explain.local_enabled or not slice_explain.local_reachable %}disabled{% endif %}
+        />
+        <span>Local</span>
+        <span class="insights-slice-explain-provider-meta">{{ slice_explain.local_model }}</span>
+      </label>
+    </fieldset>
+    <button
+      type="submit"
+      class="btn btn-soft btn-compact text-[10px]"
+      {% if not slice_explain.cloud_configured and not slice_explain.local_reachable %}disabled{% endif %}
+    >
+      Explain slice
+    </button>
+    <span id="insights-slice-explain-working" class="htmx-indicator insights-slice-explain-working">Explaining…</span>
+  </form>
   {% endif %}
 </div>
+{% if active_lens == 'overview' and overview_ready %}
+<div id="insights-slice-explain-mount" class="insights-slice-explain-mount">
+  {% include "partials/insights_slice_explain_panel.html" %}
+</div>
+{% endif %}
 {% endif %}

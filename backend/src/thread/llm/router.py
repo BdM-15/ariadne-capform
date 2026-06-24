@@ -48,6 +48,26 @@ class CompletionResult:
     model: str
 
 
+def resolve_provider_choice(settings: Settings, choice: str) -> ResolvedProvider:
+    """Explicit operator pick for on-demand synthesis — cloud (xAI) or local (Ollama)."""
+    normalized = (choice or "cloud").strip().lower()
+    if normalized in ("local", "ollama"):
+        if not settings.local_admin_model_enabled:
+            raise LlmUnavailableError(
+                "Local LLM disabled — set LOCAL_ADMIN_MODEL_ENABLED=true and run Ollama."
+            )
+        return _ollama_provider(settings)
+    if not settings.xai_api_key:
+        raise LlmUnavailableError("Cloud LLM requires XAI_API_KEY in .env.")
+    return ResolvedProvider(
+        provider=LlmProvider.XAI,
+        model=settings.reasoning_llm_model,
+        base_url=settings.xai_base_url.rstrip("/"),
+        api_key=settings.xai_api_key,
+        temperature=settings.llm_model_temperature,
+    )
+
+
 def resolve_provider(settings: Settings, task_kind: LlmTaskKind) -> ResolvedProvider:
     """Pick provider + model for task. Reasoning -> xAI; admin -> Ollama; fallback when allowed."""
     if task_kind is LlmTaskKind.REASONING:
@@ -182,9 +202,13 @@ async def complete(
     max_tokens: int | None = None,
     temperature: float | None = None,
     client: httpx.AsyncClient | None = None,
+    provider_choice: str | None = None,
 ) -> CompletionResult:
     """Run chat completion via resolved provider. Outputs stay candidate until review gate."""
-    resolved = resolve_provider(settings, task_kind)
+    if provider_choice:
+        resolved = resolve_provider_choice(settings, provider_choice)
+    else:
+        resolved = resolve_provider(settings, task_kind)
     token_limit = max_tokens or settings.llm_max_output_tokens
     temp = temperature if temperature is not None else resolved.temperature
 

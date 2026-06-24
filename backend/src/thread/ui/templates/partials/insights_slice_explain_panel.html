@@ -1,0 +1,16 @@
+{% if slice_explain_error %}
+<div class="insights-slice-explain-panel insights-slice-explain-error">
+  <p class="m-0 text-[11px] text-neon-amber">{{ slice_explain_error }}</p>
+</div>
+{% elif slice_explain_text %}
+<div class="insights-slice-explain-panel">
+  <div class="insights-slice-explain-panel-head">
+    <span class="insights-slice-explain-panel-kicker">Slice narrative</span>
+    {% if slice_explain_model %}
+    <span class="insights-slice-explain-panel-meta font-mono">{{ slice_explain_provider }} · {{ slice_explain_model }}</span>
+    {% endif %}
+    <span class="insights-slice-explain-panel-note text-slate-600">On-demand · grounded on slice JSON</span>
+  </div>
+  <div class="vault-markdown-host markdown insights-slice-explain-body" data-vault-markdown>{{ slice_explain_text }}</div>
+</div>
+{% endif %}

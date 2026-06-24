@@ -18,6 +18,7 @@ from thread.services.insights_explore import (
 )
 from thread.intel import pg_queries as intel_queries
 from thread.services.insights_overview import OverviewResult, build_overview, overview_capture_verdict
+from thread.services.insights_slice_explain import SliceExplainAvailability, slice_explain_availability
 
 INSIGHTS_LENS_TABS: tuple[dict[str, str], ...] = (
     {"id": "overview", "label": "Overview"},
@@ -52,6 +53,7 @@ class SlicePanelContext:
     entity_error: str | None
     cache_hit: bool
     cache_age_seconds: float | None
+    slice_explain: SliceExplainAvailability | None = None
 
 
 def facet_form_from_params(
@@ -217,8 +219,12 @@ async def build_slice_panel(
             expiring_rows=explore.rows,
         )
         if overview_result.status == "ready"
-        else {"cards": (), "brief": {}, "shipley": ()}
+        else {"cards": (), "shipley": ()}
     )
+
+    explain_avail: SliceExplainAvailability | None = None
+    if has_slice and overview_result.status == "ready":
+        explain_avail = await slice_explain_availability(settings)
 
     return SlicePanelContext(
         facet_form=facet_form,
@@ -248,4 +254,5 @@ async def build_slice_panel(
         entity_error=entity_result.error,
         cache_hit=cache_hit,
         cache_age_seconds=cache_age_seconds,
+        slice_explain=explain_avail,
     )

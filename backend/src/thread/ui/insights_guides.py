@@ -17,9 +17,9 @@ INSIGHTS_PAGE_GUIDE: dict[str, Any] = {
         "or incumbent/competitor positioning before Watch or Track."
     ),
     "output": (
-        "Verdict metric cards, capture-intensity scatter, slice brief with suggested "
-        "actions, expiring contract rows (award drawer, Watch → Pulse), and entity "
-        "profiles on Agency / Competitor tabs."
+        "Verdict metric cards, capture-intensity scatter, Shipley MS1 gates, optional "
+        "Explain slice (cloud or local LLM), expiring rows (award drawer, Watch → Pulse), "
+        "and entity profiles on Agency / Competitor tabs."
     ),
     "context_impact": (
         "No platform default filter — you must set at least one facet and click "
@@ -29,8 +29,8 @@ INSIGHTS_PAGE_GUIDE: dict[str, Any] = {
     "how_to_use": [
         "Set NAICS, agency, recipient, or a combo in the Slice navigator (More facets for PSC, office, UEI, set-aside).",
         "Click Run slice (~30–90s). Lens tabs activate after the first successful query.",
-        "Start on Overview — verdict cards, slice brief, capture-intensity scatter, Shipley MS1 gates (pursue/monitor/defer), then Motion (entry-lane brief, FY pulse, channel stack, Q4 skew, teaming targets), Market access, and Competitive sections.",
-        "Drill a hot agency (agency-first) or top contractor via brief actions or chart clicks.",
+        "Start on Overview — slice context bar, metric cards, capture-intensity scatter, Shipley gates, then Motion charts. Use Explain slice (Grok or Ollama) for a narrative when you want prose.",
+        "Drill a hot agency (agency-first) or top contractor via Shipley actions, chart clicks, or scatter.",
         "Open expiring rows for contract profile; Watch adds potential to Pulse (Watch ≠ Track).",
         "Switch to Agency or Competitor for entity-scoped charts and expiring lists.",
     ],
