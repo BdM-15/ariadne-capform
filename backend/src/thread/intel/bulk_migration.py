@@ -384,7 +384,7 @@ def ensure_intel_indexes(settings: Settings) -> None:
         ),
         (
             f"CREATE INDEX IF NOT EXISTS idx_intel_prime_naics_agency "
-            f"ON {PRIME_TABLE}(naics_code, awarding_agency_name)"
+            f"ON {PRIME_TABLE}(naics_code, parent_award_agency_name)"
         ),
     ]
     _append_log(settings, "building analytics indexes (may take 30+ minutes on full dataset)...")
@@ -402,6 +402,10 @@ def ensure_intel_indexes(settings: Settings) -> None:
                 except psycopg.Error as exc:
                     if SUB_TABLE in stmt and "does not exist" in str(exc):
                         _append_log(settings, f"skip sub index — table not loaded yet: {exc}")
+                        continue
+                    # ponytail: bad column name must not abort the rest — indexes-only is additive
+                    if exc.sqlstate == "42703":
+                        _append_log(settings, f"skip index — column missing: {exc}")
                         continue
                     raise
     sp = state_path(settings)

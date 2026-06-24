@@ -531,7 +531,7 @@ Thread **COPY-loads raw USAspending bulk CSV** with type casts + derived `fy`/`q
 | Missing NAICS | 15,632 | Small — acceptable for MVP |
 | Sub null `prime_awardee_name` | 6,570 | FFATA raw — Clew teaming joins need `COALESCE` or cleanup view |
 
-**Indexes present:** `naics_code`, `(naics_code, pop_end)`, `(naics_code, modification_number)`, `(naics_code, awarding_office_name)`, `(naics_code, awarding_agency_name)`, `awarding_office_name`, `modification_number`, `action_date`, `recipient_uei`, `recipient_name`, `pop_end`, award/txn keys, sub name + `prime_award_unique_key`.
+**Indexes present:** `naics_code`, `(naics_code, pop_end)`, `(naics_code, modification_number)`, `(naics_code, awarding_office_name)`, `(naics_code, parent_award_agency_name)`, `awarding_office_name`, `modification_number`, `action_date`, `recipient_uei`, `recipient_name`, `pop_end`, award/txn keys, sub name + `prime_award_unique_key`.
 
 **2026-06-24 `--indexes-only`:** adds composite NAICS/office indexes above — safe to re-run; tail `.thread/intel_migration.log`. **Still defer:** `pg_trgm` GIN for leading-wildcard agency ILIKE; analytics matviews.
 
