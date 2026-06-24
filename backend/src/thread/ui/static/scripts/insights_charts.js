@@ -58,18 +58,11 @@
 
   function requestSliceDrill(field, value, meta) {
     if (intensityDrillLock) return;
-    var form = document.getElementById("insights-radar-form");
     var values = sliceDrillValues(field, value, meta);
-    if (!form || !values || !window.htmx) return;
+    if (!values || !window.postInsightsSlice) return;
     intensityDrillLock = true;
-    if (window.showInsightsSliceLoading) window.showInsightsSliceLoading("Opening Agency profile…");
-    // POST + form body — long office names must not ride on a GET URL (truncation drops facets → idle pane).
-    window.htmx.ajax("POST", "/partials/insights/slice", {
-      target: SLICE_TARGET,
-      swap: "outerHTML",
-      source: form,
-      values: values,
-      indicator: "#insights-slice-loading",
+    window.postInsightsSlice(values, "Opening Agency profile…").finally(function () {
+      if (window.releaseIntensityDrillLock) window.releaseIntensityDrillLock();
     });
   }
 

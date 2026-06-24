@@ -98,6 +98,70 @@
     return document.getElementById("insights-radar-form");
   }
 
+  function afterInsightsStageSwap() {
+    clearLoadingStatus();
+    var stage = document.getElementById("insights-stage-content");
+    if (stage) stage.classList.remove("is-loading");
+    var lensInput = document.getElementById("insights-active-lens");
+    if (lensInput && stage && stage.dataset.activeLens) lensInput.value = stage.dataset.activeLens;
+    window.persistInsightsSession();
+    if (window.initInsightsPage) window.initInsightsPage();
+    if (window.htmx && stage) window.htmx.process(stage);
+  }
+
+  // ponytail: fetch+FormData — htmx.ajax({source:form}) does not hx-include facet fields on POST
+  window.postInsightsSlice = function (extra, loadingMsg) {
+    var form = insightsForm();
+    if (!form) return Promise.reject(new Error("Slice form missing"));
+    var fd = new FormData(form);
+    fd.set("run", "1");
+    Object.keys(extra || {}).forEach(function (key) {
+      var val = extra[key];
+      if (val != null && String(val).length) fd.set(key, String(val));
+    });
+    if (extra && extra.lens) {
+      var lensInput = document.getElementById("insights-active-lens");
+      if (lensInput) lensInput.value = extra.lens;
+    }
+    if (extra && extra.entity_value) {
+      var root = entityState();
+      if (root) {
+        var kindInput = root.querySelector('input[name="entity_kind"]');
+        var valueInput = root.querySelector('input[name="entity_value"]');
+        var scopeInput = root.querySelector('input[name="entity_scope"]');
+        if (kindInput && extra.entity_kind) kindInput.value = extra.entity_kind;
+        if (valueInput) valueInput.value = extra.entity_value;
+        if (scopeInput && extra.entity_scope) scopeInput.value = extra.entity_scope;
+      }
+    }
+    if (loadingMsg) setStageStatus(loadingMsg, "loading");
+    var stage = document.getElementById("insights-stage-content");
+    if (stage) stage.classList.add("is-loading");
+    return fetch("/partials/insights/slice", {
+      method: "POST",
+      body: fd,
+      headers: { "HX-Request": "true" },
+      credentials: "same-origin",
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.text();
+      })
+      .then(function (html) {
+        var target = document.getElementById("insights-stage-content");
+        if (!target) throw new Error("Stage missing");
+        target.outerHTML = html;
+        afterInsightsStageSwap();
+      })
+      .catch(function (err) {
+        clearLoadingStatus();
+        var stage = document.getElementById("insights-stage-content");
+        if (stage) stage.classList.remove("is-loading");
+        setStageStatus("Could not load lens — " + (err.message || "network error"), "error");
+        throw err;
+      });
+  };
+
   function entityState() {
     return document.getElementById("insights-entity-state");
   }
@@ -452,6 +516,21 @@
     }, true);
 
     document.body.addEventListener("click", function (event) {
+      var drill = event.target.closest("[data-insights-drill]");
+      if (drill) {
+        event.preventDefault();
+        if (window.releaseIntensityDrillLock) window.releaseIntensityDrillLock();
+        window.postInsightsSlice(
+          {
+            lens: drill.getAttribute("data-lens") || "agency",
+            entity_kind: drill.getAttribute("data-entity-kind") || "",
+            entity_value: drill.getAttribute("data-entity-value") || "",
+            entity_scope: drill.getAttribute("data-entity-scope") || "",
+          },
+          "Opening profile…"
+        ).catch(function () {});
+        return;
+      }
       var btn = event.target.closest("button.insights-award-open[data-award-key]");
       var row = event.target.closest("li.insights-result-row.insights-award-open[data-award-key]");
       var key = "";
@@ -484,12 +563,7 @@
       var t = e.detail && e.detail.target;
       if (!t || !isStageSwap(t)) return;
       if (window.releaseIntensityDrillLock) window.releaseIntensityDrillLock();
-      clearLoadingStatus();
-      var stage = document.getElementById("insights-stage-content");
-      var lensInput = document.getElementById("insights-active-lens");
-      if (lensInput && stage && stage.dataset.activeLens) lensInput.value = stage.dataset.activeLens;
-      window.persistInsightsSession();
-      initInsightsPage();
+      afterInsightsStageSwap();
       if (t.id === "insights-body") {
         mountOverlaysOnBody();
         bindClearButton();
