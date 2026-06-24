@@ -150,6 +150,7 @@ async def run_slice_overview(
     motion_parent = await set_aside_parent_shadow(session, facet_sql, facet_params)
     motion_expiring = await expiring_capture_channels(session, facet_sql, facet_params)
     motion_paths = await motion_money_paths(session, facet_sql, facet_params)
+    expiring_tl = await expiring_timeline(session, facet_sql, facet_params)
 
     result: dict[str, Any] = {
         "status": "ready",
@@ -170,6 +171,7 @@ async def run_slice_overview(
             "expiring_channels": motion_expiring,
             "money_paths": motion_paths,
         },
+        "expiring_timeline": expiring_tl,
         "summary": "Slice overview",
     }
     _OVERVIEW_CACHE[cache_key] = (time.monotonic(), dict(result))
@@ -492,6 +494,60 @@ async def expiring_capture_channels(
         for r in rows
     ]
     return _normalize_channel_rows(raw)
+
+
+async def expiring_timeline(
+    session: AsyncSession,
+    facet_sql: str,
+    facet_params: dict[str, Any],
+    *,
+    months_ahead: int = 18,
+) -> dict[str, Any]:
+    """Monthly buckets of expiring obligation $ and action count (18-mo window)."""
+    sql = f"""
+        SELECT
+            to_char(date_trunc('month', period_of_performance_current_end_date), 'YYYY-MM') AS month,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE period_of_performance_current_end_date IS NOT NULL
+          AND period_of_performance_current_end_date <= CURRENT_DATE + (:months_ahead || ' months')::interval
+          AND period_of_performance_current_end_date >= CURRENT_DATE
+          {facet_sql}
+        GROUP BY date_trunc('month', period_of_performance_current_end_date)
+        ORDER BY month ASC
+    """
+    params = {**facet_params, "months_ahead": str(months_ahead)}
+    rows = (await session.execute(text(sql), params)).all()
+    buckets = [
+        {
+            "month": str(r.month),
+            "actions": int(r.actions),
+            "millions": float(r.millions or 0),
+        }
+        for r in rows
+    ]
+    if not buckets:
+        return {"buckets": [], "peak_millions": 0.0, "insight": ""}
+
+    peak = max(buckets, key=lambda b: b["millions"])
+    peak_label = peak["month"]
+    try:
+        year, mon = peak_label.split("-")
+        month_names = ("", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+        peak_label = f"{month_names[int(mon)]} {year}"
+    except (ValueError, IndexError):
+        pass
+    insight = (
+        f"Peak cluster {peak_label} — ${peak['millions']:.1f}M across {peak['actions']} actions"
+        if peak["millions"] > 0
+        else ""
+    )
+    return {
+        "buckets": buckets,
+        "peak_millions": float(peak["millions"]),
+        "insight": insight,
+    }
 
 
 async def motion_money_paths(
@@ -834,6 +890,125 @@ def _agency_shape_gate(non_fixed_pct: float, expiring_non_fixed: int) -> str:
     return "defer"
 
 
+def _award_shape_gate(
+    *,
+    pricing_bucket: str,
+    agency_non_fixed_pct: float,
+    pressure_tier: str,
+    obligation_millions: float,
+    pricing_label: str,
+) -> tuple[str | None, str | None]:
+    """Per-award shape gate for expiring rows — None for firm-fixed awards."""
+    if pricing_bucket == "firm_fixed":
+        return None, None
+    oblig_m = float(obligation_millions or 0)
+    if agency_non_fixed_pct >= 35 and oblig_m >= 0.5:
+        return (
+            "shape_now",
+            f"Non-fixed ({pricing_label}) expiring at agency with {agency_non_fixed_pct}% "
+            "flexible pricing — early shaping window",
+        )
+    if agency_non_fixed_pct >= 25 or pressure_tier in ("high", "moderate"):
+        return "monitor", "Flexible pricing recompete — watch for shift toward fixed-price terms"
+    return "watch", "Non-fixed expiring award — lower agency pressure in slice"
+
+
+async def agency_pricing_pressure(
+    session: AsyncSession,
+    facet_sql: str,
+    facet_params: dict[str, Any],
+    *,
+    agency_limit: int = 50,
+) -> dict[str, dict[str, Any]]:
+    """Agency-level non-fixed pricing share — shared by FFP radar and expiring row badges."""
+    sql = f"""
+        WITH bucketed AS (
+            SELECT
+                ({AGENCY_EXPR}) AS agency,
+                ({PRICING_BUCKET_EXPR}) AS pricing_bucket,
+                federal_action_obligation AS oblig
+            FROM {PRIME_TABLE}
+            WHERE 1=1
+              {facet_sql}
+        ),
+        agency_totals AS (
+            SELECT agency, SUM(oblig) AS total_oblig
+            FROM bucketed
+            GROUP BY agency
+            HAVING SUM(oblig) > 0
+        ),
+        agency_buckets AS (
+            SELECT agency, pricing_bucket, SUM(oblig) AS bucket_oblig
+            FROM bucketed
+            GROUP BY agency, pricing_bucket
+        )
+        SELECT
+            tot.agency,
+            {round_numeric("tot.total_oblig / 1000000.0")} AS total_millions,
+            bk.pricing_bucket,
+            {round_numeric("bk.bucket_oblig / 1000000.0")} AS millions
+        FROM agency_totals tot
+        JOIN agency_buckets bk ON bk.agency = tot.agency
+        ORDER BY tot.total_oblig DESC NULLS LAST
+    """
+    rows = (await session.execute(text(sql), facet_params)).all()
+    agency_map: dict[str, dict[str, float]] = {}
+    total_lookup: dict[str, float] = {}
+    for r in rows:
+        agency = r.agency
+        if agency not in agency_map:
+            agency_map[agency] = {}
+            total_lookup[agency] = float(r.total_millions or 0)
+        agency_map[agency][str(r.pricing_bucket)] = float(r.millions or 0)
+
+    lookup: dict[str, dict[str, Any]] = {}
+    for agency, buckets in sorted(
+        agency_map.items(),
+        key=lambda x: total_lookup.get(x[0], 0),
+        reverse=True,
+    )[:agency_limit]:
+        total = total_lookup.get(agency, 0) or 1.0
+        non_fixed_m = sum(
+            buckets.get(k, 0)
+            for k in ("cost_reimbursement", "time_materials", "performance_based", "other")
+        )
+        non_fixed_pct = round((non_fixed_m / total) * 100, 1)
+        lookup[agency] = {
+            "non_fixed_pct": non_fixed_pct,
+            "pressure_tier": _pressure_tier(non_fixed_pct),
+        }
+    return lookup
+
+
+async def enrich_expiring_rows_shape_gates(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Attach shape_gate + shape_reason to expiring contract rows (in-place copy)."""
+    if not rows or not query.has_filters():
+        return rows
+    facet_sql, facet_params = build_facet_sql(query)
+    pressure = await agency_pricing_pressure(session, facet_sql, facet_params)
+    enriched: list[dict[str, Any]] = []
+    for row in rows:
+        copy = dict(row)
+        agency = str(copy.get("agency") or "")
+        agency_info = pressure.get(agency, {})
+        gate, reason = _award_shape_gate(
+            pricing_bucket=str(copy.get("pricing_bucket") or "other"),
+            agency_non_fixed_pct=float(agency_info.get("non_fixed_pct") or 0),
+            pressure_tier=str(agency_info.get("pressure_tier") or "low"),
+            obligation_millions=float(copy.get("obligation") or 0) / 1_000_000.0,
+            pricing_label=str(copy.get("pricing") or "Unknown"),
+        )
+        if gate:
+            copy["shape_gate"] = gate
+            copy["shape_reason"] = reason
+        enriched.append(copy)
+    return enriched
+
+
 async def agency_recipient_matrix(
     session: AsyncSession,
     query: InsightFacetQuery,
@@ -1153,24 +1328,18 @@ async def ffp_shaping_radar(
 
     shape_targets: list[dict[str, Any]] = []
     for er in expiring_rows:
-        if er.pricing_bucket == "firm_fixed":
-            continue
         agency_non_fixed = agency_pct_lookup.get(er.agency, 0)
         pressure_tier = agency_tier_lookup.get(er.agency, "low")
         oblig_m = float(er.obligation_millions or 0)
-
-        if agency_non_fixed >= 35 and oblig_m >= 0.5:
-            shape_gate = "shape_now"
-            shape_reason = (
-                f"Non-fixed ({er.pricing}) expiring at agency with {agency_non_fixed}% "
-                "flexible pricing — early shaping window"
-            )
-        elif agency_non_fixed >= 25 or pressure_tier in ("high", "moderate"):
-            shape_gate = "monitor"
-            shape_reason = "Flexible pricing recompete — watch for shift toward fixed-price terms"
-        else:
-            shape_gate = "watch"
-            shape_reason = "Non-fixed expiring award — lower agency pressure in slice"
+        shape_gate, shape_reason = _award_shape_gate(
+            pricing_bucket=str(er.pricing_bucket or "other"),
+            agency_non_fixed_pct=agency_non_fixed,
+            pressure_tier=pressure_tier,
+            obligation_millions=oblig_m,
+            pricing_label=str(er.pricing or "Unknown"),
+        )
+        if not shape_gate:
+            continue
 
         shape_targets.append({
             "award_key": er.contract_award_unique_key,

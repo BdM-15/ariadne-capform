@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from thread.config import Settings
 from thread.intel.slice_cache import get_cached_explore_rows, store_cached_explore_rows
 from thread.intel import pg_queries as intel_queries
+from thread.intel.charts import enrich_expiring_rows_shape_gates
 from thread.intel.facet_query import ADVANCED_FACET_FIELDS, InsightFacetQuery, describe_query, query_from_dict
 from thread.intel.sam_query import SamMonitorQuery, describe_sam_query, query_from_dict as sam_from_dict
 from thread.mcp.service import MCPService
@@ -203,11 +204,17 @@ async def explore_radar(
             summary = describe_query(query)
             if entity and entity.is_active():
                 summary = f"{entity.display_label} · {summary}"
-            status = "ready" if cache.explore_rows else "empty"
+            cached_rows = list(cache.explore_rows)
+            explore_query = explore_query_for_entity(query, entity)
+            if explore_query is not None:
+                cached_rows = await enrich_expiring_rows_shape_gates(
+                    session, explore_query, cached_rows
+                )
+            status = "ready" if cached_rows else "empty"
             return RadarExploreResult(
                 query=query,
                 summary=summary,
-                rows=cache.explore_rows,
+                rows=tuple(cached_rows),
                 intel_live=True,
                 status=status,
                 cache_hit=True,
@@ -222,6 +229,7 @@ async def explore_radar(
         months_ahead=18,
         limit=limit,
     )
+    rows = await enrich_expiring_rows_shape_gates(session, explore_query, rows)
     if run:
         store_cached_explore_rows(
             settings,

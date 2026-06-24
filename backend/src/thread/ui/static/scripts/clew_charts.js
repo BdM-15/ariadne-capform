@@ -43,6 +43,21 @@
           " actions"
         );
       };
+    } else if (intelMeta.tooltipTemplate === "expiring_timeline") {
+      option.tooltip = option.tooltip || {};
+      option.tooltip.formatter = function (params) {
+        if (!params || !params.length) return "";
+        var lines = [params[0].axisValue];
+        params.forEach(function (p) {
+          if (p.seriesName === "$ expiring" && p.data) {
+            var acts = p.data.actions != null ? p.data.actions : "—";
+            lines.push(formatMillions(p.data.value) + " expiring · " + acts + " actions");
+          } else if (p.seriesName === "Actions") {
+            lines.push(p.value + " actions (month total line)");
+          }
+        });
+        return lines.join("<br/>");
+      };
     } else if (intelMeta.tooltipTemplate === "motion_fy_trend") {
       option.tooltip = option.tooltip || {};
       option.tooltip.formatter = function (params) {

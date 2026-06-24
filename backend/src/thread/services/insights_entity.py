@@ -25,6 +25,7 @@ from thread.intel.slice_cache import get_cached_entity_profile, store_cached_ent
 from thread.intel.echarts_options import attach_entity_echarts
 from thread.intel.facet_query import InsightFacetQuery, build_facet_sql
 from thread.intel import pg_queries as intel_queries
+from thread.intel.charts import enrich_expiring_rows_shape_gates
 from thread.intel.pg_queries import table_exists
 from thread.intel.sql_expressions import AGENCY_EXPR, PRIME_TABLE, round_numeric
 
@@ -188,12 +189,13 @@ async def fetch_entity_recompete(
     limit: int = 10,
 ) -> list[dict[str, Any]]:
     scoped = scoped_slice_query(slice_query, entity)
-    return await intel_queries.get_expiring_contracts_for_query(
+    rows = await intel_queries.get_expiring_contracts_for_query(
         session,
         scoped,
         months_ahead=months_ahead,
         limit=limit,
     )
+    return await enrich_expiring_rows_shape_gates(session, scoped, rows)
 
 
 def explore_query_for_entity(

@@ -73,12 +73,17 @@ OVERVIEW_CHART_GUIDES: dict[str, dict[str, str]] = {
     "pricing_buckets": {
         "label": "Contract pricing mix",
         "read": "Obligations grouped by pricing type — firm fixed, time & materials, cost-reimbursable, and similar.",
-        "use": "High non-fixed share → contracting style and shaping matter; pair with expiring pipeline in 2c.",
+        "use": "High non-fixed share → contracting style and shaping matter; pair with expiring timeline and shape badges below.",
     },
     "top_recipients": {
         "label": "Top recipients",
         "read": "Largest prime contractors in the slice by obligated dollars.",
         "use": "Click a bar to open a Competitor profile — incumbents, agencies, and expiring awards for that prime.",
+    },
+    "expiring_timeline": {
+        "label": "Expiring timeline",
+        "read": "Monthly buckets of contracts ending in the next 18 months. Cyan bars = obligated $M; amber line = action count.",
+        "use": "Spot recompete clusters before they hit — pair with shape badges on rows below for flexible-pricing shaping windows.",
     },
 }
 

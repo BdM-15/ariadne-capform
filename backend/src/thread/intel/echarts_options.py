@@ -247,6 +247,9 @@ def attach_overview_echarts(overview: dict[str, Any]) -> dict[str, Any]:
     )
     if idv:
         charts["idv_split"] = idv
+    expiring_tl = _expiring_timeline_chart(overview.get("expiring_timeline") or {})
+    if expiring_tl:
+        charts["expiring_timeline"] = expiring_tl
     if charts:
         overview["charts"] = charts
     return overview
@@ -463,6 +466,79 @@ def _horizontal_bar_chart(
             "recipient" if hone_field == "recipient" else ("agency" if hone_field == "agency" else hone_field)
         )
     return chart
+
+
+def _expiring_timeline_chart(payload: dict[str, Any]) -> dict[str, Any] | None:
+    buckets = payload.get("buckets") or []
+    if not buckets:
+        return None
+    labels: list[str] = []
+    for b in buckets:
+        month = str(b.get("month") or "")
+        try:
+            year, mon = month.split("-")
+            month_names = ("", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+            labels.append(f"{month_names[int(mon)]} '{year[2:]}")
+        except (ValueError, IndexError):
+            labels.append(month)
+    millions = [b.get("millions", 0) for b in buckets]
+    actions = [b.get("actions", 0) for b in buckets]
+    return {
+        "backgroundColor": "transparent",
+        "textStyle": {"color": TEXT},
+        "title": _title("Expiring timeline"),
+        "tooltip": {**_tooltip("axis")},
+        "legend": {
+            "top": 28,
+            "data": ["$ expiring", "Actions"],
+            "textStyle": {"color": AXIS, "fontSize": 10},
+        },
+        "grid": _grid(top=72),
+        "xAxis": {
+            "type": "category",
+            "data": labels,
+            "axisLine": {"lineStyle": {"color": GRID}},
+            "axisLabel": {"color": AXIS, "rotate": 35, "fontSize": 9},
+        },
+        "yAxis": [
+            {
+                "type": "value",
+                "name": "$M",
+                "axisLabel": {"color": AXIS},
+                "splitLine": {"lineStyle": {"color": GRID, "type": "dashed"}},
+            },
+            {
+                "type": "value",
+                "name": "Actions",
+                "axisLabel": {"color": AXIS},
+                "splitLine": {"show": False},
+            },
+        ],
+        "series": [
+            {
+                "name": "$ expiring",
+                "type": "bar",
+                "data": [
+                    {"value": m, "actions": actions[i]}
+                    for i, m in enumerate(millions)
+                ],
+                "itemStyle": {"color": CYAN},
+                "barMaxWidth": 28,
+            },
+            {
+                "name": "Actions",
+                "type": "line",
+                "yAxisIndex": 1,
+                "smooth": True,
+                "symbol": "circle",
+                "symbolSize": 6,
+                "data": actions,
+                "lineStyle": {"color": AMBER, "width": 2},
+                "itemStyle": {"color": AMBER},
+            },
+        ],
+        "_intel": {"mode": "expiring_timeline", "tooltipTemplate": "expiring_timeline"},
+    }
 
 
 def _motion_fy_trend_chart(bars: list[dict[str, Any]]) -> dict[str, Any] | None:

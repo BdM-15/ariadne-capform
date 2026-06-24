@@ -8,7 +8,15 @@
   >
     {% if row.award_key %}
     <div class="insights-result-main">
-      <span class="insights-result-title">{{ row.recipient or 'Unknown recipient' }}</span>
+      <span class="insights-result-title-row">
+        <span class="insights-result-title">{{ row.recipient or 'Unknown recipient' }}</span>
+        {% if row.shape_gate %}
+        <span
+          class="insights-shape-badge insights-shape-badge-{{ row.shape_gate|replace('_', '-') }}"
+          title="{{ row.shape_reason or '' }}"
+        >{% if row.shape_gate == 'shape_now' %}Shape now{% elif row.shape_gate == 'monitor' %}Monitor{% else %}Watch{% endif %}</span>
+        {% endif %}
+      </span>
       {% if row.description %}
       <span class="insights-result-desc" title="{{ row.description }}">{{ row.description[:160] }}{% if row.description|length > 160 %}…{% endif %}</span>
       {% elif row.piid %}
@@ -26,7 +34,15 @@
     </div>
     {% else %}
     <div class="insights-result-main">
-      <span class="insights-result-title">{{ row.recipient or 'Unknown recipient' }}</span>
+      <span class="insights-result-title-row">
+        <span class="insights-result-title">{{ row.recipient or 'Unknown recipient' }}</span>
+        {% if row.shape_gate %}
+        <span
+          class="insights-shape-badge insights-shape-badge-{{ row.shape_gate|replace('_', '-') }}"
+          title="{{ row.shape_reason or '' }}"
+        >{% if row.shape_gate == 'shape_now' %}Shape now{% elif row.shape_gate == 'monitor' %}Monitor{% else %}Watch{% endif %}</span>
+        {% endif %}
+      </span>
       <span class="insights-result-desc text-slate-500">No award key — re-run slice</span>
     </div>
     {% endif %}

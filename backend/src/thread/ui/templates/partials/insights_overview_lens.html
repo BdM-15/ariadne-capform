@@ -217,10 +217,19 @@
   </div>
   {% endif %}
   {% if explore.status != 'idle' %}
-  <div id="insights-slice-expiring" class="insights-slice-expiring mt-4 pt-3 border-t border-edge/50">
-    <p class="text-[10px] uppercase tracking-wide text-slate-600 mb-2">Expiring in slice (18 mo)</p>
+  <section id="insights-slice-expiring" class="insights-slice-expiring mt-4 pt-3 border-t border-edge/50" aria-label="Expiring pipeline">
+    <div class="insights-overview-section-head">
+      <h4 class="insights-overview-section-title">Expiring pipeline</h4>
+      <p class="insights-overview-section-hint">18-month recompete window — timeline clusters and per-award shape gates.</p>
+    </div>
+    {% if charts.expiring_timeline %}
+    {% set expiring_insight = (overview.expiring_timeline or {}).get('insight', '') %}
+    {% with chart_key='expiring_timeline', chart_option=charts.expiring_timeline, caption_override=expiring_insight %}
+    {% include "partials/insights_chart_panel.html" %}
+    {% endwith %}
+    {% endif %}
     {% include "partials/insights_radar_explore.html" %}
-  </div>
+  </section>
   {% endif %}
   {% else %}
   <p class="insights-idle-hint">Run slice to load Overview charts.</p>
