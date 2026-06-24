@@ -20,6 +20,7 @@ from thread.intel.sql_expressions import (
     BASE_AWARD_WHERE,
     CAPTURE_CHANNEL_EXPR,
     EXPIRING_CONTRACT_VALUE_EXPR,
+    EXPIRING_MONTHS_AHEAD,
     EXTENT_COMPETED_NORMALIZED_EXPR,
     IDV_FLAG_EXPR,
     PRICING_BUCKET_EXPR,
@@ -120,6 +121,10 @@ async def run_facet_analysis(
     return await recipient_landscape(session, query, limit=limit)
 
 
+INTENSITY_OFFICE_LIMIT = 64
+OVERVIEW_SCHEMA_VERSION = 4  # ponytail: bump when overview/intensity shape changes — invalidates slice cache
+
+
 async def run_slice_overview(
     session: AsyncSession,
     query: InsightFacetQuery,
@@ -141,7 +146,7 @@ async def run_slice_overview(
     facet_sql, facet_params = build_facet_sql(query)
     kpis = await _slice_kpis(session, facet_sql, facet_params)
     spend = await spend_trend(session, query, limit=limit)
-    intensity = await agency_intensity(session, query, limit=limit)
+    intensity = await agency_intensity(session, query, limit=INTENSITY_OFFICE_LIMIT)
     set_aside = await set_aside_breakdown(session, facet_sql, facet_params, limit=limit)
     extent = await extent_competed_breakdown(session, facet_sql, facet_params, limit=limit)
     recipients = await top_recipients(session, query, limit=limit)
@@ -158,6 +163,7 @@ async def run_slice_overview(
     result: dict[str, Any] = {
         "status": "ready",
         "mode": "overview",
+        "schema_version": OVERVIEW_SCHEMA_VERSION,
         "kpis": kpis,
         "spend_trend": spend.get("bars") or [],
         "agency_intensity": intensity,
@@ -476,7 +482,7 @@ async def expiring_capture_channels(
     facet_sql: str,
     facet_params: dict[str, Any],
     *,
-    months_ahead: int = 18,
+    months_ahead: int = EXPIRING_MONTHS_AHEAD,
 ) -> list[dict[str, Any]]:
     sql = f"""
         SELECT
@@ -505,9 +511,9 @@ async def expiring_timeline(
     facet_sql: str,
     facet_params: dict[str, Any],
     *,
-    months_ahead: int = 18,
+    months_ahead: int = EXPIRING_MONTHS_AHEAD,
 ) -> dict[str, Any]:
-    """Monthly buckets of expiring contract $ and base-award count (18-mo window)."""
+    """Monthly buckets of expiring contract $ and base-award count."""
     sql = f"""
         SELECT
             to_char(date_trunc('month', period_of_performance_current_end_date), 'YYYY-MM') AS month,
@@ -732,29 +738,96 @@ async def teaming(
     }
 
 
+def _intensity_quadrant(
+    actions: int,
+    millions: float,
+    *,
+    median_actions: float,
+    median_millions: float,
+) -> str:
+    hi_actions = actions >= median_actions
+    hi_money = millions >= median_millions
+    if hi_actions and hi_money:
+        return "hot"
+    if hi_money:
+        return "high_value"
+    if hi_actions:
+        return "high_volume"
+    return "watch"
+
+
+def _intensity_buyer_grouping(query: InsightFacetQuery) -> tuple[str, str, str, str]:
+    """Awarding office by default — contracting shop is the actionable capture unit."""
+    if query.funding_office and not query.awarding_office:
+        expr = "COALESCE(NULLIF(TRIM(funding_office_name), ''), '(Unspecified office)')"
+        return expr, "funding_office", "office", "Funding office (requirements owner)"
+    expr = "COALESCE(NULLIF(TRIM(awarding_office_name), ''), '(Unspecified office)')"
+    return expr, "awarding_office", "office", "Awarding office (contract actions)"
+
+
 async def agency_intensity(
     session: AsyncSession,
     query: InsightFacetQuery,
     *,
-    limit: int = 20,
+    limit: int = INTENSITY_OFFICE_LIMIT,
 ) -> dict[str, Any]:
     facet_sql, facet_params = build_facet_sql(query)
+    group_expr, hone_field, level, level_label = _intensity_buyer_grouping(query)
     sql = f"""
         SELECT
-            ({AGENCY_NORMALIZED_EXPR}) AS agency,
+            {group_expr} AS label,
+            MAX(COALESCE(NULLIF(TRIM(({AGENCY_NORMALIZED_EXPR})), ''), '')) AS parent_agency,
+            MAX(
+                COALESCE(
+                    NULLIF(TRIM(awarding_sub_agency_name), ''),
+                    NULLIF(TRIM(funding_sub_agency_name), ''),
+                    ''
+                )
+            ) AS parent_sub,
+            COUNT(DISTINCT NULLIF(TRIM(funding_office_name), '')) AS funding_office_count,
             COUNT(*) AS actions,
             {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
         FROM {PRIME_TABLE}
-        WHERE ({AGENCY_NORMALIZED_EXPR}) != ''
+        WHERE {group_expr} != ''
+          AND {group_expr} != '(Unspecified)'
+          AND {group_expr} != '(Unspecified office)'
           {facet_sql}
-        GROUP BY agency
-        ORDER BY millions DESC NULLS LAST
+        GROUP BY label
+        HAVING COUNT(*) > 0
+        ORDER BY millions DESC NULLS LAST, actions DESC NULLS LAST
         LIMIT :limit
     """
+    total_sql = f"""
+        SELECT {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE 1=1 {facet_sql}
+    """
     rows = (await session.execute(text(sql), {**facet_params, "limit": limit})).all()
+    total_row = (await session.execute(text(total_sql), facet_params)).first()
+    slice_total_m = float(total_row.millions or 0) if total_row else 0.0
+    office_count_row = (
+        await session.execute(
+            text(
+                f"""
+                SELECT COUNT(DISTINCT {group_expr}) AS n
+                FROM {PRIME_TABLE}
+                WHERE {group_expr} != ''
+                  AND {group_expr} != '(Unspecified)'
+                  AND {group_expr} != '(Unspecified office)'
+                  {facet_sql}
+                """
+            ),
+            facet_params,
+        )
+    ).first()
+    office_total = int(office_count_row.n or 0) if office_count_row else 0
     points = [
         {
-            "agency": r.agency,
+            "label": str(r.label),
+            "agency": str(r.label),
+            "parent_agency": str(r.parent_agency or ""),
+            "parent_sub": str(r.parent_sub or ""),
+            "funding_office_count": int(r.funding_office_count or 0),
             "actions": int(r.actions),
             "millions": float(r.millions or 0),
         }
@@ -766,14 +839,33 @@ async def agency_intensity(
     median_millions = statistics.median(money_vals) if money_vals else 0
     hot: list[str] = []
     for p in points:
-        p["hot"] = p["actions"] >= median_actions and p["millions"] >= median_millions
+        p["quadrant"] = _intensity_quadrant(
+            p["actions"],
+            p["millions"],
+            median_actions=median_actions,
+            median_millions=median_millions,
+        )
+        p["hot"] = p["quadrant"] == "hot"
+        if slice_total_m > 0:
+            p["share_pct"] = round(100.0 * p["millions"] / slice_total_m, 1)
         if p["hot"]:
-            hot.append(p["agency"])
+            hot.append(p["label"])
     return {
         "points": points,
         "median_actions": median_actions,
         "median_millions": median_millions,
+        "slice_total_millions": slice_total_m,
         "hot_agencies": hot,
+        "hot_labels": hot,
+        "level": level,
+        "level_label": level_label,
+        "hone_field": hone_field,
+        "office_total": office_total,
+        "office_shown": len(points),
+        "caption": (
+            f"Top {len(points)} of {office_total} awarding offices by obligated $. "
+            "Click any dot → Agency profile. Funding-office trace ships in Agency polish (17e-g-a)."
+        ),
     }
 
 

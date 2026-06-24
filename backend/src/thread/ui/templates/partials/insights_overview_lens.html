@@ -25,9 +25,11 @@
   </div>
   {% if charts.intensity %}
   <div id="insights-overview-hero" class="insights-overview-hero-row insights-overview-hero-full">
-    {% with chart_key='intensity', chart_option=charts.intensity, host_class='insights-echarts-hero', panel_class='insights-chart-panel-hero' %}
+    {% set intensity_caption = (overview.agency_intensity or {}).get('caption', '') %}
+    {% with chart_key='intensity', chart_option=charts.intensity, host_class='insights-echarts-hero', panel_class='insights-chart-panel-hero', caption_override=intensity_caption, guide_dialog_id='capture-intensity' %}
     {% include "partials/insights_chart_panel.html" %}
     {% endwith %}
+    {% include "partials/insights_intensity_offices.html" %}
   </div>
   {% endif %}
   {% set shipley_cards = verdict.shipley or [] %}
@@ -166,7 +168,7 @@
   <section id="insights-slice-expiring" class="insights-slice-expiring mt-4 pt-3 border-t border-edge/50" aria-label="Expiring pipeline">
     <div class="insights-overview-section-head">
       <h4 class="insights-overview-section-title">Expiring pipeline</h4>
-      <p class="insights-overview-section-hint">18-month recompete window — timeline clusters and per-award shape gates.</p>
+      <p class="insights-overview-section-hint">24-month recompete window — timeline clusters and per-award shape gates.</p>
     </div>
     {% if charts.expiring_timeline %}
     {% set expiring_insight = (overview.expiring_timeline or {}).get('insight', '') %}

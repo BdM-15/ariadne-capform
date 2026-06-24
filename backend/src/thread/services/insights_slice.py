@@ -17,6 +17,7 @@ from thread.services.insights_explore import (
     explore_radar,
 )
 from thread.intel import pg_queries as intel_queries
+from thread.intel.sql_expressions import EXPIRING_MONTHS_AHEAD
 from thread.services.insights_overview import OverviewResult, build_overview, overview_capture_verdict
 from thread.services.insights_slice_explain import SliceExplainAvailability, slice_explain_availability
 
@@ -43,6 +44,7 @@ class SlicePanelContext:
     overview_idle: bool
     overview_error: str | None
     overview_verdict: dict[str, Any]
+    pipeline_stats: dict[str, int | float]
     explore: RadarExploreResult
     sam_explore: SamExploreResult
     sam_form: dict[str, str]
@@ -224,7 +226,9 @@ async def build_slice_panel(
 
     pipeline_stats: dict[str, int | float] = {"count": 0, "millions": 0.0}
     if has_slice and query is not None and overview_result.status == "ready":
-        pipeline_stats = await intel_queries.expiring_pipeline_stats(session, query, months_ahead=18)
+        pipeline_stats = await intel_queries.expiring_pipeline_stats(
+            session, query, months_ahead=EXPIRING_MONTHS_AHEAD
+        )
     overview_verdict = (
         overview_capture_verdict(
             overview_result.overview,
@@ -251,6 +255,7 @@ async def build_slice_panel(
         overview_idle=overview_result.status == "idle",
         overview_error=overview_result.error,
         overview_verdict=overview_verdict,
+        pipeline_stats=pipeline_stats,
         explore=explore,
         sam_explore=SamExploreResult(
             query=None,

@@ -1,0 +1,22 @@
+{% if ctx.radar_lenses|length > 0 %}
+<div class="insights-facet-bookmarks" aria-label="Saved bookmarks">
+  <span class="insights-facet-bookmarks-label">Saved bookmarks</span>
+  <ul class="insights-facet-bookmark-list">
+    {% for lens in ctx.radar_lenses %}
+    <li>
+      <button
+        type="button"
+        class="insights-facet-bookmark-chip"
+        title="{{ lens.summary }}"
+        hx-get="/partials/insights/slice"
+        hx-target="#insights-stage-content"
+        hx-swap="outerHTML"
+        hx-include="#insights-radar-form"
+        hx-indicator="#insights-slice-loading"
+        hx-vals='{{ lens.open_vals | tojson }}'
+      >{{ lens.query.name }}</button>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}

@@ -15,6 +15,14 @@
       aria-label="{{ tip }}"
     >?</button>
     {% endif %}
+    {% if guide_dialog_id %}
+    <button
+      type="button"
+      class="insights-chart-guide-link"
+      title="Full capture intensity guide"
+      onclick="openGuideDialog('guide-{{ guide_dialog_id }}')"
+    >Guide</button>
+    {% endif %}
   </div>
   {% if caption_override or guide.caption %}
   <p class="insights-chart-caption">{{ caption_override or guide.caption }}</p>

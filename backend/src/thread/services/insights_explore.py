@@ -12,6 +12,7 @@ from thread.intel.slice_cache import get_cached_explore_rows, store_cached_explo
 from thread.intel import pg_queries as intel_queries
 from thread.intel.charts import enrich_expiring_rows_shape_gates
 from thread.intel.facet_query import ADVANCED_FACET_FIELDS, InsightFacetQuery, describe_query, query_from_dict
+from thread.intel.sql_expressions import EXPIRING_MONTHS_AHEAD
 from thread.intel.sam_query import SamMonitorQuery, describe_sam_query, query_from_dict as sam_from_dict
 from thread.mcp.service import MCPService
 from thread.services.insights_entity import EntityContext, entity_from_params, explore_query_for_entity
@@ -240,7 +241,7 @@ async def explore_radar(
     rows = await intel_queries.get_expiring_contracts_for_query(
         session,
         explore_query,
-        months_ahead=18,
+        months_ahead=EXPIRING_MONTHS_AHEAD,
         limit=limit,
     )
     rows = await enrich_expiring_rows_shape_gates(session, explore_query, rows)

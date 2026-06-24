@@ -4,6 +4,45 @@ from __future__ import annotations
 
 from typing import Any
 
+CAPTURE_INTENSITY_GUIDE: dict[str, Any] = {
+    "title": "Capture intensity — how to use it",
+    "accent": "magenta",
+    "purpose": (
+        "Find which contracting offices are worth your BD time in the active facet slice. "
+        "Each dot is an awarding office (KO shop) — not a top-level agency blob."
+    ),
+    "when": (
+        "After you run a NAICS or recipient slice and need to answer: "
+        "which office is both spending and acting in my lane?"
+    ),
+    "output": (
+        "Scatter of top offices by prime action count (X) vs obligated dollars (Y). "
+        "Lime dots in the upper-right quadrant are hot — above median on both axes."
+    ),
+    "context_impact": (
+        "Shows the top 48 offices in your slice (caption shows X of Y total). Log axes kick in "
+        "when spend or action spread is wide (6× or more). Hover shows awarding office, "
+        "primary funding office (customer), agency/component, and quadrant color."
+    ),
+    "how_to_use": [
+        "Run a facet slice (NAICS chip or combo) on Overview — wait for metric cards and the scatter to load.",
+        "Read the lime quadrant first — those offices beat the slice median on both contract actions and obligated $.",
+        "Hover a dot for office name, parent agency/component, % of slice TAM, and quadrant (hot / high $ / high volume / watch).",
+        "Use Filter / Trace on the office rows under the chart (HTMX — do not rely on chart click).",
+        "Trace opens Agency tab for that awarding office — map funding offices via money paths (DR/Clew methods), not scatter hover.",
+        "Pair hot offices with Shipley MS1 gates and expiring rows — qualify before committing B&P.",
+    ],
+    "tips": [
+        "Department of the Army alone is not actionable; ACC-RRAD or a named contracting office is.",
+        "Hover shows the primary funding office (requirements owner) paired to each awarding office.",
+        "Cryptic codes (W6QK, etc.) can be enriched later via SAM Federal Hierarchy API + web research.",
+        "Dot colors: lime = hot, magenta = high $, cyan = high volume, gray = watch.",
+        "High $ / low actions = fewer large awards — different capture motion than high-volume offices.",
+        "If every dot clusters in one corner, widen NAICS or clear office filter and re-run.",
+        "Open the full Data Insights guide (book icon) for the end-to-end slice workflow.",
+    ],
+}
+
 INSIGHTS_PAGE_GUIDE: dict[str, Any] = {
     "title": "Data Insights — slice workflow",
     "accent": "magenta",
@@ -23,19 +62,21 @@ INSIGHTS_PAGE_GUIDE: dict[str, Any] = {
     ),
     "context_impact": (
         "No platform default filter — you must set at least one facet and click "
-        "Run slice. NAICS portfolio chips (saved under Slice → NAICS portfolio) "
-        "are shortcuts only; they do not auto-run. Bookmarks reopen saved facet combos."
+        "Run slice. Quick NAICS chips (Edit quick NAICS under Slice) fill the NAICS "
+        "field only — not saved searches. Bookmarks reopen named facet combos."
     ),
     "how_to_use": [
         "Set NAICS, agency, recipient, or a combo in the Slice navigator (More facets for PSC, office, UEI, set-aside).",
         "Click Run slice (~30–90s). Lens tabs activate after the first successful query.",
-        "Start on Overview — slice context bar, metric cards, capture-intensity scatter, Shipley gates, then Motion charts. Use Explain slice (Grok or Ollama) for a narrative when you want prose.",
-        "Drill a hot agency (agency-first) or top contractor via Shipley actions, chart clicks, or scatter.",
+        "Start on Overview — metric cards, capture-intensity scatter (awarding offices), Shipley gates, then Motion charts.",
+        "Hover scatter dots for quadrant + slice share; click to filter to an office, Shift+click for Agency profile.",
+        "Drill a hot office or top contractor via Shipley actions, chart clicks, or scatter.",
         "Open expiring rows for contract profile; Watch adds potential to Pulse (Watch ≠ Track).",
         "Switch to Agency or Competitor for entity-scoped charts and expiring lists.",
     ],
     "tips": [
-        "Metric card tooltips explain TAM, momentum, recompete pipe, hot agencies, concentration, and set-aside mix.",
+        "Metric card tooltips explain TAM, momentum, recompete pipe, hot buyers, concentration, and set-aside mix.",
+        "Capture intensity chart ? icon is the short tip; open Guide on the chart panel for the full walkthrough.",
         "Phase 2f adds a Footprint lens — operator past performance vs the active slice (KBR R&S UEI + vault domain intel).",
         "Pair with Clew (/clew) for money-path and teaming on the same facets.",
         "Pinpoint award lookups: USAspending MCP on Tools → MCP Servers.",
@@ -141,6 +182,10 @@ INSIGHTS_EXPLORE_GUIDES: dict[str, dict[str, Any]] = {
 
 def guide_for_data_insights() -> dict[str, Any]:
     return dict(INSIGHTS_PAGE_GUIDE)
+
+
+def guide_for_capture_intensity() -> dict[str, Any]:
+    return dict(CAPTURE_INTENSITY_GUIDE)
 
 
 def guide_for_explore(guide_id: str) -> dict[str, Any]:

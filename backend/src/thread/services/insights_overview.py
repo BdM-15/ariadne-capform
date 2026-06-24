@@ -14,17 +14,33 @@ from thread.intel.charts import run_slice_overview
 from thread.intel.echarts_options import attach_overview_echarts
 from thread.intel.slice_cache import get_cached_overview, store_cached_overview
 from thread.intel.facet_query import InsightFacetQuery, describe_query
+from thread.intel.sql_expressions import EXPIRING_MONTHS_AHEAD
 from thread.services.insights_explore import _facet_from_params
 from thread.ui.formatters import format_count, format_money_from_millions
 
 _OPEN_SET_ASIDE_BUCKETS = frozenset({"(Not Applicable)", "NO SET ASIDE USED"})
 
+
+def _intensity_hot_meta(intensity: dict[str, Any]) -> tuple[list[str], str, str]:
+    """Hot buyer labels, drill field, entity scope — aligned with capture-intensity grouping."""
+    hot = list(intensity.get("hot_labels") or intensity.get("hot_agencies") or [])
+    hone = str(intensity.get("hone_field") or "agency")
+    scope = "office" if hone == "awarding_office" else hone
+    return hot, hone, scope
+
+
 # ponytail: chart ? tooltips — read + use strings for Overview ECharts panels
 OVERVIEW_CHART_GUIDES: dict[str, dict[str, str]] = {
     "intensity": {
         "label": "Capture intensity",
-        "read": "Each dot is a funding agency. Horizontal = action count; vertical = obligated $M. Lime dots are above the median on both axes.",
-        "use": "Start agency-first: click a lime (hot) agency to open its profile and expiring list.",
+        "read": (
+            "Each dot is an awarding office (contracting shop) in your slice — not a department name. "
+            "Log axes when spread is wide. Lime quadrant = above median on both prime actions and obligated $M."
+        ),
+        "use": (
+            "Click a dot → Agency profile. Hover for funding-office count + quadrant. "
+            "Colors: lime hot · magenta high $ · cyan high vol."
+        ),
     },
     "motion_fy_trend": {
         "label": "FY obligation pulse",
@@ -43,7 +59,7 @@ OVERVIEW_CHART_GUIDES: dict[str, dict[str, str]] = {
     },
     "motion_expiring_channels": {
         "label": "Recompete channel split",
-        "read": "Expiring pipeline (18 mo) broken into the same entry channels as historical TAM.",
+        "read": f"Expiring pipeline ({EXPIRING_MONTHS_AHEAD} mo) broken into the same entry channels as historical TAM.",
         "use": "Compare to the channel stack — upcoming recompetes may be vehicle-gated or set-aside even when historical TAM looked open.",
     },
     "motion_parent_shadow": {
@@ -83,7 +99,10 @@ OVERVIEW_CHART_GUIDES: dict[str, dict[str, str]] = {
     },
     "expiring_timeline": {
         "label": "Expiring timeline",
-        "read": "Monthly buckets of base contracts/orders ending in the next 18 months (modification_number = 0). Cyan bars = contract $M; amber line = contract count.",
+        "read": (
+            f"Monthly buckets of base contracts/orders ending in the next {EXPIRING_MONTHS_AHEAD} months "
+            "(modification_number = 0). Cyan bars = contract $M; amber line = contract count."
+        ),
         "use": "Spot recompete clusters before they hit — pair with shape badges on rows below for flexible-pricing shaping windows.",
     },
 }
@@ -245,7 +264,8 @@ def overview_shipley_cards(
     vehicle_pct = float(motion_brief.get("vehicle_pct") or 0)
     teaming = list(motion_brief.get("teaming_targets") or [])
     intensity = overview.get("agency_intensity") or {}
-    hot_agencies: list[str] = list(intensity.get("hot_agencies") or [])
+    hot_agencies, _, entity_scope = _intensity_hot_meta(intensity)
+    level_label = str(intensity.get("level_label") or "buyer")
 
     recompete_count = int(pipeline.get("count") or 0)
     recompete_m = float(pipeline.get("millions") or 0)
@@ -282,9 +302,11 @@ def overview_shipley_cards(
     if vehicle_pct >= 25:
         prime_bullets.append(f"{vehicle_pct:.0f}% IDV/vehicle-gated — vehicle position required for much of TAM.")
     if hot_agencies:
-        prime_bullets.append(f"Hot agency: {hot_agencies[0][:48]} — start agency-first qualification.")
+        prime_bullets.append(
+            f"Hot {level_label.lower()}: {hot_agencies[0][:48]} — click the lime dot to hone deeper."
+        )
     elif direct_pct < 20:
-        prime_bullets.append("Capture-intensity scatter shows no clear agency lead — widen facets or pair with Clew.")
+        prime_bullets.append("Capture-intensity scatter shows no clear buyer lead — widen facets or pair with Clew.")
 
     prime_action: dict[str, Any] = {"label": "Open capture-intensity scatter", "kind": "anchor", "href": "#insights-overview-hero"}
     if hot_agencies:
@@ -292,7 +314,7 @@ def overview_shipley_cards(
             "label": f"Profile {hot_agencies[0][:40]}",
             "kind": "drill",
             "entity_kind": "agency",
-            "entity_scope": "agency",
+            "entity_scope": entity_scope,
             "value": hot_agencies[0],
         }
 
@@ -391,7 +413,7 @@ def overview_shipley_cards(
         clock_headline = f"{len(hot_rows)} hot ≤6 mo in sample — recompete clock is running"
     elif recompete_count > 0:
         clock_gate = "monitor"
-        clock_headline = f"{recompete_count:,} expiring · ${recompete_m:.1f}M in 18 mo"
+        clock_headline = f"{recompete_count:,} expiring · ${recompete_m:.1f}M in {EXPIRING_MONTHS_AHEAD} mo"
     else:
         clock_gate = "defer"
         clock_headline = "No expiring matches in window — widen facets or horizon"
@@ -442,7 +464,8 @@ def overview_capture_verdict(
     kpis = overview.get("kpis") or {}
     tam = float(kpis.get("millions") or 0)
     intensity = overview.get("agency_intensity") or {}
-    hot_agencies: list[str] = list(intensity.get("hot_agencies") or [])
+    hot_agencies, _, _ = _intensity_hot_meta(intensity)
+    level_label = str(intensity.get("level_label") or "buyer")
     spend_bars: list[dict[str, Any]] = list(overview.get("spend_trend") or [])
     recipients: list[dict[str, Any]] = list(overview.get("top_recipients") or [])
     set_aside_rows: list[dict[str, Any]] = list(overview.get("set_aside") or [])
@@ -505,20 +528,20 @@ def overview_capture_verdict(
             "id": "recompete",
             "label": "Recompete pipe",
             "value": format_money_from_millions(recompete_m),
-            "hint": f"{format_count(recompete_count)} contracts · 18 mo",
+            "hint": f"{format_count(recompete_count)} contracts · {EXPIRING_MONTHS_AHEAD} mo",
             "tooltip": (
-                "Contracts ending in the next 18 months that match your facets — "
+                f"Contracts ending in the next {EXPIRING_MONTHS_AHEAD} months that match your facets — "
                 "obligation total and count across the full slice, not just the list below."
             ),
         },
         {
             "id": "hot_agencies",
-            "label": "Hot agencies",
+            "label": "Hot buyers",
             "value": str(len(hot_agencies)),
-            "hint": "Above median spend & volume",
+            "hint": f"Above median · {level_label}",
             "tooltip": (
-                "Funding agencies above the capture-intensity median on both spend "
-                "and action volume — start agency-first qualification here."
+                f"{level_label}s in the lime quadrant of the capture-intensity scatter — "
+                "above median on both obligated dollars and prime action count."
             ),
         },
         {
@@ -645,9 +668,17 @@ async def build_overview(
             error="PG intel not ready — resume migration.",
         )
 
+    from thread.intel.charts import OVERVIEW_SCHEMA_VERSION
+
     # Explicit Run slice must refresh PG — disk cache may predate new overview fields.
     cache = get_cached_overview(settings, query)
-    if cache and cache.overview and isinstance(cache.overview.get("expiring_timeline"), dict):
+    cached_v = (cache.overview or {}).get("schema_version") if cache and cache.overview else None
+    if (
+        cache
+        and cache.overview
+        and isinstance(cache.overview.get("expiring_timeline"), dict)
+        and cached_v == OVERVIEW_SCHEMA_VERSION
+    ):
         overview = attach_overview_echarts(dict(cache.overview))
         return OverviewResult(
             query=query,

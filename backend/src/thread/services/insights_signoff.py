@@ -8,13 +8,19 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.intel.pg_queries import table_exists
-from thread.intel.sql_expressions import AGENCY_EXPR, BASE_AWARD_WHERE, MONTHS_TO_END_EXPR, PRIME_TABLE
+from thread.intel.sql_expressions import (
+    AGENCY_EXPR,
+    BASE_AWARD_WHERE,
+    EXPIRING_MONTHS_AHEAD,
+    MONTHS_TO_END_EXPR,
+    PRIME_TABLE,
+)
 
 
 async def discover_expiring_award(
     session: AsyncSession,
     *,
-    months_ahead: int = 18,
+    months_ahead: int = EXPIRING_MONTHS_AHEAD,
 ) -> dict[str, Any] | None:
     """Find one prime award expiring soon (for sign-off smoke when facet slice is unknown)."""
     if not await table_exists(session, PRIME_TABLE):

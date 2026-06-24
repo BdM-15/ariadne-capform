@@ -1,0 +1,25 @@
+<li class="insights-bookmark-item">
+  <div class="insights-bookmark-meta">
+    <span class="insights-bookmark-name">{{ lens.query.name }}</span>
+    <span class="insights-bookmark-facets">{{ lens.summary }}</span>
+    {% if lens.expiring_count is not none %}
+    <span class="insights-bookmark-stat">{{ lens.expiring_count }} expiring</span>
+    {% endif %}
+  </div>
+  <div class="insights-bookmark-actions">
+    <button
+      type="button"
+      class="btn btn-primary btn-compact"
+      hx-get="/partials/insights/slice"
+      hx-target="#insights-stage-content"
+      hx-swap="outerHTML"
+      hx-include="#insights-radar-form"
+      hx-indicator="#insights-slice-loading"
+      hx-vals='{{ lens.open_vals | tojson }}'
+      onclick="closeInsightsBookmarksDrawer()"
+    >Open</button>
+    <form class="insights-bookmark-delete" hx-post="/insights/radar/{{ lens.query.id }}/delete" hx-swap="none" hx-confirm="Delete {{ lens.query.name }}?">
+      <button type="submit" class="btn btn-ghost btn-compact text-[10px] text-slate-500">Delete</button>
+    </form>
+  </div>
+</li>

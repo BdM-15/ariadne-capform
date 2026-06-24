@@ -97,6 +97,28 @@ def test_min_contract_value_reads_legacy_min_obligation_key():
     assert q.min_contract_value == 2_000_000.0
 
 
+def test_bookmark_open_vals_includes_advanced_facets():
+    from thread.intel.facet_query import bookmark_open_vals, format_contract_value_floor
+
+    q = query_from_dict(
+        {
+            "id": "prime",
+            "name": "Prime NAICS",
+            "naics_codes": "561210",
+            "min_contract_value": "500M",
+            "min_value_basis": "potential",
+            "exclude_agencies": "Department of Energy",
+        }
+    )
+    assert q is not None
+    assert format_contract_value_floor(q.min_contract_value) == "500M"
+    vals = bookmark_open_vals(q)
+    assert vals["min_contract_value"] == "500M"
+    assert vals["min_value_basis"] == "potential"
+    assert vals["exclude_agencies"] == "Department of Energy"
+    assert vals["naics_codes"] == "561210"
+
+
 def test_exclude_agencies_filter_sql():
     q = query_from_dict(
         {

@@ -1,0 +1,40 @@
+{# Awarding-office index — always visible under scatter; click dot or Open → Agency profile. #}
+{% set points = intensity.points or [] %}
+{% set shown = intensity.office_shown or points|length %}
+{% set total = intensity.office_total or shown %}
+{% if points|length > 0 %}
+<div class="insights-intensity-index">
+  <p class="insights-intensity-index-heading">
+    Contracting offices
+    <span class="insights-intensity-index-count">({{ shown }} of {{ total }})</span>
+  </p>
+  <div class="insights-intensity-table-wrap">
+    <table class="insights-intensity-table">
+      <thead>
+        <tr>
+          <th scope="col">Office</th>
+          <th scope="col">$M</th>
+          <th scope="col">Actions</th>
+          <th scope="col">Funding</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in points[:24] %}
+        <tr class="{% if row.hot %}insights-intensity-row-hot{% endif %}">
+          <td class="insights-intensity-table-office">{{ row.label or row.agency }}</td>
+          <td>${{ "%.0f"|format(row.millions) }}</td>
+          <td>{{ "{:,}".format(row.actions) }}</td>
+          <td>{% if row.funding_office_count %}{{ row.funding_office_count }}{% else %}—{% endif %}</td>
+          <td class="insights-intensity-table-action">
+            {% with entity_kind='agency', entity_scope='office', value=(row.label or row.agency), label='Open', extra_class='text-neon-cyan' %}
+            {% include "partials/insights_drill_profile_btn.html" %}
+            {% endwith %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}

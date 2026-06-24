@@ -1,7 +1,5 @@
 <div id="insights-body" class="insights-page page-content">
-  {% if flash %}
-  <div class="insights-flash-banner">{{ flash }}</div>
-  {% endif %}
+  <div id="insights-flash-banner" class="insights-flash-banner{% if not flash %} hidden{% endif %}">{% if flash %}{{ flash }}{% endif %}</div>
 
   <div class="insights-workspace">
     <aside class="insights-facet-nav" aria-label="Facet slice">
@@ -25,10 +23,13 @@
         </header>
 
         {% if ctx.naics_portfolio %}
-        <div class="insights-naics-chips">
-          {% for code in ctx.naics_portfolio %}
-          <button type="button" class="insights-naics-chip" data-naics="{{ code }}">{{ code }}</button>
-          {% endfor %}
+        <div class="insights-naics-chips-block">
+          <span class="insights-naics-chips-label" title="Operator shortcuts — fills the NAICS field only; not saved searches.">Quick NAICS</span>
+          <div class="insights-naics-chips">
+            {% for code in ctx.naics_portfolio %}
+            <button type="button" class="insights-naics-chip" data-naics="{{ code }}" title="Fill NAICS field">{{ code }}</button>
+            {% endfor %}
+          </div>
         </div>
         {% endif %}
 
@@ -83,15 +84,27 @@
         <p class="insights-facet-footnote">One facet minimum · no auto-run · ~30–90s</p>
       </form>
 
+      <button
+        type="button"
+        class="btn btn-primary insights-facet-save-bookmark-btn"
+        onclick="openInsightsSaveBookmarkDrawer()"
+        title="Save current facets as a named bookmark"
+      >Save bookmark</button>
+
+      <div id="insights-facet-bookmarks-mount">
+      {% include "partials/insights_facet_bookmarks.html" %}
+      </div>
+
       <nav class="insights-facet-links" aria-label="Slice tools">
         <button type="button" class="insights-facet-link" onclick="openInsightsBookmarksDrawer()">
-          Bookmarks <span class="insights-facet-link-count">{{ ctx.radar_lenses|length }}</span>
+          All bookmarks <span id="insights-facet-bookmark-count" class="insights-facet-link-count">{{ ctx.radar_lenses|length }}</span>
         </button>
         <details class="insights-facet-link-details">
-          <summary class="insights-facet-link">NAICS portfolio</summary>
+          <summary class="insights-facet-link" title="Operator NAICS shortcuts — not saved searches">Edit quick NAICS</summary>
+          <p class="insights-portfolio-hint">Comma-separated codes shown as chips above — fills NAICS only.</p>
           <form hx-post="/insights/operator-naics" hx-target="#insights-body" hx-swap="outerHTML" class="insights-portfolio-form">
             <input class="insights-field-input" name="naics_portfolio" placeholder="541512, 541511" value="{{ ctx.naics_portfolio_text }}" />
-            <button type="submit" class="btn btn-primary btn-compact w-full mt-1">Save</button>
+            <button type="submit" class="btn btn-primary btn-compact w-full mt-1">Save chips</button>
           </form>
         </details>
         <button type="button" id="insights-clear-btn" class="insights-facet-link insights-facet-link-muted">Clear slice</button>
@@ -108,12 +121,17 @@
   {% set guide_id = "data-insights" %}
   {% set guide = insights_guide %}
   {% include "partials/insights_guide_dialog.html" %}
+  {% set guide_id = "capture-intensity" %}
+  {% set guide = intensity_guide %}
+  {% include "partials/insights_guide_dialog.html" %}
   {% set guide_id = "usaspending-explore" %}
   {% set guide = radar_guide %}
   {% include "partials/insights_guide_dialog.html" %}
   {% set guide_id = "sam-explore" %}
   {% set guide = sam_guide %}
   {% include "partials/insights_guide_dialog.html" %}
+
+  {% include "partials/insights_bookmarks_drawer.html" %}
 </div>
 <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" defer></script>

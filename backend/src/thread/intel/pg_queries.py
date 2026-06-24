@@ -16,6 +16,7 @@ from thread.intel.sql_expressions import (
     AGENCY_EXPR,
     BASE_AWARD_WHERE,
     EXPIRING_CONTRACT_VALUE_EXPR,
+    EXPIRING_MONTHS_AHEAD,
     MONTHS_TO_END_EXPR,
     PRICING_BUCKET_EXPR,
     PRIME_TABLE,
@@ -214,7 +215,7 @@ async def get_expiring_contracts(
 async def expiring_pipeline_stats(
     session: AsyncSession,
     query: InsightFacetQuery,
-    months_ahead: int = 18,
+    months_ahead: int = EXPIRING_MONTHS_AHEAD,
 ) -> dict[str, int | float]:
     if not query.has_filters():
         return {"count": 0, "millions": 0.0}
@@ -243,7 +244,7 @@ async def expiring_pipeline_stats(
 async def count_expiring_for_query(
     session: AsyncSession,
     query: InsightFacetQuery,
-    months_ahead: int = 18,
+    months_ahead: int = EXPIRING_MONTHS_AHEAD,
 ) -> int:
     return int((await expiring_pipeline_stats(session, query, months_ahead=months_ahead))["count"])
 
@@ -435,5 +436,7 @@ async def get_quick_opportunity_snapshot(
     return {
         "summary": await get_market_summary(session, codes),
         "top_agencies": await get_top_agencies(session, codes, limit=5),
-        "expiring_soon": await get_expiring_contracts(session, codes, months_ahead=18, limit=5),
+        "expiring_soon": await get_expiring_contracts(
+            session, codes, months_ahead=EXPIRING_MONTHS_AHEAD, limit=5
+        ),
     }

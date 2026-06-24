@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import statistics
 from dataclasses import dataclass
 from typing import Any
 
 from thread.config import Settings
 from thread.intel.facet_query import InsightFacetQuery, describe_query
+from thread.intel.sql_expressions import EXPIRING_MONTHS_AHEAD
 from thread.llm.router import (
     CompletionResult,
     LlmRouterError,
@@ -51,10 +53,21 @@ shaping window, recompete cluster
 2. **Pursuit lanes** — prime vs teaming vs defer; cite entry-lane / set-aside / vehicle evidence
 3. **Market dynamics** — momentum, concentration, agency heat; who dominates and what that implies
 4. **Recompete & shaping clock** — urgency, peak cluster, shape_now/monitor samples if any
-5. **Recommended next steps** — exactly 3 bullets, each a concrete action with **why now** \
-(profile X agency because…, validate JV vs sub because parent-shadow…, prioritize Apr cluster because…)
+5. **Pipeline gap & pivot** — when `pipeline_health.forward_looking_capture_advised` is true, \
+or FY trend / expiring timeline shows lulls (e.g. thin FY27 recompete pipe), say plainly that \
+**historical recompetes alone cannot fill the pipeline**. Recommend a pivot: adjacent agencies \
+from hot_agencies / concentration, widen NAICS facets, and **forward-looking SAM.gov pursuit** \
+(CSO, open solicitations, OTA, BAA, Sources Sought) — cite `sam_notice_types_to_consider`. \
+Propose 2–3 concrete SAM monitor facets (NAICS + agency keyword + notice type) matched to the slice.
+6. **Recommended next steps** — exactly 3 bullets, each a concrete action with **why now** \
+(profile X agency because…, stand up SAM monitor for CSO+NAICS because recompete lull…, \
+prioritize Apr cluster because…)
 
-Keep total length under ~500 words. Be direct and opinionated where the data supports it."""
+When pipeline is recompete-heavy, steps 5–6 stay recompete-first. When thin/lumpy, step 5 leads.
+
+Keep total length under ~550 words. Be direct and opinionated where the data supports it. \
+Flag export-worthy decisions (pivot strategy, monitor recommendations) the operator may want in \
+tasks or briefing notes — do not invent task IDs."""
 
 
 @dataclass(frozen=True)
@@ -86,6 +99,97 @@ async def slice_explain_availability(settings: Settings) -> SliceExplainAvailabi
     )
 
 
+def _gov_fy_from_month(month: str) -> int | None:
+    try:
+        year_s, month_s = month.split("-", 1)
+        year = int(year_s)
+        mon = int(month_s)
+    except (ValueError, AttributeError):
+        return None
+    return year if mon >= 10 else year - 1
+
+
+def _analyze_pipeline_health(
+    *,
+    overview: dict[str, Any],
+    pipeline_stats: dict[str, int | float] | None,
+    expiring_row_count: int,
+) -> dict[str, Any]:
+    """Deterministic signals for recompete-thin / FY-lull → SAM pivot reasoning."""
+    fy_trend = list(overview.get("spend_trend") or [])
+    expiring_tl = overview.get("expiring_timeline") or {}
+    buckets = list(expiring_tl.get("buckets") or [])
+
+    stats = pipeline_stats or {}
+    recompete_count = int(stats.get("count") or 0)
+    recompete_m = float(stats.get("millions") or 0)
+
+    fy_signals: list[str] = []
+    if len(fy_trend) >= 2:
+        last = fy_trend[-1]
+        prior = fy_trend[-2]
+        last_m = float(last.get("millions") or 0)
+        prior_m = float(prior.get("millions") or 0)
+        last_actions = int(last.get("actions") or 0)
+        prior_actions = int(prior.get("actions") or 0)
+        last_year = last.get("year")
+        if prior_m > 0 and last_m < prior_m * 0.85:
+            fy_signals.append(f"FY{last_year} obligated $ down vs prior FY in slice")
+        if prior_actions > 0 and last_actions < prior_actions * 0.85:
+            fy_signals.append(f"FY{last_year} prime action count declining vs prior FY")
+
+    bucket_contracts = [int(b.get("contracts") or 0) for b in buckets]
+    median_contracts = statistics.median(bucket_contracts) if bucket_contracts else 0.0
+    lull_threshold = max(1.0, median_contracts * 0.25) if median_contracts else 1.0
+    lull_months = [
+        str(b.get("month") or "")
+        for b in buckets
+        if int(b.get("contracts") or 0) <= lull_threshold
+    ]
+
+    expiring_by_fy: dict[str, dict[str, float | int]] = {}
+    for bucket in buckets:
+        fy = _gov_fy_from_month(str(bucket.get("month") or ""))
+        if fy is None:
+            continue
+        key = str(fy)
+        slot = expiring_by_fy.setdefault(key, {"contracts": 0, "millions": 0.0})
+        slot["contracts"] = int(slot["contracts"]) + int(bucket.get("contracts") or 0)
+        slot["millions"] = float(slot["millions"]) + float(bucket.get("millions") or 0)
+
+    thin_recompete = recompete_count < 8 and recompete_m < 2.0 and expiring_row_count < 12
+    lumpy_timeline = len(lull_months) >= max(3, len(buckets) // 3) if buckets else False
+    forward_pivot = thin_recompete or lumpy_timeline or bool(fy_signals)
+
+    return {
+        "expiring_window_months": EXPIRING_MONTHS_AHEAD,
+        "recompete_contracts": recompete_count,
+        "recompete_millions": recompete_m,
+        "expiring_list_rows": expiring_row_count,
+        "fy_trend_signals": fy_signals,
+        "expiring_timeline_lull_months": lull_months[:10],
+        "expiring_by_gov_fy": expiring_by_fy,
+        "recompete_insufficient_for_pipeline": thin_recompete,
+        "forward_looking_capture_advised": forward_pivot,
+        "sam_pivot_doctrine": (
+            "USAspending shows historical prime awards and expiring base contracts only. "
+            "When the recompete pipe is thin or lumpy (e.g. FY27 gap), net-new pipeline must come "
+            "from adjacent buyers, widened facets, and live SAM.gov notices — not incumbent displacement alone."
+        ),
+        "sam_notice_types_to_consider": [
+            "Commercial Solutions Opening (CSO)",
+            "Combined Synopsis/Solicitation (open)",
+            "Other Transaction Authority (OTA)",
+            "Broad Agency Announcement (BAA)",
+            "Sources Sought / RFI",
+        ],
+        "future_actions": [
+            "Export explain narrative to task / briefing (Phase 17j-b — not wired yet)",
+            "Auto-provision SAM monitors from explain recommendations (Phase 17j-a)",
+        ],
+    }
+
+
 def _pct_of_total(rows: list[dict[str, Any]], total_m: float, key: str = "millions") -> list[dict[str, Any]]:
     if total_m <= 0:
         return []
@@ -107,6 +211,7 @@ def build_slice_explain_bundle(
     overview_verdict: dict[str, Any],
     overview: dict[str, Any],
     expiring_rows: tuple[dict[str, Any], ...] | list[dict[str, Any]] = (),
+    pipeline_stats: dict[str, int | float] | None = None,
 ) -> dict[str, Any]:
     """Compact PG-grounded payload for LLM — numbers must match UI."""
     rows = list(expiring_rows)
@@ -125,6 +230,11 @@ def build_slice_explain_bundle(
 
     intensity = overview.get("agency_intensity") or {}
     channels = (overview.get("motion") or {}).get("channels") or []
+    pipeline_health = _analyze_pipeline_health(
+        overview=overview,
+        pipeline_stats=pipeline_stats,
+        expiring_row_count=len(rows),
+    )
 
     return {
         "facet_query": describe_query(query) if query else "No query",
@@ -189,6 +299,15 @@ def build_slice_explain_bundle(
             for b in (overview.get("spend_trend") or [])[-5:]
         ],
         "expiring_timeline_insight": expiring_tl.get("insight"),
+        "expiring_timeline_buckets": [
+            {
+                "month": b.get("month"),
+                "contracts": b.get("contracts"),
+                "millions": b.get("millions"),
+            }
+            for b in (expiring_tl.get("buckets") or [])[:24]
+        ],
+        "pipeline_health": pipeline_health,
         "expiring_sample_count": len(rows),
         "hot_expiring_sample": [
             {
@@ -212,7 +331,9 @@ def build_slice_explain_bundle(
         "data_note": (
             "USAspending prime awards (PG intel). Dollar fields in millions unless obligation is raw USD "
             "on expiring samples. Metric card values are pre-formatted for display. "
-            "Shipley gates: pursue | monitor | defer. Do not invent figures — only use this JSON."
+            "Shipley gates: pursue | monitor | defer. pipeline_health.forward_looking_capture_advised "
+            "signals recompete-thin slices — recommend SAM.gov forward pursuit when true. "
+            "Do not invent figures or live SAM results — only use this JSON."
         ),
     }
 

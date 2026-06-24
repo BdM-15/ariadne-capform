@@ -48,9 +48,16 @@
 
     if (mode === "agency_intensity" && option.xAxis && option.yAxis) {
       option.xAxis.axisLabel = option.xAxis.axisLabel || {};
-      option.xAxis.axisLabel.formatter = formatCount;
       option.yAxis.axisLabel = option.yAxis.axisLabel || {};
-      option.yAxis.axisLabel.formatter = moneyAxisLabel;
+      if (intel.logScale) {
+        option.xAxis.axisLabel.formatter = function (v) {
+          return formatCount(Math.round(v));
+        };
+        option.yAxis.axisLabel.formatter = moneyAxisLabel;
+      } else {
+        option.xAxis.axisLabel.formatter = formatCount;
+        option.yAxis.axisLabel.formatter = moneyAxisLabel;
+      }
     }
 
     if (
@@ -204,7 +211,64 @@
         var acts = d.actions != null ? " · " + formatCount(d.actions) + " actions" : "";
         return p.name + "<br/>" + pct + formatMoneyFromMillions(d.millions || d.value) + acts;
       };
-    } else if (option.tooltip && option.tooltip.trigger === "item") {
+    } else if (intelMeta.tooltipTemplate === "intensity" || intelMeta.mode === "agency_intensity") {
+      option.tooltip = option.tooltip || {};
+      option.tooltip.formatter = function (params) {
+        var d = params.data || {};
+        var title = d.office || d.agency || params.name || "—";
+        if (title && typeof title === "object") title = params.name || "—";
+        var lines = ["<strong>" + title + "</strong>"];
+        lines.push("<span style='color:#94a3b8'>Awarding office (contract actions)</span>");
+        if (d.funding_office_count > 1) {
+          lines.push(
+            d.funding_office_count + " funding offices — trace customers on Agency tab"
+          );
+        } else if (d.funding_office_count === 1) {
+          lines.push("1 funding office — trace on Agency tab");
+        }
+        if (d.parent_agency) lines.push("Agency: " + d.parent_agency);
+        if (d.parent_sub) lines.push("Component: " + d.parent_sub);
+        var acts =
+          d.actions != null
+            ? formatCount(d.actions) + " prime actions"
+            : d.value && d.value[0] != null
+              ? formatCount(Math.round(d.value[0])) + " actions (axis)"
+              : "—";
+        var millions =
+          d.millions != null
+            ? formatMoneyFromMillions(d.millions) + " obligated"
+            : d.value && d.value[1] != null
+              ? formatMoneyFromMillions(d.value[1]) + " (axis)"
+              : "—";
+        lines.push(acts);
+        lines.push(millions);
+        if (d.share_pct != null) lines.push(d.share_pct + "% of slice TAM");
+        var quad = {
+          hot: "<span style='color:#00ff9c'>Hot — qualify this office first</span>",
+          high_value: "High $ — larger awards, fewer actions",
+          high_volume: "High volume — many contract actions",
+          watch: "Watch — below median on both axes",
+        };
+        if (d.quadrant && quad[d.quadrant]) lines.push(quad[d.quadrant]);
+        else if (d.hot) lines.push(quad.hot);
+        if (intelMeta.logScale) {
+          lines.push("<span style='color:#64748b;font-size:10px'>Log axes — compare relative intensity</span>");
+        }
+        if (intelMeta.officeTotal && intelMeta.officeShown) {
+          lines.push(
+            "<span style='color:#64748b;font-size:10px'>Showing top " +
+              intelMeta.officeShown +
+              " of " +
+              intelMeta.officeTotal +
+              " offices</span>"
+          );
+        }
+        lines.push(
+          "<span style='color:#94a3b8;font-size:10px'>Click dot → Agency profile</span>"
+        );
+        return lines.join("<br/>");
+      };
+    } else if (option.tooltip && option.tooltip.trigger === "item" && intelMeta.mode !== "agency_intensity") {
       option.tooltip.formatter = function (params) {
         if (params.data && params.data.value != null) {
           return stripSankeyLabel(params.name) + "<br/>" + formatMoneyFromMillions(params.data.value);
@@ -244,6 +308,10 @@
     var chart = window.echarts.init(host, null, { renderer: "canvas" });
     chart.setOption(polishOption(option), { notMerge: true });
     instances.push(chart);
+    if (host.getAttribute("data-chart-key") === "intensity") {
+      host._intensityBoundChart = null;
+      if (window.bindIntensityChart) window.bindIntensityChart(host, chart);
+    }
   }
 
   function resizeAll() {

@@ -38,6 +38,8 @@ def test_slice_explain_system_prompt_demands_synthesis_not_readout():
     assert "Do NOT" in SLICE_EXPLAIN_SYSTEM_PROMPT
     assert "analyst-grade synthesis" in SLICE_EXPLAIN_SYSTEM_PROMPT
     assert "Pursuit lanes" in SLICE_EXPLAIN_SYSTEM_PROMPT
+    assert "Pipeline gap" in SLICE_EXPLAIN_SYSTEM_PROMPT
+    assert "SAM.gov" in SLICE_EXPLAIN_SYSTEM_PROMPT
     messages = _build_explain_messages({"facet_query": "NAICS 561210"})
     assert messages[0]["role"] == "system"
     assert "Synthesize" in messages[1]["content"]
@@ -58,11 +60,24 @@ def test_build_slice_explain_bundle_includes_shipley_and_motion():
         "agency_intensity": {"hot_agencies": ["Department of Defense"]},
         "motion": {"channels": [{"channel": "open_competed", "pct": 62.0, "millions": 62.0}]},
     }
+    overview["expiring_timeline"] = {
+        "insight": "Peak Mar 2026",
+        "buckets": [
+            {"month": "2026-03", "contracts": 12, "millions": 4.5},
+            {"month": "2026-11", "contracts": 1, "millions": 0.2},
+            {"month": "2027-02", "contracts": 0, "millions": 0.0},
+        ],
+    }
+    overview["spend_trend"] = [
+        {"year": 2025, "millions": 80.0, "actions": 120},
+        {"year": 2026, "millions": 55.0, "actions": 70},
+    ]
     bundle = build_slice_explain_bundle(
         query=query,
         overview_verdict=verdict,
         overview=overview,
         expiring_rows=({"recipient": "ACME", "months_to_end": 3, "shape_gate": "shape_now"},),
+        pipeline_stats={"count": 3, "millions": 0.8},
     )
     assert "561210" in bundle["facet_query"]
     assert bundle["shipley_gates"][0]["gate"] == "pursue"
@@ -71,6 +86,9 @@ def test_build_slice_explain_bundle_includes_shipley_and_motion():
     assert bundle["market_access"]["set_aside_mix"]
     assert bundle["concentration"]["hot_agencies"] == ["Department of Defense"]
     assert bundle["motion"]["entry_lanes"][0]["pct"] == 62.0
+    assert bundle["pipeline_health"]["recompete_insufficient_for_pipeline"] is True
+    assert bundle["pipeline_health"]["forward_looking_capture_advised"] is True
+    assert "CSO" in bundle["pipeline_health"]["sam_notice_types_to_consider"][0]
 
 
 @pytest.mark.asyncio

@@ -309,65 +309,177 @@ def _title(text: str) -> dict[str, Any]:
     }
 
 
+def _axis_spread(values: list[float | int]) -> float:
+    positive = [float(v) for v in values if float(v) > 0]
+    if len(positive) < 2:
+        return 1.0
+    return max(positive) / min(positive)
+
+
+def _intensity_log_floor(value: float, *, floor: float = 0.08) -> float:
+    return max(float(value or 0), floor)
+
+
 def _agency_intensity_scatter(intensity: dict[str, Any]) -> dict[str, Any] | None:
     points = intensity.get("points") or []
     if not points:
         return None
     median_actions = float(intensity.get("median_actions") or 0)
     median_millions = float(intensity.get("median_millions") or 0)
-    data = [
-        {
-            "value": [p["actions"], p["millions"]],
-            "agency": p["agency"],
-            "hot": p.get("hot"),
-            "itemStyle": {"color": LIME if p.get("hot") else CYAN},
-        }
-        for p in points
-    ]
+    hone_field = str(intensity.get("hone_field") or "agency")
+    level_label = str(intensity.get("level_label") or "Buyer")
+    use_log = _axis_spread([p["actions"] for p in points]) >= 6 or _axis_spread(
+        [p["millions"] for p in points]
+    ) >= 6
+
+    _quadrant_colors = {
+        "hot": LIME,
+        "high_value": MAGENTA,
+        "high_volume": CYAN,
+        "watch": TIER_LOW,
+    }
+    hot_sorted = sorted(
+        [p for p in points if p.get("hot")],
+        key=lambda p: (float(p.get("millions") or 0), int(p.get("actions") or 0)),
+        reverse=True,
+    )
+    label_hot = {p.get("label") or p.get("agency") for p in hot_sorted[:8]}
+
+    data = []
+    max_actions = 0.0
+    max_millions = 0.0
+    for p in points:
+        actions = int(p["actions"])
+        millions = float(p["millions"] or 0)
+        max_actions = max(max_actions, float(actions))
+        max_millions = max(max_millions, millions)
+        label = str(p.get("label") or p.get("agency") or "")
+        x_val = _intensity_log_floor(actions) if use_log else actions
+        y_val = _intensity_log_floor(millions) if use_log else millions
+        quadrant = str(p.get("quadrant") or "watch")
+        hot = quadrant == "hot"
+        dot_color = _quadrant_colors.get(quadrant, CYAN)
+        data.append(
+            {
+                "value": [x_val, y_val],
+                "name": _truncate(label, 36),
+                "office": label,
+                "agency": label,
+                "parent_agency": str(p.get("parent_agency") or ""),
+                "parent_sub": str(p.get("parent_sub") or ""),
+                "funding_office_count": int(p.get("funding_office_count") or 0),
+                "actions": actions,
+                "millions": millions,
+                "share_pct": p.get("share_pct"),
+                "quadrant": quadrant,
+                "hot": hot,
+                "symbolSize": max(8, min(22, 6 + int(actions**0.45))),
+                "itemStyle": {"color": dot_color, "opacity": 0.9 if hot else 0.78},
+                "label": {
+                    "show": label in label_hot,
+                    "position": "top",
+                    "color": dot_color,
+                    "fontSize": 9,
+                    "formatter": _truncate(label, 28),
+                },
+            }
+        )
+
+    axis_type = "log" if use_log else "value"
+    x_floor = _intensity_log_floor(min(p["actions"] for p in points) * 0.85) if use_log else None
+    y_floor = _intensity_log_floor(min(p["millions"] for p in points) * 0.85) if use_log else None
+    med_x = _intensity_log_floor(median_actions) if use_log else median_actions
+    med_y = _intensity_log_floor(median_millions) if use_log else median_millions
+    cap_x = _intensity_log_floor(max_actions * 2.5) if use_log else max_actions * 1.15 or 1
+    cap_y = _intensity_log_floor(max_millions * 2.5) if use_log else max_millions * 1.15 or 1
+
     return {
         "backgroundColor": "transparent",
         "textStyle": {"color": TEXT},
-        "title": _title("Capture intensity — actions × obligation"),
         "tooltip": {
             **_tooltip("item"),
             "formatter": None,
         },
-        "grid": _grid(top=72, bottom=48),
+        "graphic": [
+            {
+                "type": "text",
+                "right": 8,
+                "top": 6,
+                "style": {
+                    "text": "● hot  ● high $  ● high vol  ● watch",
+                    "fill": TEXT,
+                    "fontSize": 9,
+                    "fontFamily": "monospace",
+                },
+            }
+        ],
+        "grid": _grid(top=40, bottom=52, left=56, right=24),
         "xAxis": {
-            "type": "value",
-            "name": "Actions",
-            "nameTextStyle": {"color": AXIS},
+            "type": axis_type,
+            "name": "Prime actions" + (" (log)" if use_log else ""),
+            "nameTextStyle": {"color": AXIS, "fontSize": 10},
+            "min": x_floor,
             "splitLine": {"lineStyle": {"color": GRID, "type": "dashed"}},
             "axisLabel": {"color": AXIS},
+            "minorSplitLine": {"show": use_log, "lineStyle": {"color": GRID, "opacity": 0.35}},
         },
         "yAxis": {
-            "type": "value",
-            "name": "Obligation",
-            "nameTextStyle": {"color": AXIS},
+            "type": axis_type,
+            "name": "Obligated $M" + (" (log)" if use_log else ""),
+            "nameTextStyle": {"color": AXIS, "fontSize": 10},
+            "min": y_floor,
             "splitLine": {"lineStyle": {"color": GRID, "type": "dashed"}},
             "axisLabel": {"color": AXIS},
+            "minorSplitLine": {"show": use_log, "lineStyle": {"color": GRID, "opacity": 0.35}},
         },
         "series": [
             {
                 "type": "scatter",
-                "symbolSize": 14,
+                "cursor": "pointer",
+                "triggerEvent": True,
                 "data": data,
+                "markArea": {
+                    "silent": True,
+                    "itemStyle": {"color": "rgba(0, 255, 156, 0.07)"},
+                    "data": [
+                        [
+                            {"xAxis": med_x, "yAxis": med_y},
+                            {"xAxis": cap_x, "yAxis": cap_y},
+                        ]
+                    ],
+                },
                 "markLine": {
                     "silent": True,
-                    "lineStyle": {"color": AMBER, "type": "dashed", "opacity": 0.6},
+                    "symbol": "none",
+                    "lineStyle": {"color": AMBER, "type": "dashed", "opacity": 0.55},
+                    "label": {"color": AMBER, "fontSize": 9},
                     "data": [
-                        {"xAxis": median_actions},
-                        {"yAxis": median_millions},
+                        {"xAxis": med_x, "name": "median actions"},
+                        {"yAxis": med_y, "name": "median $"},
                     ],
                 },
             }
         ],
         "_intel": {
             "mode": "agency_intensity",
-            "honeField": "agency",
+            "logScale": use_log,
+            "honeField": hone_field,
             "drillLens": "agency",
-            "entityScope": "agency",
-            "tooltipFields": ["agency", "actions", "millions"],
+            "entityScope": "office",
+            "levelLabel": level_label,
+            "tooltipTemplate": "intensity",
+            "tooltipFields": [
+                "office",
+                "parent_agency",
+                "parent_sub",
+                "funding_office_count",
+                "actions",
+                "millions",
+                "share_pct",
+                "quadrant",
+            ],
+            "officeTotal": intensity.get("office_total"),
+            "officeShown": intensity.get("office_shown"),
         },
     }
 

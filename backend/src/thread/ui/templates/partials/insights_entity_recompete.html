@@ -1,6 +1,6 @@
 <div class="insights-entity-recompete mt-4 pt-3 border-t border-edge/50">
   <p class="text-[10px] uppercase tracking-wide text-slate-600 mb-2">
-    Expiring in slice (18 mo){% if entity %} · {{ entity.display_label }}{% endif %}
+    Expiring in slice (24 mo){% if entity %} · {{ entity.display_label }}{% endif %}
   </p>
   {% if recompete_rows|length > 0 %}
   <p class="insights-explore-meta text-[10px] mb-2">{{ recompete_rows|length }} expiring row{{ 's' if recompete_rows|length != 1 else '' }}</p>
@@ -8,6 +8,6 @@
   {% include "partials/insights_recompete_rows.html" %}
   {% endwith %}
   {% else %}
-  <p class="insights-idle-hint text-[10px]">No expiring contracts for this entity in the next 18 months.</p>
+  <p class="insights-idle-hint text-[10px]">No expiring contracts for this entity in the next 24 months.</p>
   {% endif %}
 </div>

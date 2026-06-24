@@ -29,6 +29,7 @@ def test_attach_overview_echarts_builds_intensity_and_kpi_charts():
     assert "title" not in charts["intensity"]
     assert charts["intensity"]["_intel"]["overviewChart"] is True
     assert charts["intensity"]["series"][0]["type"] == "scatter"
+    assert charts["intensity"]["_intel"]["tooltipTemplate"] == "intensity"
     assert "motion_fy_trend" in charts
     assert charts["motion_fy_trend"]["series"][1]["type"] == "line"
     assert "motion_fy_backload" not in charts
@@ -36,3 +37,23 @@ def test_attach_overview_echarts_builds_intensity_and_kpi_charts():
     assert charts["set_aside"]["series"][0]["type"] == "pie"
     assert "pricing_buckets" in charts
     assert "idv_split" in charts
+
+
+def test_intensity_scatter_uses_log_scale_when_spread_is_wide():
+    overview = {
+        "agency_intensity": {
+            "points": [
+                {"label": "BIG", "agency": "BIG", "actions": 1200, "millions": 800.0, "hot": True},
+                {"label": "small", "agency": "small", "actions": 3, "millions": 0.4, "hot": False},
+            ],
+            "median_actions": 50,
+            "median_millions": 40.0,
+            "hone_field": "awarding_office",
+            "level_label": "Awarding office",
+        },
+    }
+    chart = attach_overview_echarts(overview)["charts"]["intensity"]
+    assert chart["xAxis"]["type"] == "log"
+    assert chart["yAxis"]["type"] == "log"
+    assert chart["_intel"]["logScale"] is True
+    assert chart["series"][0]["markArea"]["data"]

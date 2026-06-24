@@ -1,0 +1,9 @@
+{% if flash %}
+<div id="insights-flash-banner" class="insights-flash-banner" hx-swap-oob="true">{{ flash }}</div>
+{% endif %}
+<div id="insights-facet-bookmarks-mount" hx-swap-oob="true">
+{% include "partials/insights_facet_bookmarks.html" %}
+</div>
+<span id="insights-facet-bookmark-count" class="insights-facet-link-count" hx-swap-oob="true">{{ ctx.radar_lenses|length }}</span>
+{% set drawer_oob = true %}
+{% include "partials/insights_bookmarks_drawer.html" %}

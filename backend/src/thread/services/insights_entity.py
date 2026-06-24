@@ -24,6 +24,7 @@ from thread.intel.charts import (
 from thread.intel.slice_cache import get_cached_entity_profile, store_cached_entity_profile
 from thread.intel.echarts_options import attach_entity_echarts
 from thread.intel.facet_query import InsightFacetQuery, build_facet_sql
+from thread.intel.sql_expressions import EXPIRING_MONTHS_AHEAD
 from thread.intel import pg_queries as intel_queries
 from thread.intel.charts import enrich_expiring_rows_shape_gates
 from thread.intel.pg_queries import table_exists
@@ -185,7 +186,7 @@ async def fetch_entity_recompete(
     slice_query: InsightFacetQuery,
     entity: EntityContext,
     *,
-    months_ahead: int = 18,
+    months_ahead: int = EXPIRING_MONTHS_AHEAD,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
     scoped = scoped_slice_query(slice_query, entity)

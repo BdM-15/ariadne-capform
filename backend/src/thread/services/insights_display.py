@@ -11,9 +11,11 @@ from thread.config import Settings
 from thread.intel import pg_queries as intel_queries
 from thread.intel.facet_query import (
     InsightFacetQuery,
+    bookmark_open_vals,
     describe_query,
     load_insight_queries,
 )
+from thread.intel.sql_expressions import EXPIRING_MONTHS_AHEAD
 from thread.intel.sam_query import (
     SamMonitorQuery,
     describe_sam_query,
@@ -28,6 +30,7 @@ class RadarLensCard:
     query: InsightFacetQuery
     summary: str
     expiring_count: int | None
+    open_vals: dict[str, str]
 
 
 @dataclass(frozen=True)
@@ -59,12 +62,15 @@ async def build_insights_page_context(
     for q in radar_queries:
         expiring: int | None = None
         if intel_live:
-            expiring = await intel_queries.count_expiring_for_query(session, q, months_ahead=18)
+            expiring = await intel_queries.count_expiring_for_query(
+                session, q, months_ahead=EXPIRING_MONTHS_AHEAD
+            )
         radar_lenses.append(
             RadarLensCard(
                 query=q,
                 summary=describe_query(q),
                 expiring_count=expiring,
+                open_vals=bookmark_open_vals(q),
             )
         )
 

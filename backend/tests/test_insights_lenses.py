@@ -21,6 +21,26 @@ from thread.main import create_app
 from thread.services.insights_display import build_insights_page_context
 
 
+def test_save_radar_bookmark_refreshes_facet_list(settings: Settings, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "thread_state_dir", tmp_path / ".thread")
+    client = TestClient(create_app())
+    res = client.post(
+        "/insights/radar/save",
+        data={
+            "name": "Army IT",
+            "agency": "Army",
+            "naics_codes": "541512",
+            "min_contract_value": "1M",
+            "exclude_agencies": "Department of Energy",
+        },
+    )
+    assert res.status_code == 200
+    assert "hx-swap-oob" in res.text
+    assert "Army IT" in res.text
+    assert "insights-facet-bookmark-chip" in res.text
+    assert "insights-bookmarks-drawer-root" in res.text
+
+
 def test_save_radar_bookmark(settings: Settings, tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "thread_state_dir", tmp_path / ".thread")
     q = new_insight_query_from_form(settings, name="Army IT", agency="Army", naics_codes="541512")
@@ -101,7 +121,7 @@ def test_insights_agency_tab_browse_mode_after_slice():
     )
     assert res.status_code == 200
     html = res.text
-    assert "Top agencies in the active slice" in html or "insights-idle-hint" in html
+    assert "Top contracting offices in the active slice" in html or "insights-idle-hint" in html
     assert 'name="lens"' not in html
 
 
@@ -263,7 +283,10 @@ def test_insights_page_renders_live_explore():
     assert "thread_insights.js" in html
     assert ">Recompete<" not in html
     assert 'id="insights-clear-btn"' in html
-    assert "NAICS portfolio" in html
+    assert "Save bookmark" in html
+    assert "openInsightsSaveBookmarkDrawer" in html
+    assert 'name="name"' not in html.split("insights-radar-form")[1].split("</form>")[0]
+    assert "Quick NAICS" in html or "Edit quick NAICS" in html
     assert "Add at least one facet" not in html
     assert "Shell stub" not in html
     assert "peer facets" in html.lower() or "peer facet" in html.lower() or "peer dimensions" in html.lower()

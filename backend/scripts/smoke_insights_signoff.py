@@ -54,7 +54,7 @@ def main() -> int:
 
     seed = asyncio.run(_discover_seed())
     if not seed:
-        check("PG expiring seed", False, "no row in 18mo window — run intel migration")
+        check("PG expiring seed", False, "no row in 24mo window — run intel migration")
         return 1
 
     naics = seed["naics_code"]

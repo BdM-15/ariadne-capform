@@ -944,7 +944,18 @@ Central artifact — not “parallel afterthought.”
 
 **17c-graph (future):** BFS subgraph expansion (DR expose-style), force/graph canvas, `intel_relationships` + `edges.jsonl` export.
 
-**17d-agency (deferred — post-MVP Clew UX):** SAM [Federal Hierarchy Public API](https://open.gsa.gov/api/fh-public-api/) (`/orgs`, `/org/hierarchy`) using existing `SAM_GOV_API_KEY`. One-time ingest → PG table `intel_federal_orgs`; Clew/Insights cascading selects (Dept → Sub-tier → Office) so operator never guesses agency strings. Reuse hierarchy labels to improve USAspending facet matching. Not blocking MVP — freeform text + ILIKE until shipped.
+**17d-agency (deferred — post 2e-c polish):** SAM [Federal Hierarchy Public API](https://open.gsa.gov/api/fh-public-api/) (`/orgs`, `/org/hierarchy?orgkey=`) with existing **`SAM_GOV_API_KEY`**. Ingest → PG `intel_federal_orgs`; join USAspending `awarding_office_name` / FPDS codes (`W6QK`, `oldfpdsofficecode`) → plain `fhorgname` + `fhfullparentpathname` for capture-intensity labels and facet autocomplete. **FH alone is thin at office level** — public tier is mostly Dept/Sub-tier; office fidelity often comes from PG strings + hierarchy path, not a single FH row.
+
+**17k-office-trace (deferred — capture intensity → customer map):** Awarding office is the **action entry**; funding-office fan-out is **DR/Clew-style relation trace**, not a scatter hover (one KO shop → dozens of funding offices).
+
+| Slice | Scope | Done when |
+|-------|--------|-----------|
+| **17k-a** | **FH resolve tool** — `office_code` or USAspending label → SAM FH lookup (cached); enrich Agency profile header | Operator sees decoded office name without manual SAM search |
+| **17k-b** | **Intensity → Agency trace** — Overview **Trace →** (✅ HTMX) opens Agency tab scoped to office; **money-flow / funding-office breakdown** chart on entity profile | Customer map visible without chart click |
+| **17k-c** | **Web enrich fallback** when FH miss — SerpAPI → Olostep / SearXNG → Crawl4AI (existing free tiers) → candidate blurb for vault/research | One-click “research this office” from Agency tab |
+| **17k-d** | **Optional graph expose** — BFS from office node (awarding → funding → program) when `intel_relationships` / 17c-graph lands | Same DR methods as Clew, embedded in Agency lens |
+
+**Flow:** Capture intensity row **Trace →** Agency (office scope) → PG money paths + funding-office fan-out → FH decode if SAM key → web crawl only if still cryptic.
 
 **17d (future):** Distinct-value facet autocomplete from PG intel (+ FH table labels) — quick win before 17c semantic search.
 
@@ -1030,7 +1041,7 @@ flowchart TD
 
 | Sub-slice | Scope | Done when |
 |-----------|--------|-----------|
-| **17e-g-a** 🟡 | **Agency profile** — relationship heat map, money-flow Sankey, pricing mix, sub-flow + top contractors | Chart click → dossier answers “who buys and who wins here?” |
+| **17e-g-a** 🟡 | **Agency profile** — **office scope:** awarding → **funding-office DR graph** (charity-graph / BFS expose — not sub-agency bar only); relationship heat map, money-flow Sankey, pricing mix, top contractors | Capture-intensity dot click → Agency; customer map = multi-funding fan-out |
 | **17e-g-b** 🟡 | **Competitor profile** — heat map, teaming Sankey, adjacent competitors (shared-agency co-occurrence), top agencies/NAICS | DR trace methods on entity — not Clew redirect |
 | **17e-g-c** 🟡 | **Competition lens (slice-wide)** — set-aside + extent + **pricing buckets** + **vehicle×pricing** + **FFP shaping radar** + shape-now targets table | Port `get_ffp_shaping_radar`, `get_vehicle_breakdown` from capture-insights |
 | **17e-g-d** 🟡 | **Trace lens (inline)** — money-flow + teaming Sankeys + agency×recipient heat map on active slice | Optional Clew link for saved traces; **default = Insights** |
@@ -1144,7 +1155,7 @@ Today's UI exposes 5 text facets; **PG already has 50+ prime columns** (`bulk_fi
 | **MVP (17e-f-c)** | Recipient keyword → distinct `recipient_uei` on match rows / typeahead | PG `recipient_name` + `recipient_uei` | Platform discovers UEI for operator |
 | **Post-MVP (17d-agency)** | Dept → sub-tier → **office** cascading selects | SAM [FH Public API](https://open.gsa.gov/api/fh-public-api/) → `intel_federal_orgs` PG | **Not built yet** — PLAN only; freeform ILIKE + chart hone until then |
 
-**Federal Hierarchy status (honest):** ❌ **Not implemented.** No `intel_federal_orgs` table, no FH API ingest, no cascading pickers on Insights/Clew. Deferred as **17d-agency** (post-MVP for sign-off). Until then: (1) extend freeform facets to office/UEI/PSC/competition fields; (2) optional **distinct-value autocomplete from PG** (17d) using historical strings — faster than FH for matching USAspending spellings.
+**Federal Hierarchy status (honest):** ❌ **Not implemented** (`intel_federal_orgs`, FH ingest, cascading pickers). **SAM_GOV_API_KEY** is configured — **17d-agency** + **17k-a** are the first consumers. Until then: PG office strings + **Trace →** Agency tab (✅) + ILIKE facets; web search stack (SerpAPI / Olostep / SearXNG / Crawl4AI) for **17k-c** when FH does not decode a label.
 
 **Two data planes — do not conflate on one screen:**
 
@@ -1169,7 +1180,32 @@ Charts must **tell a story or enable Hone** — no chart-for-chart's sake. **Der
 
 Register derived metrics in a small **`insight_metrics` catalog** (name, SQL fragment, narrative template, hone target) — lightweight semantic layer; not a second Superset install.
 
-**Narrative layer (optional skill, post-MVP):** After slice Run, Grok can emit 3–5 bullet **“so what”** from KPI + top anomalies (candidate until review) — inspired by data-storytelling patterns ([VisStory](https://visstory.github.io/), narrative visualization research). **Not required for MVP sign-off**; deterministic callout text on Overview (“Lockheed = 41% of slice”) ships first.
+**Narrative layer — Explain slice (✅ 2e-a, evolving):** On-demand **Explain slice** (Grok or local) synthesizes the active PG-grounded slice — not a KPI readout. Bundle includes Shipley gates, motion lanes, concentration, FY trend, expiring timeline buckets, and **`pipeline_health`** signals (recompete-thin, FY lull, timeline gaps). When `forward_looking_capture_advised` is true, the model must recommend a **pivot off recompete-only capture** toward adjacent agencies and **forward-looking SAM.gov** notice types (CSO, open sols, OTA, BAA, Sources Sought) with concrete monitor facet suggestions. Outputs stay **on-demand prose** until export/task wiring ships.
+
+**Pipeline pivot doctrine (operator 2026-06-24):** USAspending intel is **backward-looking** (who won, what expires). A thin or lumpy **24-mo recompete pipe** (e.g. FY27 gap in expiring timeline + declining FY obligation/actions) means **incumbent displacement alone cannot fill pipeline**. Thread should eventually close the loop: Explain → recommended SAM monitors → Pulse watchlist → Track. Today: Grok reasons from deterministic `pipeline_health` JSON; live SAM search and auto-monitor provisioning are **Phase 17j**.
+
+#### Phase 17j — SAM.gov forward-pipeline orchestration (deferred — post 17e-g visual polish)
+
+**Problem:** Live SAM today is a **manual Live tab** + Pulse strip (`sam_queries.json` bookmarks). It does not react to slice health or propose monitors when recompete pipe is insufficient.
+
+| Slice | Scope | Done when |
+|-------|--------|-----------|
+| **17j-a** | **SAM monitor recommender** — from active slice + `pipeline_health`, Grok or rules emit 2–4 `SamMonitorQuery` candidates (NAICS, agency keyword, notice_type: CSO \| o \| k \| r \| s \| u, set-aside) | Operator one-clicks **Save monitor** → `.thread/sam_queries.json` |
+| **17j-b** | **Explain → task / export** — “Add to tasks” + markdown export of Explain narrative (pivot strategy, monitor recs) → `/tasks` candidate or vault `capture/strategy/` note | Review-gated; links back to facet bookmark |
+| **17j-c** | **Live SAM lens depth** — notice-type filters (CSO, OTA, BAA), entity-linked search from Agency/Competitor profile, cached 60m, row → Watch → Track | Replaces ad-hoc Pulse SAM strip for identification |
+| **17j-d** | **Unified pursuit clock** — Overview card or Shipley gate when `forward_looking_capture_advised`: “Recompete insufficient — stand up SAM monitors” with deep-link to Live tab + saved monitor drafts | Deterministic UI + optional Grok prose |
+| **17j-e** | **SAM + PG fusion** — match open notices to slice incumbents/agencies; flag net-new buyers with spend in slice but no expiring awards | Requires stable SAM MCP + PG join keys |
+
+**Notice-type priority for net-new pipeline (KBR R&S / facility-services NAICS):**
+
+1. **CSO** — commercial solutions, often pre-RFP shaping  
+2. **Open solicitations** (`notice_type=o`) — active competitions  
+3. **OTA** — prototyping / non-FAR lanes  
+4. **BAA / Sources Sought** — early shaping, teammate discovery  
+
+**Chains (named recipes):** `slice_thin_recompete` → Explain pivot → `sam_monitor_draft` → Watch → Track → packet MS1 qualification field.
+
+**Dependencies:** 17e-g visual inventory ✅-ish · Explain bundle ✅ · `sam_gov` MCP configured · optional 17d-agency for agency keyword quality.
 
 ### Phase 15 — Knowledge vault browser + Capture Studio
 
@@ -1590,7 +1626,10 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 |----------|------|-----|
 | **P0** | **17e-e** ✅ E2E sign-off smoke — facet → hone → Watch → Pulse → Track → packet fill | `pytest test_insights_signoff_e2e` + `smoke_insights_signoff.py` |
 | **P0** | **17e-g** Entity depth + Competition/Trace DR integration | **17e-g-a–d** — heat maps, Sankeys, FFP shaping, adjacent competitors; Clew secondary |
+| **P1** | **2e-c** Overview visual polish — metric cards, chart panels, Motion grid density, Explain panel | Professional capture-dashboard feel (ink/neon, no chart title duplication) |
 | **P1** | **17e-i** ✅ Query cache — disk-backed 10m TTL for overview + explore + entity profiles (`.thread/insights_slice_cache/`) | Tab switch / drill-back without re-querying PG |
+| **P1** | **2e-a** ✅ Explain slice + `pipeline_health` pivot doctrine in Grok prompt | On-demand; SAM auto-monitor = **17j-a** |
+| **Defer** | **17j** SAM forward-pipeline orchestration (monitor recommender, Explain→task) | After 17e-g + 2e-c |
 | **Defer** | **17e-h** Profile exports (docx/pptx/vault) + schema registry | Storytelling doctrine locked; build after cache + 17e-g depth |
 | **Defer** | 21b–21d Incubator Develop/Publish | Capture ingest polish |
 | **Defer** | 23b dedup matview, more analytics view rules | Chart accuracy polish |
@@ -1630,6 +1669,9 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
   - [ ] **20d** — Packet MS-critical field execution + skill-wired fill chains (post-MVP blocker, honest)
   - [ ] 17e-h — Profile schema registry + docx/pptx/vault export (deferred)
   - [x] 17e-i — Slice query cache (10m disk TTL + Cached pill in slice bar)
+  - [x] 2e-a — Explain slice (Grok/local) + pipeline_health pivot in prompt
+  - [ ] 2e-c — Overview visual polish (metric cards, chart panels, Motion density)
+  - [ ] 17j — SAM forward-pipeline orchestration (monitor recommender, Explain→task, Live SAM depth)
 - [x] MVP sign-off E2E (find → watch → track → packet fill)
 - [ ] Incubator Develop → Publish (Phase 21b–21d — deferred)
 - [x] `pg_queries` intel layer

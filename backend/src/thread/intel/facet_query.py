@@ -75,7 +75,44 @@ class InsightFacetQuery:
             or self.pop_state
             or self.extent_competed
             or self.type_of_set_aside
+            or self.min_contract_value
+            or self.exclude_agencies
         )
+
+
+def format_contract_value_floor(value: float | None) -> str:
+    """Round-trip min contract value for facet form fields (500M, 1M, 250K)."""
+    if value is None or value <= 0:
+        return ""
+    if value >= 1_000_000_000 and value % 1_000_000_000 == 0:
+        return f"{int(value / 1_000_000_000)}B"
+    if value >= 1_000_000 and value % 1_000_000 == 0:
+        return f"{int(value / 1_000_000)}M"
+    if value >= 1_000 and value % 1_000 == 0:
+        return f"{int(value / 1_000)}K"
+    return str(int(value))
+
+
+def bookmark_open_vals(query: InsightFacetQuery) -> dict[str, str]:
+    """HTMX hx-vals payload to reopen a saved bookmark in the slice form."""
+    return {
+        "run": "1",
+        "lens": "overview",
+        "agency": query.agency or "",
+        "sub_agency": query.sub_agency or "",
+        "recipient": query.recipient or "",
+        "naics_codes": ",".join(query.naics_codes),
+        "psc_codes": ",".join(query.psc_codes),
+        "awarding_office": query.awarding_office or "",
+        "funding_office": query.funding_office or "",
+        "recipient_uei": query.recipient_uei or "",
+        "pop_state": query.pop_state or "",
+        "extent_competed": query.extent_competed or "",
+        "type_of_set_aside": query.type_of_set_aside or "",
+        "min_contract_value": format_contract_value_floor(query.min_contract_value),
+        "min_value_basis": query.min_value_basis or MIN_VALUE_BASIS_POTENTIAL,
+        "exclude_agencies": ", ".join(query.exclude_agencies),
+    }
 
 
 def _queries_path(settings: Settings) -> Path:

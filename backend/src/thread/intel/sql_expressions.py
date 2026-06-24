@@ -96,6 +96,9 @@ IDV_FLAG_EXPR = """CASE
     ELSE 'Standalone / Definitive'
 END"""
 
+# Default recompete / expiring pipeline window for Data Insights and intel APIs.
+EXPIRING_MONTHS_AHEAD = 24
+
 MONTHS_TO_END_EXPR = """(
     EXTRACT(YEAR FROM age(period_of_performance_current_end_date, CURRENT_DATE)) * 12
     + EXTRACT(MONTH FROM age(period_of_performance_current_end_date, CURRENT_DATE))

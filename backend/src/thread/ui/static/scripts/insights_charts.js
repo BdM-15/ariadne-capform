@@ -4,54 +4,11 @@
 (function () {
   var SLICE_TARGET = "#insights-stage-content";
 
-  function intensityTooltip(params) {
-    var fmt = window.clewChartFormat || {};
-    var moneyFmt = fmt.moneyFromMillions || function (m) {
-      return "$" + Number(m).toFixed(1) + "M";
-    };
-    var countFmt = fmt.count || function (n) {
-      return String(n);
-    };
-    var d = params.data || {};
-    var agency = d.agency || params.name || "—";
-    var acts = d.value && d.value[0] != null ? countFmt(d.value[0]) : "—";
-    var millions = d.value && d.value[1] != null ? moneyFmt(d.value[1]) : "—";
-    var hot = d.hot ? "<br/><span style='color:#00ff9c'>Above the line</span>" : "";
-    return agency + "<br/>" + acts + " actions<br/>" + millions + hot;
-  }
-
-  function patchIntensityCharts() {
-    if (!window.echarts) return;
-    document.querySelectorAll('.insights-echarts-hero[data-chart-key="intensity"]').forEach(function (host) {
-      var chart = window.echarts.getInstanceByDom(host);
-      if (!chart) return;
-      chart.setOption({ tooltip: { formatter: intensityTooltip } });
-    });
-  }
-
   function formParams(form) {
     var params = new URLSearchParams();
     if (!form) return params;
     new FormData(form).forEach(function (value, key) {
       if (value != null && String(value).length) params.append(key, String(value));
-    });
-    return params;
-  }
-
-  function entityParams() {
-    var state = document.getElementById("insights-entity-state");
-    var params = new URLSearchParams();
-    if (!state) return params;
-    if (state.tagName === "FORM") {
-      new FormData(state).forEach(function (value, key) {
-        if (value != null && String(value).length) params.append(key, String(value));
-      });
-      return params;
-    }
-    state.querySelectorAll("input[name], select[name], textarea[name]").forEach(function (field) {
-      if (field.name && field.value != null && String(field.value).length) {
-        params.append(field.name, String(field.value));
-      }
     });
     return params;
   }
@@ -66,6 +23,7 @@
       agency: { lens: "agency", kind: "agency", scope: "agency" },
       sub_agency: { lens: "agency", kind: "agency", scope: "sub_agency" },
       awarding_office: { lens: "agency", kind: "agency", scope: "office" },
+      funding_office: { lens: "agency", kind: "agency", scope: "office" },
       recipient: { lens: "competitor", kind: "competitor", scope: "recipient" },
     };
     var row = map[field] || {};
@@ -89,13 +47,93 @@
   function requestSliceDrill(field, value, meta) {
     var params = sliceDrillParams(field, value, meta);
     if (!params || !window.htmx) return;
-    if (window.showInsightsSliceLoading) window.showInsightsSliceLoading("Opening profile…");
+    if (window.showInsightsSliceLoading) window.showInsightsSliceLoading("Opening Agency profile…");
     window.htmx.ajax("GET", "/partials/insights/slice?" + params.toString(), {
       target: SLICE_TARGET,
       swap: "outerHTML",
       indicator: "#insights-slice-loading",
     });
   }
+
+  function intensityOfficeValue(params) {
+    var d = params.data || {};
+    return String(d.office || d.agency || params.name || "").trim();
+  }
+
+  function openIntensityOffice(host, params) {
+    var raw = host.getAttribute("data-chart-option");
+    if (!raw) return;
+    var option;
+    try {
+      option = JSON.parse(raw);
+    } catch (_) {
+      return;
+    }
+    var meta = option._intel || option._clew || {};
+    var value = intensityOfficeValue(params);
+    if (!value) return;
+    requestSliceDrill(meta.honeField || "awarding_office", value, meta);
+  }
+
+  window.openIntensityOfficeFromChart = function (host, params) {
+    openIntensityOffice(host, params || {});
+  };
+
+  function intensityScatterData(chart) {
+    var opt = chart.getOption();
+    var series = opt.series && opt.series[0];
+    return series && series.data ? series.data : [];
+  }
+
+  function nearestIntensityIndex(chart, offsetX, offsetY) {
+    var data = intensityScatterData(chart);
+    if (!data.length) return -1;
+    var nearest = -1;
+    var minDist = Infinity;
+    data.forEach(function (item, idx) {
+      var value = item.value;
+      if (!value || value.length < 2) return;
+      var pixel = chart.convertToPixel({ seriesIndex: 0 }, value);
+      if (!pixel || pixel.length < 2) return;
+      var dx = pixel[0] - offsetX;
+      var dy = pixel[1] - offsetY;
+      var dist = dx * dx + dy * dy;
+      var radius = (item.symbolSize || 12) / 2 + 10;
+      if (dist > radius * radius) return;
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = idx;
+      }
+    });
+    return nearest;
+  }
+
+  function bindIntensityZrClick(host, chart) {
+    var zr = chart.getZr();
+    if (!zr) return;
+    if (host._intensityZrClick) zr.off("click", host._intensityZrClick);
+    host._intensityZrClick = function (ev) {
+      var idx = nearestIntensityIndex(chart, ev.offsetX, ev.offsetY);
+      if (idx < 0) return;
+      var data = intensityScatterData(chart)[idx];
+      if (!data) return;
+      openIntensityOffice(host, { data: data, dataIndex: idx });
+    };
+    zr.on("click", host._intensityZrClick);
+  }
+
+  window.bindIntensityChart = function (host, chart) {
+    if (!host || !chart || chart.isDisposed()) return;
+    if (host._intensityBoundChart === chart) return;
+    host._intensityBoundChart = chart;
+    chart.off("click");
+    chart.on("click", function (params) {
+      if (!params || !params.data) return;
+      openIntensityOffice(host, params);
+    });
+    bindIntensityZrClick(host, chart);
+    host.style.cursor = "pointer";
+  };
 
   function mergeGraphSeries(chart, expansion) {
     if (!chart || !expansion) return;
@@ -111,7 +149,6 @@
     links.forEach(function (l) {
       linkKeys[l.source + "→" + l.target] = true;
     });
-
     (expansion.nodes || []).forEach(function (n) {
       if (!nodeIds[n.id]) {
         nodeIds[n.id] = true;
@@ -125,7 +162,6 @@
         });
       }
     });
-
     var edgeColors = {
       obligation: "#00f0ff",
       teaming: "#00ff9c",
@@ -149,7 +185,6 @@
         kind: e.kind,
       });
     });
-
     chart.setOption({ series: [{ data: nodes, links: links }] });
   }
 
@@ -157,9 +192,6 @@
     var form = document.getElementById("insights-radar-form");
     if (!form || !nodeId) return;
     var params = formParams(form);
-    entityParams().forEach(function (value, key) {
-      params.append(key, value);
-    });
     params.set("node_id", nodeId);
     params.set("batch", "3");
     fetch("/api/insights/graph-expand?" + params.toString())
@@ -184,10 +216,12 @@
       return;
     }
     var meta = option._intel || option._clew || {};
-    var shiftExpand = ev && ev.shiftKey;
-
+    if (meta.mode === "agency_intensity") {
+      openIntensityOffice(host, params);
+      return;
+    }
     if (meta.mode === "relations_graph" || meta.mode === "expose_graph") {
-      if (shiftExpand && params.data && params.data.id) {
+      if (ev && ev.shiftKey && params.data && params.data.id) {
         expandGraphNode(host, params.data.id);
         return;
       }
@@ -214,8 +248,9 @@
     if (!field) return;
     var value = null;
     if (params.data) {
-      if (field === "agency" && params.data.agency) value = params.data.agency;
-      else if (params.data.label) value = params.data.label;
+      if (params.data.office) value = params.data.office;
+      else if (params.data.label && typeof params.data.label === "string") value = params.data.label;
+      else if (field === "agency" && params.data.agency) value = params.data.agency;
     }
     if (!value && params.name) value = params.name;
     if (!value) return;
@@ -225,19 +260,29 @@
   function bindChartDrill() {
     if (!window.echarts) return;
     document.querySelectorAll(".clew-echarts-host").forEach(function (host) {
+      if (host.getAttribute("data-chart-key") === "intensity") return;
       var chart = window.echarts.getInstanceByDom(host);
-      if (!chart || host.dataset.drillBound) return;
-      host.dataset.drillBound = "1";
+      if (!chart) return;
+      if (host._insightsDrillChart === chart) return;
+      host._insightsDrillChart = chart;
+      chart.off("click");
       chart.on("click", function (params) {
-        var ev = params.event && params.event.event;
+        var ev = params.event && (params.event.event || params.event);
         drillFromChart(host, params, ev);
       });
     });
   }
 
   window.initInsightsHone = function () {
-    patchIntensityCharts();
     bindChartDrill();
+    document.querySelectorAll('.clew-echarts-host[data-chart-key="intensity"]').forEach(function (host) {
+      var chart = window.echarts.getInstanceByDom(host);
+      if (!chart || !window.bindIntensityChart) return;
+      if (host._intensityBoundChart && host._intensityBoundChart !== chart) {
+        host._intensityBoundChart = null;
+      }
+      window.bindIntensityChart(host, chart);
+    });
   };
 
   document.addEventListener("DOMContentLoaded", function () {

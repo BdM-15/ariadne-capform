@@ -67,11 +67,24 @@
   window.clearInsightsSliceLoading = clearLoadingStatus;
 
   window.openInsightsBookmarksDrawer = function () {
+    mountOverlaysOnBody();
     var root = document.getElementById("insights-bookmarks-drawer-root");
     if (!root) return;
     root.classList.remove("insights-drawer-hidden");
     root.setAttribute("aria-hidden", "false");
     if (window.lucide) window.lucide.createIcons();
+  };
+
+  window.openInsightsSaveBookmarkDrawer = function () {
+    window.openInsightsBookmarksDrawer();
+    var section = document.getElementById("insights-bookmark-save-section");
+    var nameInput = document.getElementById("insights-bookmark-name-input");
+    if (section) section.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    if (nameInput) {
+      window.setTimeout(function () {
+        nameInput.focus();
+      }, 80);
+    }
   };
 
   window.closeInsightsBookmarksDrawer = function () {
@@ -243,11 +256,26 @@
     return r ? r.querySelector("#insights-award-drawer-body") : null;
   }
 
+  var keepBookmarksDrawerOpen = false;
+
   function mountOverlaysOnBody() {
     var r = awardRoot();
     if (r && r.parentElement !== document.body) document.body.appendChild(r);
-    var bookmarks = document.getElementById("insights-bookmarks-drawer-root");
+    var bookmarkRoots = document.querySelectorAll("#insights-bookmarks-drawer-root");
+    var bookmarks =
+      document.querySelector("#insights-body #insights-bookmarks-drawer-root") ||
+      (bookmarkRoots.length ? bookmarkRoots[bookmarkRoots.length - 1] : null);
+    bookmarkRoots.forEach(function (node) {
+      if (node !== bookmarks) node.remove();
+    });
     if (bookmarks && bookmarks.parentElement !== document.body) document.body.appendChild(bookmarks);
+    if (bookmarks && window.htmx) window.htmx.process(bookmarks);
+  }
+
+  function refreshBookmarksChrome() {
+    mountOverlaysOnBody();
+    if (keepBookmarksDrawerOpen) window.openInsightsBookmarksDrawer();
+    keepBookmarksDrawerOpen = false;
   }
 
   function syncAwardTitle() {
@@ -436,6 +464,11 @@
     }, true);
 
     document.body.addEventListener("htmx:beforeRequest", function (e) {
+      var elt = e.detail && e.detail.elt;
+      if (elt && elt.closest && (elt.closest(".insights-bookmark-save") || elt.closest(".insights-bookmark-delete"))) {
+        var root = document.getElementById("insights-bookmarks-drawer-root");
+        keepBookmarksDrawerOpen = !!(root && !root.classList.contains("insights-drawer-hidden"));
+      }
       if (!isSliceRequest(e)) return;
       var elt = e.detail && e.detail.elt;
       if (elt && elt.id === "insights-radar-form") return;
@@ -456,7 +489,10 @@
       if (lensInput && stage && stage.dataset.activeLens) lensInput.value = stage.dataset.activeLens;
       window.persistInsightsSession();
       initInsightsPage();
-      if (t.id === "insights-body") bindClearButton();
+      if (t.id === "insights-body") {
+        mountOverlaysOnBody();
+        bindClearButton();
+      }
     });
 
     document.body.addEventListener("htmx:responseError", function (e) {
@@ -469,6 +505,14 @@
     document.body.addEventListener("htmx:sendError", function (e) {
       if (!isSliceRequest(e)) return;
       setStageStatus("Network error — could not reach server.", "error");
+    });
+
+    document.body.addEventListener("htmx:afterRequest", function (e) {
+      var elt = e.detail && e.detail.elt;
+      if (!elt || !elt.closest) return;
+      if (!elt.closest(".insights-bookmark-save") && !elt.closest(".insights-bookmark-delete")) return;
+      if (e.detail.successful) refreshBookmarksChrome();
+      else keepBookmarksDrawerOpen = false;
     });
 
     document.addEventListener("keydown", function (e) {

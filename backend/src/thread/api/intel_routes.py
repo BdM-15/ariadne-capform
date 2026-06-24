@@ -8,6 +8,7 @@ from thread.db.session import get_db
 from thread.domain.schemas import MCPInvokeCreate, MCPInvokeOut, MCPServerOut
 from thread.intel import pg_queries
 from thread.intel.facet_query import InsightFacetQuery, describe_query
+from thread.intel.sql_expressions import EXPIRING_MONTHS_AHEAD
 from thread.intel.migration import get_migration_status
 from thread.mcp.service import MCPService
 
@@ -143,7 +144,9 @@ async def intel_snapshot(
         "query": describe_query(query),
         "summary": await pg_queries.get_market_summary(db, codes) if codes else {},
         "top_agencies": await pg_queries.get_top_agencies(db, codes, limit=5) if codes else [],
-        "expiring_soon": await pg_queries.get_expiring_contracts_for_query(db, query, months_ahead=18, limit=5),
+        "expiring_soon": await pg_queries.get_expiring_contracts_for_query(
+            db, query, months_ahead=EXPIRING_MONTHS_AHEAD, limit=5
+        ),
     }
 
 

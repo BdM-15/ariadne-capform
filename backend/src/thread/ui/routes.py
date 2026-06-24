@@ -76,7 +76,12 @@ from thread.clew.saved_traces import (
     new_clew_trace_from_form,
     save_clew_trace,
 )
-from thread.ui.insights_guides import guide_for_clew, guide_for_data_insights, guide_for_explore
+from thread.ui.insights_guides import (
+    guide_for_capture_intensity,
+    guide_for_clew,
+    guide_for_data_insights,
+    guide_for_explore,
+)
 from thread.services.insights_drilldown import build_drilldown
 from thread.services.insights_slice import build_slice_panel
 from thread.intel.operator_profile import save_naics_portfolio_from_text
@@ -299,6 +304,21 @@ def _render_panel(request: Request, ctx: dict) -> HTMLResponse:
     return templates.TemplateResponse(request, "partials/workspace_panel.html", ctx)
 
 
+async def _render_insights_bookmarks_oob(
+    request: Request,
+    db: AsyncSession,
+    settings: Settings,
+    *,
+    flash: str | None = None,
+) -> HTMLResponse:
+    ctx = await build_insights_page_context(db, settings)
+    return templates.TemplateResponse(
+        request,
+        "partials/insights_bookmarks_oob.html",
+        {"ctx": ctx, "flash": flash},
+    )
+
+
 async def _render_insights_body(
     request: Request,
     db: AsyncSession,
@@ -322,6 +342,7 @@ async def _render_insights_body(
         "has_slice": slice_panel,
         "lens_tabs": INSIGHTS_LENS_TABS,
         "insights_guide": guide_for_data_insights(),
+        "intensity_guide": guide_for_capture_intensity(),
         "radar_guide": guide_for_explore("usaspending_explore"),
         "sam_guide": guide_for_explore("sam_explore"),
         "clew_guide": guide_for_clew(),
@@ -392,6 +413,7 @@ async def insights_page(
             "has_slice": False,
             "lens_tabs": INSIGHTS_LENS_TABS,
             "insights_guide": guide_for_data_insights(),
+            "intensity_guide": guide_for_capture_intensity(),
             "radar_guide": guide_for_explore("usaspending_explore"),
             "sam_guide": guide_for_explore("sam_explore"),
             "clew_guide": guide_for_clew(),
@@ -527,6 +549,7 @@ async def insights_explain_slice_partial(
             overview_verdict=panel.overview_verdict,
             overview=panel.overview,
             expiring_rows=panel.explore.rows,
+            pipeline_stats=panel.pipeline_stats,
         )
         try:
             result = await explain_slice(settings, bundle=bundle, provider_choice=llm_provider)
@@ -1014,14 +1037,14 @@ async def insights_save_radar_lens(
         description=description,
     )
     if query is None:
-        return await _render_insights_body(
+        return await _render_insights_bookmarks_oob(
             request,
             db,
             settings,
             flash="Radar lens needs at least one facet (agency, recipient, NAICS, PSC, etc.).",
         )
     save_insight_query(settings, query)
-    return await _render_insights_body(
+    return await _render_insights_bookmarks_oob(
         request,
         db,
         settings,
@@ -1037,8 +1060,12 @@ async def insights_delete_radar_lens(
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
     if not delete_insight_query(settings, query_id):
-        return await _render_insights_body(request, db, settings, flash="Radar lens not found.")
-    return await _render_insights_body(request, db, settings, flash="Radar lens deleted.")
+        return await _render_insights_bookmarks_oob(
+            request, db, settings, flash="Radar lens not found."
+        )
+    return await _render_insights_bookmarks_oob(
+        request, db, settings, flash="Radar lens deleted."
+    )
 
 
 @router.post("/insights/sam/save", response_class=HTMLResponse)

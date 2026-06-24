@@ -191,7 +191,7 @@ export default function PortfolioPulse() {
           )}
           {intelLive && signals.length === 0 && (
             <p className="text-sm text-slate-400">
-              Intel loaded — no expiring contracts for default NAICS in next 18 months.
+              Intel loaded — no expiring contracts for default NAICS in next 24 months.
             </p>
           )}
           {signals.map((signal) => {
