@@ -24,7 +24,7 @@
     </div>
     {% endfor %}
   </div>
-  <div class="insights-overview-hero-row">
+  <div id="insights-overview-hero" class="insights-overview-hero-row">
     {% if charts.intensity %}
     {% with chart_key='intensity', chart_option=charts.intensity, host_class='insights-echarts-hero', panel_class='insights-chart-panel-hero' %}
     {% include "partials/insights_chart_panel.html" %}
@@ -59,6 +59,8 @@
       {% endif %}
     </aside>
   </div>
+  {% set shipley_cards = verdict.shipley or [] %}
+  {% include "partials/insights_shipley_cards.html" %}
   {% set motion_brief = verdict.motion or {} %}
   {% if charts.motion_fy_trend or charts.motion_channels or charts.motion_q4_timing or charts.motion_expiring_channels or charts.motion_parent_shadow or charts.motion_money_paths %}
   <section class="insights-overview-section" aria-label="Slice motion">

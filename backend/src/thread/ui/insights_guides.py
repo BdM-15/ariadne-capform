@@ -29,7 +29,7 @@ INSIGHTS_PAGE_GUIDE: dict[str, Any] = {
     "how_to_use": [
         "Set NAICS, agency, recipient, or a combo in the Slice navigator (More facets for PSC, office, UEI, set-aside).",
         "Click Run slice (~30–90s). Lens tabs activate after the first successful query.",
-        "Start on Overview — verdict cards, slice brief, capture-intensity scatter, then Motion (entry-lane brief, FY pulse, channel stack, Q4 skew, teaming targets), Market access, and Competitive sections.",
+        "Start on Overview — verdict cards, slice brief, capture-intensity scatter, Shipley MS1 gates (pursue/monitor/defer), then Motion (entry-lane brief, FY pulse, channel stack, Q4 skew, teaming targets), Market access, and Competitive sections.",
         "Drill a hot agency (agency-first) or top contractor via brief actions or chart clicks.",
         "Open expiring rows for contract profile; Watch adds potential to Pulse (Watch ≠ Track).",
         "Switch to Agency or Competitor for entity-scoped charts and expiring lists.",

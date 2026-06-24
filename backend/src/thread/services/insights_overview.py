@@ -226,11 +226,216 @@ def overview_motion_brief(
     }
 
 
+def _shipley_gate_label(gate: str) -> str:
+    return {"pursue": "Pursue", "monitor": "Monitor", "defer": "Defer"}.get(gate, "Monitor")
+
+
+def overview_shipley_cards(
+    overview: dict[str, Any],
+    *,
+    motion_brief: dict[str, Any],
+    pipeline: dict[str, int | float],
+    expiring_rows: tuple[dict[str, Any], ...] | list[dict[str, Any]] = (),
+) -> list[dict[str, Any]]:
+    """MS1-style pursue / monitor / defer cards — deterministic from slice signals, not LLM."""
+    rows = list(expiring_rows)
+    direct_pct = float(motion_brief.get("direct_prime_pct") or 0)
+    sub_pct = float(motion_brief.get("sub_only_pct") or 0)
+    vehicle_pct = float(motion_brief.get("vehicle_pct") or 0)
+    teaming = list(motion_brief.get("teaming_targets") or [])
+    intensity = overview.get("agency_intensity") or {}
+    hot_agencies: list[str] = list(intensity.get("hot_agencies") or [])
+
+    recompete_count = int(pipeline.get("count") or 0)
+    recompete_m = float(pipeline.get("millions") or 0)
+    hot_rows = [r for r in rows if int(r.get("months_to_end") or 99) <= 6]
+    shape_now_rows = [r for r in rows if r.get("shape_gate") == "shape_now"]
+    shape_monitor_rows = [r for r in rows if r.get("shape_gate") == "monitor"]
+
+    pricing_rows: list[dict[str, Any]] = list(overview.get("pricing_buckets") or [])
+    pricing_total = sum(float(r.get("millions") or 0) for r in pricing_rows) or 0.0
+    non_fixed_m = sum(
+        float(r.get("millions") or 0)
+        for r in pricing_rows
+        if str(r.get("bucket") or "") != "firm_fixed"
+    )
+    non_fixed_pct = round(100.0 * non_fixed_m / pricing_total, 1) if pricing_total > 0 else 0.0
+
+    expiring_tl = overview.get("expiring_timeline") or {}
+    timeline_insight = str(expiring_tl.get("insight") or "").strip()
+
+    cards: list[dict[str, Any]] = []
+
+    # --- Prime lane ---
+    if direct_pct >= 30 and vehicle_pct < 45:
+        prime_gate = "pursue"
+        prime_headline = f"{direct_pct:.0f}% open · competed — viable direct-prime lane"
+    elif direct_pct >= 12 or hot_agencies:
+        prime_gate = "monitor"
+        prime_headline = f"{direct_pct:.0f}% direct-prime — qualify before committing B&P"
+    else:
+        prime_gate = "defer"
+        prime_headline = "Thin open-competed lane — default to teaming or adjacent NAICS"
+
+    prime_bullets: list[str] = []
+    if vehicle_pct >= 25:
+        prime_bullets.append(f"{vehicle_pct:.0f}% IDV/vehicle-gated — vehicle position required for much of TAM.")
+    if hot_agencies:
+        prime_bullets.append(f"Hot agency: {hot_agencies[0][:48]} — start agency-first qualification.")
+    elif direct_pct < 20:
+        prime_bullets.append("Capture-intensity scatter shows no clear agency lead — widen facets or pair with Clew.")
+
+    prime_action: dict[str, Any] = {"label": "Open capture-intensity scatter", "kind": "anchor", "href": "#insights-overview-hero"}
+    if hot_agencies:
+        prime_action = {
+            "label": f"Profile {hot_agencies[0][:40]}",
+            "kind": "drill",
+            "entity_kind": "agency",
+            "entity_scope": "agency",
+            "value": hot_agencies[0],
+        }
+
+    cards.append({
+        "id": "prime_lane",
+        "gate": prime_gate,
+        "gate_label": _shipley_gate_label(prime_gate),
+        "label": "MS1 · Prime lane",
+        "headline": prime_headline,
+        "bullets": prime_bullets[:2],
+        "action": prime_action,
+    })
+
+    # --- Teaming lane ---
+    if sub_pct >= 35 and teaming:
+        team_gate = "pursue"
+        top_bucket = teaming[0]
+        team_headline = f"{sub_pct:.0f}% set-aside — plan teammate-led entry"
+        team_bullets = [
+            f"Top bucket: {top_bucket.get('bucket', '')[:40]} · ${float(top_bucket.get('millions') or 0):.1f}M.",
+        ]
+        top_prime = (top_bucket.get("primes") or [{}])[0].get("recipient")
+        if top_prime:
+            team_bullets.append(f"Lead teaming prime: {str(top_prime)[:40]}.")
+        if top_prime:
+            team_action = {
+                "label": f"Profile {str(top_prime)[:36]}",
+                "kind": "drill",
+                "entity_kind": "competitor",
+                "entity_scope": "recipient",
+                "value": top_prime,
+            }
+        else:
+            team_action = {"label": "Review teaming targets", "kind": "anchor", "href": "#insights-motion-teaming"}
+    elif sub_pct >= 18:
+        team_gate = "monitor"
+        team_headline = f"{sub_pct:.0f}% sub/teaming only — validate set-aside eligibility"
+        team_bullets = ["You cannot prime set-aside spend without SB/8(a) status or a teammate."]
+        team_action = {"label": "Review Motion teaming targets", "kind": "anchor", "href": "#insights-motion-teaming"}
+    else:
+        team_gate = "defer"
+        team_headline = "Set-aside lane is minor — prime path dominates slice"
+        team_bullets = [f"Only {sub_pct:.0f}% requires a set-aside prime in this slice."]
+        team_action = {"label": "Review entry lane mix", "kind": "hint"}
+
+    cards.append({
+        "id": "teaming_lane",
+        "gate": team_gate,
+        "gate_label": _shipley_gate_label(team_gate),
+        "label": "MS1 · Teaming lane",
+        "headline": team_headline,
+        "bullets": team_bullets[:2],
+        "action": team_action,
+    })
+
+    # --- Shape window ---
+    if shape_now_rows:
+        shape_gate = "pursue"
+        top_shape = shape_now_rows[0]
+        shape_headline = f"{len(shape_now_rows)} shape-now in list — open pre-RFP window"
+        shape_bullets = [
+            str(top_shape.get("shape_reason") or "Flexible pricing expiring under agency pressure.")[:120],
+        ]
+        if non_fixed_pct >= 25:
+            shape_bullets.append(f"Slice is {non_fixed_pct:.0f}% non-fixed — shaping influences recompete terms.")
+        shape_action = {"label": "Review expiring pipeline", "kind": "anchor", "href": "#insights-slice-expiring"}
+    elif shape_monitor_rows or non_fixed_pct >= 30:
+        shape_gate = "monitor"
+        shape_headline = "Flexible pricing present — watch recompete for FFP shift"
+        shape_bullets = []
+        if shape_monitor_rows:
+            shape_bullets.append(f"{len(shape_monitor_rows)} expiring row(s) flagged Monitor in sample list.")
+        if non_fixed_pct >= 30:
+            shape_bullets.append(f"{non_fixed_pct:.0f}% of slice obligations are non-firm-fixed.")
+        shape_action = {"label": "Review expiring pipeline", "kind": "anchor", "href": "#insights-slice-expiring"}
+    else:
+        shape_gate = "defer"
+        shape_headline = "Low shaping signal — mostly firm-fixed or quiet agencies"
+        shape_bullets = ["Shape badges appear on non-FFP expiring rows when agency pricing pressure is present."]
+        shape_action = {"label": "Check contract pricing mix chart", "kind": "hint"}
+
+    cards.append({
+        "id": "shape_window",
+        "gate": shape_gate,
+        "gate_label": _shipley_gate_label(shape_gate),
+        "label": "MS1 · Shape window",
+        "headline": shape_headline,
+        "bullets": shape_bullets[:2],
+        "action": shape_action,
+    })
+
+    # --- Recompete clock ---
+    hot_oblig = sum(float(r.get("obligation") or 0) for r in hot_rows)
+    if len(hot_rows) >= 3 or (len(hot_rows) >= 1 and hot_oblig >= 500_000):
+        clock_gate = "pursue"
+        clock_headline = f"{len(hot_rows)} hot ≤6 mo in sample — recompete clock is running"
+    elif recompete_count > 0:
+        clock_gate = "monitor"
+        clock_headline = f"{recompete_count:,} expiring · ${recompete_m:.1f}M in 18 mo"
+    else:
+        clock_gate = "defer"
+        clock_headline = "No expiring matches in window — widen facets or horizon"
+
+    clock_bullets: list[str] = []
+    if hot_rows:
+        sample = hot_rows[0]
+        clock_bullets.append(
+            f"Nearest hot: {str(sample.get('recipient') or '')[:32]} · "
+            f"{int(sample.get('months_to_end') or 0)} mo."
+        )
+    if timeline_insight:
+        clock_bullets.append(timeline_insight)
+    elif recompete_count and not clock_bullets:
+        clock_bullets.append("Use the expiring timeline above the list to spot monthly clusters.")
+
+    clock_action: dict[str, Any] = {"label": "Review expiring pipeline", "kind": "anchor", "href": "#insights-slice-expiring"}
+    if hot_rows and hot_rows[0].get("recipient"):
+        clock_action = {
+            "label": f"Profile {str(hot_rows[0]['recipient'])[:36]}",
+            "kind": "drill",
+            "entity_kind": "competitor",
+            "entity_scope": "recipient",
+            "value": hot_rows[0]["recipient"],
+        }
+
+    cards.append({
+        "id": "recompete_clock",
+        "gate": clock_gate,
+        "gate_label": _shipley_gate_label(clock_gate),
+        "label": "MS1 · Recompete clock",
+        "headline": clock_headline,
+        "bullets": clock_bullets[:2],
+        "action": clock_action,
+    })
+
+    return cards
+
+
 def overview_capture_verdict(
     overview: dict[str, Any],
     *,
     query: InsightFacetQuery | None = None,
     pipeline: dict[str, int | float] | None = None,
+    expiring_rows: tuple[dict[str, Any], ...] | list[dict[str, Any]] = (),
 ) -> dict[str, Any]:
     """Template-ready verdict cards + slice brief from existing overview payload."""
     kpis = overview.get("kpis") or {}
@@ -378,11 +583,18 @@ def overview_capture_verdict(
 
     motion_data = overview.get("motion") or {}
     motion_brief = overview_motion_brief(motion_data, recompete_m=recompete_m)
+    shipley_cards = overview_shipley_cards(
+        overview,
+        motion_brief=motion_brief,
+        pipeline=pipe,
+        expiring_rows=expiring_rows,
+    )
 
     return {
         "cards": cards,
         "chart_guides": overview_chart_guides(),
         "motion": motion_brief,
+        "shipley": shipley_cards,
         "brief": {
             "title": "Slice brief",
             "headline": f"${tam:.1f}M market · {int(kpis.get('agency_count') or 0)} agencies",

@@ -81,6 +81,40 @@ def test_overview_capture_verdict_builds_six_cards():
     assert actions[0]["kind"] == "drill"
     assert actions[0]["entity_kind"] == "agency"
     assert any(a.get("kind") == "anchor" for a in actions)
+    assert len(verdict["shipley"]) == 4
+
+
+def test_overview_capture_verdict_shipley_shape_now_pursue():
+    overview = {
+        "kpis": {"millions": 80.0, "award_count": 200, "agency_count": 5},
+        "spend_trend": [],
+        "agency_intensity": {"hot_agencies": ["GSA"]},
+        "top_recipients": [],
+        "set_aside": [],
+        "motion": {
+            "channels": [
+                {"channel": "open_competed", "millions": 50.0},
+                {"channel": "set_aside_non_competed", "millions": 30.0},
+            ],
+            "teaming_targets": [],
+        },
+        "pricing_buckets": [{"bucket": "time_materials", "millions": 40.0}],
+    }
+    verdict = overview_capture_verdict(
+        overview,
+        pipeline={"count": 10, "millions": 5.0},
+        expiring_rows=(
+            {
+                "recipient": "Shape Target LLC",
+                "months_to_end": 5,
+                "obligation": 1_000_000,
+                "shape_gate": "shape_now",
+                "shape_reason": "Early shaping window",
+            },
+        ),
+    )
+    shape = next(c for c in verdict["shipley"] if c["id"] == "shape_window")
+    assert shape["gate"] == "pursue"
 
 
 @pytest.fixture(autouse=True)
@@ -119,3 +153,4 @@ async def test_overview_slice_renders_metric_cards_and_brief():
     assert "insights-kpi-strip" not in html
     assert "insights-metric-tip" in html
     assert "insights-chart-tip" in html
+    assert "Capture gates" in html or "insights-shipley-section" in html

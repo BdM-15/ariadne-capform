@@ -1554,6 +1554,132 @@ body {
   text-decoration: underline;
 }
 
+.insights-shipley-section {
+  margin: 0.75rem 0 1rem;
+}
+
+.insights-shipley-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 768px) {
+  .insights-shipley-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .insights-shipley-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.insights-shipley-card {
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(31, 42, 68, 0.95);
+  background: rgba(10, 14, 26, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 0;
+}
+
+.insights-shipley-card-pursue {
+  border-color: rgba(0, 255, 156, 0.35);
+  background: rgba(0, 255, 156, 0.04);
+}
+
+.insights-shipley-card-monitor {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.04);
+}
+
+.insights-shipley-card-defer {
+  border-color: rgba(100, 116, 139, 0.35);
+  background: rgba(100, 116, 139, 0.04);
+}
+
+.insights-shipley-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.insights-shipley-card-label {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.insights-shipley-gate {
+  flex-shrink: 0;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.2rem;
+  border: 1px solid transparent;
+}
+
+.insights-shipley-gate-pursue {
+  color: #00ff9c;
+  border-color: rgba(0, 255, 156, 0.45);
+}
+
+.insights-shipley-gate-monitor {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.insights-shipley-gate-defer {
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.insights-shipley-card-headline {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #e2e8f0;
+}
+
+.insights-shipley-card-bullets {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.625rem;
+  line-height: 1.4;
+  color: #94a3b8;
+}
+
+.insights-shipley-card-action {
+  margin-top: auto;
+  padding-top: 0.15rem;
+}
+
+.insights-shipley-action-link {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #00f0ff;
+  text-decoration: none;
+}
+
+.insights-shipley-action-link:hover {
+  text-decoration: underline;
+}
+
+.insights-shipley-action-hint {
+  font-size: 0.625rem;
+  color: #64748b;
+}
+
 .insights-motion-brief {
   margin: 0 0 0.75rem;
   padding: 0.65rem 0.75rem;

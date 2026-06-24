@@ -1,0 +1,38 @@
+{% if shipley_cards|length > 0 %}
+<section class="insights-shipley-section" aria-label="Shipley MS1 gates">
+  <div class="insights-overview-section-head">
+    <h4 class="insights-overview-section-title">Capture gates</h4>
+    <p class="insights-overview-section-hint">Shipley MS1 pursue / monitor / defer — rule-based from slice signals, not LLM.</p>
+  </div>
+  <div class="insights-shipley-grid">
+    {% for card in shipley_cards %}
+    <article class="insights-shipley-card insights-shipley-card-{{ card.gate }}" data-shipley="{{ card.id }}">
+      <div class="insights-shipley-card-head">
+        <span class="insights-shipley-card-label">{{ card.label }}</span>
+        <span class="insights-shipley-gate insights-shipley-gate-{{ card.gate }}">{{ card.gate_label }}</span>
+      </div>
+      <h5 class="insights-shipley-card-headline">{{ card.headline }}</h5>
+      {% if card.bullets %}
+      <ul class="insights-shipley-card-bullets">
+        {% for line in card.bullets %}
+        <li>{{ line }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% set action = card.action or {} %}
+      <div class="insights-shipley-card-action">
+        {% if action.kind == 'drill' and action.value %}
+        {% with entity_kind=action.entity_kind, entity_scope=action.entity_scope, value=action.value, label=action.label, extra_class='insights-shipley-action-btn' %}
+        {% include "partials/insights_drill_profile_btn.html" %}
+        {% endwith %}
+        {% elif action.kind == 'anchor' and action.href %}
+        <a href="{{ action.href }}" class="insights-shipley-action-link">{{ action.label }}</a>
+        {% else %}
+        <span class="insights-shipley-action-hint">{{ action.label or 'Refine slice' }}</span>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}

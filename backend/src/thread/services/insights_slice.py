@@ -214,9 +214,10 @@ async def build_slice_panel(
             overview_result.overview,
             query=query,
             pipeline=pipeline_stats,
+            expiring_rows=explore.rows,
         )
         if overview_result.status == "ready"
-        else {"cards": (), "brief": {}}
+        else {"cards": (), "brief": {}, "shipley": ()}
     )
 
     return SlicePanelContext(
