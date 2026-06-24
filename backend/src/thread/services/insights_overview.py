@@ -15,6 +15,7 @@ from thread.intel.echarts_options import attach_overview_echarts
 from thread.intel.slice_cache import get_cached_overview, store_cached_overview
 from thread.intel.facet_query import InsightFacetQuery, describe_query
 from thread.services.insights_explore import _facet_from_params
+from thread.ui.formatters import format_count, format_money_from_millions
 
 _OPEN_SET_ASIDE_BUCKETS = frozenset({"(Not Applicable)", "NO SET ASIDE USED"})
 
@@ -475,8 +476,8 @@ def overview_capture_verdict(
         {
             "id": "tam",
             "label": "TAM",
-            "value": f"${tam:.1f}M",
-            "hint": f"{int(kpis.get('award_count') or 0):,} prime actions",
+            "value": format_money_from_millions(tam),
+            "hint": f"{format_count(int(kpis.get('award_count') or 0))} prime actions",
             "tooltip": (
                 "Total addressable market — sum of federal obligations on prime awards "
                 "in your active facet slice (PG intel, not live SAM)."
@@ -503,8 +504,8 @@ def overview_capture_verdict(
         {
             "id": "recompete",
             "label": "Recompete pipe",
-            "value": f"${recompete_m:.1f}M",
-            "hint": f"{recompete_count:,} expiring · 18 mo",
+            "value": format_money_from_millions(recompete_m),
+            "hint": f"{format_count(recompete_count)} expiring · 18 mo",
             "tooltip": (
                 "Contracts ending in the next 18 months that match your facets — "
                 "obligation total and count across the full slice, not just the list below."

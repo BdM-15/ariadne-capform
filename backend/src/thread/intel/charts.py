@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.intel.facet_query import InsightFacetQuery, build_facet_sql
 from thread.intel.pg_queries import table_exists
+from thread.ui.formatters import format_count, format_money_from_millions
 from thread.intel.sql_expressions import (
     AGENCY_EXPR,
     AGENCY_NORMALIZED_EXPR,
@@ -539,7 +540,8 @@ async def expiring_timeline(
     except (ValueError, IndexError):
         pass
     insight = (
-        f"Peak cluster {peak_label} — ${peak['millions']:.1f}M across {peak['actions']} actions"
+        f"Peak cluster {peak_label} — {format_money_from_millions(peak['millions'])} across "
+        f"{format_count(peak['actions'])} actions"
         if peak["millions"] > 0
         else ""
     )

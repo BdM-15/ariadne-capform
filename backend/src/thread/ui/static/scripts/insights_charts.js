@@ -5,12 +5,19 @@
   var SLICE_TARGET = "#insights-stage-content";
 
   function intensityTooltip(params) {
+    var fmt = window.clewChartFormat || {};
+    var moneyFmt = fmt.moneyFromMillions || function (m) {
+      return "$" + Number(m).toFixed(1) + "M";
+    };
+    var countFmt = fmt.count || function (n) {
+      return String(n);
+    };
     var d = params.data || {};
     var agency = d.agency || params.name || "—";
-    var acts = d.value && d.value[0] != null ? d.value[0] : "—";
-    var millions = d.value && d.value[1] != null ? d.value[1] : "—";
+    var acts = d.value && d.value[0] != null ? countFmt(d.value[0]) : "—";
+    var millions = d.value && d.value[1] != null ? moneyFmt(d.value[1]) : "—";
     var hot = d.hot ? "<br/><span style='color:#00ff9c'>Above the line</span>" : "";
-    return agency + "<br/>" + acts + " actions<br/>$" + Number(millions).toFixed(2) + "M" + hot;
+    return agency + "<br/>" + acts + " actions<br/>" + millions + hot;
   }
 
   function patchIntensityCharts() {

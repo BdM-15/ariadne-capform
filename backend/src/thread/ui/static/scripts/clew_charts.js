@@ -10,10 +10,78 @@
     return idx >= 0 ? name.slice(idx + 2) : name;
   }
 
-  function formatMillions(value) {
-    var n = Number(value);
-    if (!isFinite(n)) return value;
-    return "$" + n.toFixed(2) + "M";
+  function formatMoneyFromMillions(m) {
+    var n = Number(m);
+    if (!isFinite(n)) return "—";
+    var sign = n < 0 ? "-" : "";
+    var a = Math.abs(n);
+    if (a >= 1e6) return sign + "$" + (a / 1e6).toFixed(1) + "T";
+    if (a >= 1e3) return sign + "$" + (a / 1e3).toFixed(1) + "B";
+    if (a >= 1) return sign + "$" + a.toFixed(1) + "M";
+    if (a > 0) return sign + "$" + Math.round(a * 1e3) + "K";
+    return sign + "$0";
+  }
+
+  function formatCount(n) {
+    var v = Number(n);
+    if (!isFinite(v)) return "—";
+    var sign = v < 0 ? "-" : "";
+    var a = Math.abs(v);
+    if (a >= 1e6) return sign + (a / 1e6).toFixed(1) + "M";
+    if (a >= 1e3) return sign + (a / 1e3).toFixed(1) + "k";
+    return sign + String(Math.round(v));
+  }
+
+  function moneyAxisLabel(value) {
+    return formatMoneyFromMillions(value).replace(/^\$/, "");
+  }
+
+  window.clewChartFormat = {
+    moneyFromMillions: formatMoneyFromMillions,
+    count: formatCount,
+  };
+
+  function applyAxisFormatters(option) {
+    if (!option) return option;
+    var intel = option._intel || option._clew || {};
+    var mode = intel.mode;
+
+    if (mode === "agency_intensity" && option.xAxis && option.yAxis) {
+      option.xAxis.axisLabel = option.xAxis.axisLabel || {};
+      option.xAxis.axisLabel.formatter = formatCount;
+      option.yAxis.axisLabel = option.yAxis.axisLabel || {};
+      option.yAxis.axisLabel.formatter = moneyAxisLabel;
+    }
+
+    if (
+      intel.tooltipTemplate === "expiring_timeline" ||
+      intel.tooltipTemplate === "motion_fy_trend"
+    ) {
+      if (Array.isArray(option.yAxis)) {
+        option.yAxis[0].axisLabel = option.yAxis[0].axisLabel || {};
+        option.yAxis[0].axisLabel.formatter = moneyAxisLabel;
+        option.yAxis[1].axisLabel = option.yAxis[1].axisLabel || {};
+        option.yAxis[1].axisLabel.formatter = formatCount;
+      }
+    }
+
+    if (
+      mode === "hbar" ||
+      mode === "motion_expiring_channels" ||
+      mode === "motion_parent_shadow" ||
+      mode === "sub_flow" ||
+      mode === "pricing_buckets"
+    ) {
+      if (option.xAxis && option.xAxis.type === "value") {
+        option.xAxis.axisLabel = option.xAxis.axisLabel || {};
+        option.xAxis.axisLabel.formatter = moneyAxisLabel;
+      }
+      if (option.yAxis && option.yAxis.type === "value" && option.yAxis.name === "$M") {
+        option.yAxis.axisLabel = option.yAxis.axisLabel || {};
+        option.yAxis.axisLabel.formatter = moneyAxisLabel;
+      }
+    }
+    return option;
   }
 
   function polishOption(option) {
@@ -32,12 +100,12 @@
       option.tooltip.formatter = function (params) {
         var p = params[0];
         if (!p || !p.data) return "";
-        var acts = p.data.actions != null ? p.data.actions : "—";
+        var acts = p.data.actions != null ? formatCount(p.data.actions) : "—";
         return (
           "FY " +
           p.axisValue +
           "<br/>" +
-          formatMillions(p.data.value) +
+          formatMoneyFromMillions(p.data.value) +
           " obligated<br/>" +
           acts +
           " actions"
@@ -50,10 +118,10 @@
         var lines = [params[0].axisValue];
         params.forEach(function (p) {
           if (p.seriesName === "$ expiring" && p.data) {
-            var acts = p.data.actions != null ? p.data.actions : "—";
-            lines.push(formatMillions(p.data.value) + " expiring · " + acts + " actions");
+            var acts = p.data.actions != null ? formatCount(p.data.actions) : "—";
+            lines.push(formatMoneyFromMillions(p.data.value) + " expiring · " + acts + " actions");
           } else if (p.seriesName === "Actions") {
-            lines.push(p.value + " actions (month total line)");
+            lines.push(formatCount(p.value) + " actions (month total line)");
           }
         });
         return lines.join("<br/>");
@@ -65,10 +133,10 @@
         var lines = [params[0].axisValue];
         params.forEach(function (p) {
           if (p.seriesName === "$ obligated" && p.data) {
-            var acts = p.data.actions != null ? p.data.actions : "—";
-            lines.push(formatMillions(p.data.value) + " obligated · " + acts + " actions");
+            var acts = p.data.actions != null ? formatCount(p.data.actions) : "—";
+            lines.push(formatMoneyFromMillions(p.data.value) + " obligated · " + acts + " actions");
           } else if (p.seriesName === "Actions") {
-            lines.push(p.value + " actions (FY total line)");
+            lines.push(formatCount(p.value) + " actions (FY total line)");
           }
         });
         return lines.join("<br/>");
@@ -77,13 +145,13 @@
       option.tooltip = option.tooltip || {};
       option.tooltip.formatter = function (params) {
         var d = params.data || {};
-        var acts = d.actions != null ? d.actions : "—";
+        var acts = d.actions != null ? formatCount(d.actions) : "—";
         return (
           (params.seriesName || "Lane") +
           "<br/>" +
           Number(d.value || 0).toFixed(1) +
           "% of slice · " +
-          formatMillions(d.millions) +
+          formatMoneyFromMillions(d.millions) +
           "<br/>" +
           acts +
           " actions"
@@ -98,7 +166,9 @@
           period.indexOf("Q4") >= 0
             ? intelMeta.q4_total_millions
             : intelMeta.rest_total_millions;
-        var lines = [period + (totalM != null ? " · " + formatMillions(totalM) + " total" : "")];
+        var lines = [
+          period + (totalM != null ? " · " + formatMoneyFromMillions(totalM) + " total" : ""),
+        ];
         params
           .filter(function (p) {
             return p.value > 0;
@@ -113,7 +183,7 @@
                 ": " +
                 Number(p.value).toFixed(1) +
                 "% · " +
-                formatMillions(d.millions)
+                formatMoneyFromMillions(d.millions)
             );
           });
         return lines.join("<br/>");
@@ -125,13 +195,13 @@
         if (!p || !p.data) return "";
         var d = p.data;
         var pct = d.pct != null ? Number(d.pct).toFixed(1) + "% · " : "";
-        var acts = d.actions != null ? " · " + d.actions + " actions" : "";
-        return p.name + "<br/>" + pct + formatMillions(d.millions || d.value) + acts;
+        var acts = d.actions != null ? " · " + formatCount(d.actions) + " actions" : "";
+        return p.name + "<br/>" + pct + formatMoneyFromMillions(d.millions || d.value) + acts;
       };
     } else if (option.tooltip && option.tooltip.trigger === "item") {
       option.tooltip.formatter = function (params) {
         if (params.data && params.data.value != null) {
-          return stripSankeyLabel(params.name) + "<br/>" + formatMillions(params.data.value);
+          return stripSankeyLabel(params.name) + "<br/>" + formatMoneyFromMillions(params.data.value);
         }
         return stripSankeyLabel(params.name);
       };
@@ -139,10 +209,10 @@
       option.tooltip.formatter = function (params) {
         var p = params[0];
         if (!p) return "";
-        return p.name + "<br/>" + formatMillions(p.value);
+        return p.name + "<br/>" + formatMoneyFromMillions(p.value);
       };
     }
-    return option;
+    return applyAxisFormatters(option);
   }
 
   function disposeAll() {

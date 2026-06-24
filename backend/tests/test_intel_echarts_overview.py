@@ -26,6 +26,8 @@ def test_attach_overview_echarts_builds_intensity_and_kpi_charts():
     out = attach_overview_echarts(overview)
     charts = out.get("charts") or {}
     assert "intensity" in charts
+    assert "title" not in charts["intensity"]
+    assert charts["intensity"]["_intel"]["overviewChart"] is True
     assert charts["intensity"]["series"][0]["type"] == "scatter"
     assert "motion_fy_trend" in charts
     assert charts["motion_fy_trend"]["series"][1]["type"] == "line"

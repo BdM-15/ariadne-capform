@@ -2016,7 +2016,7 @@ body {
 .insights-chart-panel-hero .insights-chart-panel-head {
   position: relative;
   z-index: 2;
-  margin-bottom: -1.5rem;
+  margin-bottom: 0.15rem;
   pointer-events: none;
 }
 

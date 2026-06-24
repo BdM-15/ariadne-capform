@@ -67,8 +67,25 @@ def test_attach_overview_echarts_builds_expiring_timeline():
     out = attach_overview_echarts(overview)
     charts = out.get("charts") or {}
     assert "expiring_timeline" in charts
+    assert "title" not in charts["expiring_timeline"]
     assert charts["expiring_timeline"]["series"][0]["type"] == "bar"
     assert charts["expiring_timeline"]["series"][1]["type"] == "line"
+
+
+def test_attach_overview_expiring_timeline_thins_x_labels_when_many_buckets():
+    buckets = [
+        {"month": f"2026-{m:02d}", "millions": float(m), "actions": m}
+        for m in range(1, 19)
+    ]
+    overview = {
+        "spend_trend": [],
+        "agency_intensity": {"points": []},
+        "expiring_timeline": {"buckets": buckets, "peak_millions": 18.0, "insight": ""},
+    }
+    chart = attach_overview_echarts(overview)["charts"]["expiring_timeline"]
+    axis = chart["xAxis"]["axisLabel"]
+    assert axis["fontSize"] == 8
+    assert axis.get("hideOverlap") is True
 
 
 def test_overview_chart_guides_include_expiring_timeline():

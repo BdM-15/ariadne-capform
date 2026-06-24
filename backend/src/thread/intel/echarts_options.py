@@ -186,70 +186,95 @@ def attach_trace_echarts(bundle: dict[str, Any]) -> dict[str, Any]:
     return bundle
 
 
+def _overview_chart(option: dict[str, Any]) -> dict[str, Any]:
+    """Overview panels carry labels in HTML — drop duplicate ECharts titles."""
+    out = dict(option)
+    out.pop("title", None)
+    grid = dict(out.get("grid") or {})
+    top = grid.get("top", 56)
+    if isinstance(top, (int, float)):
+        if top >= 96:
+            grid["top"] = 52
+        elif top >= 72:
+            grid["top"] = 40
+        elif top >= 56:
+            grid["top"] = 32
+    out["grid"] = grid
+    legend = out.get("legend")
+    if isinstance(legend, dict):
+        leg_top = legend.get("top")
+        if isinstance(leg_top, (int, float)) and leg_top >= 28:
+            out["legend"] = {**legend, "top": 4}
+    intel = dict(out.get("_intel") or {})
+    intel["overviewChart"] = True
+    out["_intel"] = intel
+    return out
+
+
 def attach_overview_echarts(overview: dict[str, Any]) -> dict[str, Any]:
     if overview.get("error"):
         return overview
     charts: dict[str, Any] = {}
     intensity = _agency_intensity_scatter(overview.get("agency_intensity") or {})
     if intensity:
-        charts["intensity"] = intensity
+        charts["intensity"] = _overview_chart(intensity)
     motion_fy = _motion_fy_trend_chart(overview.get("spend_trend") or [])
     if motion_fy:
-        charts["motion_fy_trend"] = motion_fy
+        charts["motion_fy_trend"] = _overview_chart(motion_fy)
     motion_payload = overview.get("motion") or {}
     channel_mix = _motion_channel_mix_chart(motion_payload.get("channels") or [])
     if channel_mix:
-        charts["motion_channels"] = channel_mix
+        charts["motion_channels"] = _overview_chart(channel_mix)
     q4_timing = _motion_q4_mix_shift_chart(motion_payload.get("timing") or {})
     if q4_timing:
-        charts["motion_q4_timing"] = q4_timing
+        charts["motion_q4_timing"] = _overview_chart(q4_timing)
     expiring_ch = _motion_channel_bars_chart(
         motion_payload.get("expiring_channels") or [],
         title="Recompete channel split",
         mode="motion_expiring_channels",
     )
     if expiring_ch:
-        charts["motion_expiring_channels"] = expiring_ch
+        charts["motion_expiring_channels"] = _overview_chart(expiring_ch)
     parent_shadow = _motion_parent_shadow_chart(motion_payload.get("parent_shadow") or {})
     if parent_shadow:
-        charts["motion_parent_shadow"] = parent_shadow
+        charts["motion_parent_shadow"] = _overview_chart(parent_shadow)
     money_paths = _motion_money_paths_sankey(motion_payload.get("money_paths") or [])
     if money_paths:
-        charts["motion_money_paths"] = money_paths
+        charts["motion_money_paths"] = _overview_chart(money_paths)
     set_aside = _donut_chart(
         overview.get("set_aside") or [],
         title="Set-aside mix",
         name_key="bucket",
     )
     if set_aside:
-        charts["set_aside"] = set_aside
+        charts["set_aside"] = _overview_chart(set_aside)
     extent = _horizontal_bar_chart(
         overview.get("extent_competed") or [],
         title="Extent competed",
         name_key="extent",
     )
     if extent:
-        charts["extent_competed"] = extent
+        charts["extent_competed"] = _overview_chart(extent)
     recipients = _horizontal_bar_chart(
         overview.get("top_recipients") or [],
         title="Top recipients",
         name_key="recipient",
     )
     if recipients:
-        charts["top_recipients"] = recipients
+        charts["top_recipients"] = _overview_chart(recipients)
     pricing = _pricing_bucket_chart(overview.get("pricing_buckets") or [])
     if pricing:
-        charts["pricing_buckets"] = pricing
+        charts["pricing_buckets"] = _overview_chart(pricing)
     idv = _donut_chart(
         [{"bucket": r["channel"], "millions": r["millions"]} for r in overview.get("idv_split") or []],
         title="IDV vs standalone",
         name_key="bucket",
     )
     if idv:
-        charts["idv_split"] = idv
+        charts["idv_split"] = _overview_chart(idv)
     expiring_tl = _expiring_timeline_chart(overview.get("expiring_timeline") or {})
     if expiring_tl:
-        charts["expiring_timeline"] = expiring_tl
+        charts["expiring_timeline"] = _overview_chart(expiring_tl)
     if charts:
         overview["charts"] = charts
     return overview
@@ -317,7 +342,7 @@ def _agency_intensity_scatter(intensity: dict[str, Any]) -> dict[str, Any] | Non
         },
         "yAxis": {
             "type": "value",
-            "name": "$M obligated",
+            "name": "Obligation",
             "nameTextStyle": {"color": AXIS},
             "splitLine": {"lineStyle": {"color": GRID, "type": "dashed"}},
             "axisLabel": {"color": AXIS},
@@ -483,6 +508,15 @@ def _expiring_timeline_chart(payload: dict[str, Any]) -> dict[str, Any] | None:
             labels.append(month)
     millions = [b.get("millions", 0) for b in buckets]
     actions = [b.get("actions", 0) for b in buckets]
+    axis_label: dict[str, Any] = {"color": AXIS, "rotate": 35, "fontSize": 9}
+    if len(labels) > 12:
+        axis_label = {
+            "color": AXIS,
+            "rotate": 0,
+            "fontSize": 8,
+            "hideOverlap": True,
+            "interval": 0,
+        }
     return {
         "backgroundColor": "transparent",
         "textStyle": {"color": TEXT},
@@ -498,7 +532,7 @@ def _expiring_timeline_chart(payload: dict[str, Any]) -> dict[str, Any] | None:
             "type": "category",
             "data": labels,
             "axisLine": {"lineStyle": {"color": GRID}},
-            "axisLabel": {"color": AXIS, "rotate": 35, "fontSize": 9},
+            "axisLabel": axis_label,
         },
         "yAxis": [
             {
