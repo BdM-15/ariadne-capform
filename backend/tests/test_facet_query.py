@@ -1,6 +1,8 @@
 """Facet queries — no NAICS default; operator-defined search only."""
 
 from thread.intel.facet_query import (
+    MIN_VALUE_BASIS_OBLIGATED,
+    MIN_VALUE_BASIS_POTENTIAL,
     InsightFacetQuery,
     build_facet_sql,
     describe_query,
@@ -60,14 +62,39 @@ def test_query_accepts_recipient_uei():
     assert "UEI: ABC123DEF456" in describe_query(q)
 
 
-def test_min_obligation_filter_sql():
-    q = query_from_dict({"id": "big", "name": "Big deals", "naics_codes": "561210", "min_obligation": "1M"})
+def test_min_contract_value_defaults_to_potential_column():
+    q = query_from_dict({"id": "big", "name": "Big deals", "naics_codes": "561210", "min_contract_value": "1M"})
     assert q is not None
-    assert q.min_obligation == 1_000_000.0
+    assert q.min_contract_value == 1_000_000.0
+    assert q.min_value_basis == MIN_VALUE_BASIS_POTENTIAL
     sql, params = build_facet_sql(q)
-    assert "federal_action_obligation" in sql
-    assert params["min_obligation"] == 1_000_000.0
-    assert "Min obligation" in describe_query(q)
+    assert "potential_total_value_of_award" in sql
+    assert "federal_action_obligation" not in sql
+    assert params["min_contract_value"] == 1_000_000.0
+    assert "Min potential value" in describe_query(q)
+
+
+def test_min_contract_value_obligated_basis():
+    q = query_from_dict(
+        {
+            "id": "funded",
+            "name": "Funded floor",
+            "naics_codes": "561210",
+            "min_contract_value": "500000",
+            "min_value_basis": "obligated",
+        }
+    )
+    assert q is not None
+    assert q.min_value_basis == MIN_VALUE_BASIS_OBLIGATED
+    sql, _ = build_facet_sql(q)
+    assert "total_dollars_obligated" in sql
+    assert "Min total obligated" in describe_query(q)
+
+
+def test_min_contract_value_reads_legacy_min_obligation_key():
+    q = query_from_dict({"id": "legacy", "name": "Legacy", "naics_codes": "561210", "min_obligation": "2M"})
+    assert q is not None
+    assert q.min_contract_value == 2_000_000.0
 
 
 def test_exclude_agencies_filter_sql():

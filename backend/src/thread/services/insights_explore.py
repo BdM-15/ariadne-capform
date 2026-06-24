@@ -53,7 +53,8 @@ def _facet_from_params(
     recipient: str = "",
     naics_codes: str = "",
     psc_codes: str = "",
-    min_obligation: str = "",
+    min_contract_value: str = "",
+    min_value_basis: str = "",
     awarding_office: str = "",
     funding_office: str = "",
     recipient_uei: str = "",
@@ -70,7 +71,8 @@ def _facet_from_params(
         "recipient": recipient.strip() or None,
         "naics_codes": naics_codes.strip(),
         "psc_codes": psc_codes.strip(),
-        "min_obligation": min_obligation.strip() or None,
+        "min_contract_value": min_contract_value.strip() or None,
+        "min_value_basis": min_value_basis.strip() or None,
     }
     for field in ADVANCED_FACET_FIELDS:
         value = locals().get(field, "")
@@ -130,7 +132,8 @@ async def explore_radar(
     pop_state: str = "",
     extent_competed: str = "",
     type_of_set_aside: str = "",
-    min_obligation: str = "",
+    min_contract_value: str = "",
+    min_value_basis: str = "",
     exclude_agencies: str = "",
     limit: int = 15,
     run: bool = False,
@@ -152,7 +155,8 @@ async def explore_radar(
         pop_state=pop_state,
         extent_competed=extent_competed,
         type_of_set_aside=type_of_set_aside,
-        min_obligation=min_obligation,
+        min_contract_value=min_contract_value,
+        min_value_basis=min_value_basis,
         exclude_agencies=exclude_agencies,
     )
     facet_input = {
@@ -161,7 +165,8 @@ async def explore_radar(
         "recipient": recipient,
         "naics_codes": naics_codes,
         "psc_codes": psc_codes,
-        "min_obligation": min_obligation,
+        "min_contract_value": min_contract_value,
+        "min_value_basis": min_value_basis,
         "awarding_office": awarding_office,
         "funding_office": funding_office,
         "recipient_uei": recipient_uei,

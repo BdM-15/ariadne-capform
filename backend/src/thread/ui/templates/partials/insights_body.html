@@ -46,10 +46,14 @@
         </label>
         <label class="insights-field">
           <span class="insights-field-label">
-            Min obligation
-            <span class="settings-label-tip" title="Floor on federal_action_obligation per prime award — drop micro-actions. Supports 500K, 1M, $250000.">?</span>
+            Min contract value
+            <span class="settings-label-tip" title="Floor per prime award row. Potential uses potential_total_value_of_award (full opportunity — best when hunting mid-contract). Obligated uses total_dollars_obligated (funded to date). Supports 500K, 1M.">?</span>
           </span>
-          <input class="insights-field-input" name="min_obligation" placeholder="1M" value="{{ facet_form.min_obligation if facet_form else '' }}" />
+          <select class="insights-field-input insights-field-select mb-1" name="min_value_basis" aria-label="Value basis">
+            <option value="potential"{% if (facet_form.min_value_basis or 'potential') == 'potential' %} selected{% endif %}>Potential value</option>
+            <option value="obligated"{% if facet_form.min_value_basis == 'obligated' %} selected{% endif %}>Total obligated</option>
+          </select>
+          <input class="insights-field-input" name="min_contract_value" placeholder="1M" value="{{ facet_form.min_contract_value if facet_form else '' }}" />
         </label>
 
         <button type="submit" class="btn btn-hero-magenta insights-facet-run-btn">Run slice</button>

@@ -22,13 +22,21 @@ ADVANCED_FACET_FIELDS: tuple[str, ...] = (
     "exclude_agencies",
 )
 
+MIN_VALUE_BASIS_POTENTIAL = "potential"
+MIN_VALUE_BASIS_OBLIGATED = "obligated"
+MIN_VALUE_BASIS_COLUMNS: dict[str, str] = {
+    MIN_VALUE_BASIS_POTENTIAL: "potential_total_value_of_award",
+    MIN_VALUE_BASIS_OBLIGATED: "total_dollars_obligated",
+}
+
 MAIN_FACET_FIELDS: tuple[str, ...] = (
     "agency",
     "sub_agency",
     "recipient",
     "naics_codes",
     "psc_codes",
-    "min_obligation",
+    "min_contract_value",
+    "min_value_basis",
 )
 
 
@@ -49,7 +57,8 @@ class InsightFacetQuery:
     pop_state: str | None = None
     extent_competed: str | None = None
     type_of_set_aside: str | None = None
-    min_obligation: float | None = None
+    min_contract_value: float | None = None
+    min_value_basis: str = MIN_VALUE_BASIS_POTENTIAL
     exclude_agencies: tuple[str, ...] = ()
     description: str = ""
 
@@ -77,8 +86,15 @@ def _active_path(settings: Settings) -> Path:
     return settings.resolve(settings.thread_state_dir) / "active_insight_query.json"
 
 
-def _parse_min_obligation(raw: Any) -> float | None:
-    """Parse minimum prime-action obligation in raw USD (supports 1M, 500K, $250000)."""
+def _parse_min_value_basis(raw: Any) -> str:
+    text = str(raw or MIN_VALUE_BASIS_POTENTIAL).strip().lower()
+    if text in (MIN_VALUE_BASIS_OBLIGATED, "total_obligated", "total_dollars_obligated", "obligated"):
+        return MIN_VALUE_BASIS_OBLIGATED
+    return MIN_VALUE_BASIS_POTENTIAL
+
+
+def _parse_contract_value_floor(raw: Any) -> float | None:
+    """Parse minimum contract-value floor in raw USD (supports 1M, 500K, $250000)."""
     if raw is None:
         return None
     text = str(raw).strip().replace(",", "").replace("$", "")
@@ -135,7 +151,10 @@ def query_from_dict(raw: dict[str, Any]) -> InsightFacetQuery | None:
     naics = _parse_codes(raw.get("naics_codes") or raw.get("naics"))
     psc = _parse_codes(raw.get("psc_codes") or raw.get("psc"))
     exclude_agencies = _parse_phrase_list(raw.get("exclude_agencies"))
-    min_obligation = _parse_min_obligation(raw.get("min_obligation"))
+    min_contract_value = _parse_contract_value_floor(
+        raw.get("min_contract_value") or raw.get("min_obligation")
+    )
+    min_value_basis = _parse_min_value_basis(raw.get("min_value_basis"))
     agency = (str(raw["agency"]).strip() or None) if raw.get("agency") else None
     sub_agency = (str(raw["sub_agency"]).strip() or None) if raw.get("sub_agency") else None
     recipient = (
@@ -164,7 +183,8 @@ def query_from_dict(raw: dict[str, Any]) -> InsightFacetQuery | None:
         pop_state=_opt_str("pop_state"),
         extent_competed=_opt_str("extent_competed"),
         type_of_set_aside=_opt_str("type_of_set_aside"),
-        min_obligation=min_obligation,
+        min_contract_value=min_contract_value,
+        min_value_basis=min_value_basis,
         exclude_agencies=exclude_agencies,
         description=str(raw.get("description") or ""),
     )
@@ -199,7 +219,8 @@ def _write_queries(settings: Settings, queries: list[InsightFacetQuery]) -> None
             "pop_state": q.pop_state,
             "extent_competed": q.extent_competed,
             "type_of_set_aside": q.type_of_set_aside,
-            "min_obligation": q.min_obligation,
+            "min_contract_value": q.min_contract_value,
+            "min_value_basis": q.min_value_basis,
             "exclude_agencies": list(q.exclude_agencies),
             "description": q.description,
         }
@@ -258,7 +279,8 @@ def new_insight_query_from_form(
     pop_state: str = "",
     extent_competed: str = "",
     type_of_set_aside: str = "",
-    min_obligation: str = "",
+    min_contract_value: str = "",
+    min_value_basis: str = "",
     exclude_agencies: str = "",
     description: str = "",
 ) -> InsightFacetQuery | None:
@@ -275,7 +297,8 @@ def new_insight_query_from_form(
         "pop_state": pop_state.strip() or None,
         "extent_competed": extent_competed.strip() or None,
         "type_of_set_aside": type_of_set_aside.strip() or None,
-        "min_obligation": min_obligation.strip() or None,
+        "min_contract_value": min_contract_value.strip() or None,
+        "min_value_basis": min_value_basis.strip() or MIN_VALUE_BASIS_POTENTIAL,
         "exclude_agencies": exclude_agencies.strip(),
         "description": description.strip(),
     }
@@ -350,8 +373,13 @@ def describe_query(query: InsightFacetQuery | None) -> str:
         parts.append(f"Competition: {query.extent_competed}")
     if query.type_of_set_aside:
         parts.append(f"Set-aside: {query.type_of_set_aside}")
-    if query.min_obligation:
-        parts.append(f"Min obligation: ${query.min_obligation:,.0f}")
+    if query.min_contract_value:
+        basis = (
+            "potential value"
+            if query.min_value_basis == MIN_VALUE_BASIS_POTENTIAL
+            else "total obligated"
+        )
+        parts.append(f"Min {basis}: ${query.min_contract_value:,.0f}")
     if query.exclude_agencies:
         parts.append(f"Exclude: {', '.join(query.exclude_agencies)}")
     return " · ".join(parts) if parts else query.name
@@ -417,9 +445,12 @@ def build_facet_sql(query: InsightFacetQuery) -> tuple[str, dict[str, Any]]:
         clauses.append("AND type_of_set_aside ILIKE :type_of_set_aside")
         params["type_of_set_aside"] = f"%{query.type_of_set_aside}%"
 
-    if query.min_obligation:
-        clauses.append("AND COALESCE(federal_action_obligation, 0) >= :min_obligation")
-        params["min_obligation"] = query.min_obligation
+    if query.min_contract_value:
+        value_column = MIN_VALUE_BASIS_COLUMNS.get(
+            query.min_value_basis, MIN_VALUE_BASIS_COLUMNS[MIN_VALUE_BASIS_POTENTIAL]
+        )
+        clauses.append(f"AND COALESCE({value_column}, 0) >= :min_contract_value")
+        params["min_contract_value"] = query.min_contract_value
 
     if query.exclude_agencies:
         for i, excluded in enumerate(query.exclude_agencies):
