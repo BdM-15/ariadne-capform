@@ -507,7 +507,7 @@ def _expiring_timeline_chart(payload: dict[str, Any]) -> dict[str, Any] | None:
         except (ValueError, IndexError):
             labels.append(month)
     millions = [b.get("millions", 0) for b in buckets]
-    actions = [b.get("actions", 0) for b in buckets]
+    contracts = [b.get("contracts", b.get("actions", 0)) for b in buckets]
     axis_label: dict[str, Any] = {"color": AXIS, "rotate": 35, "fontSize": 9}
     if len(labels) > 12:
         axis_label = {
@@ -524,7 +524,7 @@ def _expiring_timeline_chart(payload: dict[str, Any]) -> dict[str, Any] | None:
         "tooltip": {**_tooltip("axis")},
         "legend": {
             "top": 28,
-            "data": ["$ expiring", "Actions"],
+            "data": ["$ expiring", "Contracts"],
             "textStyle": {"color": AXIS, "fontSize": 10},
         },
         "grid": _grid(top=72),
@@ -543,7 +543,7 @@ def _expiring_timeline_chart(payload: dict[str, Any]) -> dict[str, Any] | None:
             },
             {
                 "type": "value",
-                "name": "Actions",
+                "name": "Contracts",
                 "axisLabel": {"color": AXIS},
                 "splitLine": {"show": False},
             },
@@ -553,20 +553,20 @@ def _expiring_timeline_chart(payload: dict[str, Any]) -> dict[str, Any] | None:
                 "name": "$ expiring",
                 "type": "bar",
                 "data": [
-                    {"value": m, "actions": actions[i]}
+                    {"value": m, "contracts": contracts[i], "actions": contracts[i]}
                     for i, m in enumerate(millions)
                 ],
                 "itemStyle": {"color": CYAN},
                 "barMaxWidth": 28,
             },
             {
-                "name": "Actions",
+                "name": "Contracts",
                 "type": "line",
                 "yAxisIndex": 1,
                 "smooth": True,
                 "symbol": "circle",
                 "symbolSize": 6,
-                "data": actions,
+                "data": contracts,
                 "lineStyle": {"color": AMBER, "width": 2},
                 "itemStyle": {"color": AMBER},
             },

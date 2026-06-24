@@ -14,6 +14,8 @@ from thread.intel.bulk_migration import _load_state, _row_counts_from_state, sta
 from thread.intel.facet_query import InsightFacetQuery, build_facet_sql
 from thread.intel.sql_expressions import (
     AGENCY_EXPR,
+    BASE_AWARD_WHERE,
+    EXPIRING_CONTRACT_VALUE_EXPR,
     MONTHS_TO_END_EXPR,
     PRICING_BUCKET_EXPR,
     PRIME_TABLE,
@@ -220,11 +222,12 @@ async def expiring_pipeline_stats(
     sql = f"""
         SELECT
             COUNT(*) AS n,
-            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+            {round_numeric(f"SUM({EXPIRING_CONTRACT_VALUE_EXPR}) / 1000000.0")} AS millions
         FROM {PRIME_TABLE}
         WHERE period_of_performance_current_end_date IS NOT NULL
           AND period_of_performance_current_end_date <= CURRENT_DATE + (:months_ahead || ' months')::interval
           AND period_of_performance_current_end_date >= CURRENT_DATE
+          {BASE_AWARD_WHERE}
           {facet_sql}
     """
     params = {**facet_params, "months_ahead": str(months_ahead)}
@@ -378,7 +381,7 @@ async def get_expiring_contracts_for_query(
             contract_award_unique_key AS award_key,
             award_id_piid AS piid,
             recipient_name AS recipient,
-            federal_action_obligation AS obligation,
+            {EXPIRING_CONTRACT_VALUE_EXPR} AS obligation,
             period_of_performance_current_end_date AS end_date,
             {AGENCY_EXPR} AS agency,
             {STATE_EXPR} AS pop_state,
@@ -396,6 +399,7 @@ async def get_expiring_contracts_for_query(
         WHERE period_of_performance_current_end_date IS NOT NULL
           AND period_of_performance_current_end_date <= CURRENT_DATE + (:months_ahead || ' months')::interval
           AND period_of_performance_current_end_date >= CURRENT_DATE
+          {BASE_AWARD_WHERE}
           {facet_sql}
         ORDER BY period_of_performance_current_end_date ASC
         LIMIT :limit

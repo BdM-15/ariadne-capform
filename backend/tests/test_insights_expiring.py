@@ -2,7 +2,21 @@
 
 from thread.intel.charts import _award_shape_gate
 from thread.intel.echarts_options import attach_overview_echarts
+from thread.intel.sql_expressions import BASE_AWARD_WHERE, is_base_award
 from thread.services.insights_overview import overview_chart_guides
+
+
+def test_is_base_award_modification_zero():
+    assert is_base_award("0") is True
+    assert is_base_award(0) is True
+    assert is_base_award("1") is False
+    assert is_base_award("P00001") is False
+    assert is_base_award(None) is False
+
+
+def test_base_award_where_filters_modifications():
+    assert "modification_number" in BASE_AWARD_WHERE
+    assert "'0'" in BASE_AWARD_WHERE
 
 
 def test_award_shape_gate_firm_fixed_skipped():
@@ -57,11 +71,11 @@ def test_attach_overview_echarts_builds_expiring_timeline():
         "agency_intensity": {"points": []},
         "expiring_timeline": {
             "buckets": [
-                {"month": "2026-03", "millions": 4.5, "actions": 12},
-                {"month": "2026-04", "millions": 2.0, "actions": 5},
+                {"month": "2026-03", "millions": 4.5, "contracts": 12, "actions": 12},
+                {"month": "2026-04", "millions": 2.0, "contracts": 5, "actions": 5},
             ],
             "peak_millions": 4.5,
-            "insight": "Peak cluster Mar 2026 — $4.5M across 12 actions",
+            "insight": "Peak cluster Mar 2026 — $4.5M across 12 contracts",
         },
     }
     out = attach_overview_echarts(overview)
@@ -92,3 +106,4 @@ def test_overview_chart_guides_include_expiring_timeline():
     guides = overview_chart_guides()
     assert "expiring_timeline" in guides
     assert "shape" in guides["expiring_timeline"]["use"].lower()
+    assert "modification" in guides["expiring_timeline"]["read"].lower() or "base contract" in guides["expiring_timeline"]["read"].lower()

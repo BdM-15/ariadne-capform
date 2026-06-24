@@ -17,7 +17,9 @@ from thread.ui.formatters import format_count, format_money_from_millions
 from thread.intel.sql_expressions import (
     AGENCY_EXPR,
     AGENCY_NORMALIZED_EXPR,
+    BASE_AWARD_WHERE,
     CAPTURE_CHANNEL_EXPR,
+    EXPIRING_CONTRACT_VALUE_EXPR,
     EXTENT_COMPETED_NORMALIZED_EXPR,
     IDV_FLAG_EXPR,
     PRICING_BUCKET_EXPR,
@@ -479,19 +481,20 @@ async def expiring_capture_channels(
     sql = f"""
         SELECT
             ({CAPTURE_CHANNEL_EXPR}) AS channel,
-            COUNT(*) AS actions,
-            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+            COUNT(*) AS contracts,
+            {round_numeric(f"SUM({EXPIRING_CONTRACT_VALUE_EXPR}) / 1000000.0")} AS millions
         FROM {PRIME_TABLE}
         WHERE period_of_performance_current_end_date IS NOT NULL
           AND period_of_performance_current_end_date <= CURRENT_DATE + (:months_ahead || ' months')::interval
           AND period_of_performance_current_end_date >= CURRENT_DATE
+          {BASE_AWARD_WHERE}
           {facet_sql}
         GROUP BY channel
     """
     params = {**facet_params, "months_ahead": str(months_ahead)}
     rows = (await session.execute(text(sql), params)).all()
     raw = [
-        {"channel": str(r.channel or "other"), "actions": int(r.actions), "millions": float(r.millions or 0)}
+        {"channel": str(r.channel or "other"), "actions": int(r.contracts), "millions": float(r.millions or 0)}
         for r in rows
     ]
     return _normalize_channel_rows(raw)
@@ -504,16 +507,17 @@ async def expiring_timeline(
     *,
     months_ahead: int = 18,
 ) -> dict[str, Any]:
-    """Monthly buckets of expiring obligation $ and action count (18-mo window)."""
+    """Monthly buckets of expiring contract $ and base-award count (18-mo window)."""
     sql = f"""
         SELECT
             to_char(date_trunc('month', period_of_performance_current_end_date), 'YYYY-MM') AS month,
-            COUNT(*) AS actions,
-            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+            COUNT(*) AS contracts,
+            {round_numeric(f"SUM({EXPIRING_CONTRACT_VALUE_EXPR}) / 1000000.0")} AS millions
         FROM {PRIME_TABLE}
         WHERE period_of_performance_current_end_date IS NOT NULL
           AND period_of_performance_current_end_date <= CURRENT_DATE + (:months_ahead || ' months')::interval
           AND period_of_performance_current_end_date >= CURRENT_DATE
+          {BASE_AWARD_WHERE}
           {facet_sql}
         GROUP BY date_trunc('month', period_of_performance_current_end_date)
         ORDER BY month ASC
@@ -523,7 +527,8 @@ async def expiring_timeline(
     buckets = [
         {
             "month": str(r.month),
-            "actions": int(r.actions),
+            "contracts": int(r.contracts),
+            "actions": int(r.contracts),
             "millions": float(r.millions or 0),
         }
         for r in rows
@@ -541,7 +546,7 @@ async def expiring_timeline(
         pass
     insight = (
         f"Peak cluster {peak_label} — {format_money_from_millions(peak['millions'])} across "
-        f"{format_count(peak['actions'])} actions"
+        f"{format_count(peak['contracts'])} contracts"
         if peak["millions"] > 0
         else ""
     )
@@ -1257,12 +1262,13 @@ async def ffp_shaping_radar(
             ({AGENCY_EXPR}) AS agency,
             COALESCE(type_of_contract_pricing, 'Unknown') AS pricing,
             ({PRICING_BUCKET_EXPR}) AS pricing_bucket,
-            {round_numeric("COALESCE(federal_action_obligation, 0) / 1000000.0")} AS obligation_millions,
+            {round_numeric(f"{EXPIRING_CONTRACT_VALUE_EXPR} / 1000000.0")} AS obligation_millions,
             period_of_performance_current_end_date::text AS end_date
         FROM {PRIME_TABLE}
         WHERE period_of_performance_current_end_date IS NOT NULL
           AND period_of_performance_current_end_date <= CURRENT_DATE + (:months_ahead || ' months')::interval
           AND period_of_performance_current_end_date >= CURRENT_DATE
+          {BASE_AWARD_WHERE}
           {facet_sql}
         ORDER BY period_of_performance_current_end_date ASC
         LIMIT :exp_limit

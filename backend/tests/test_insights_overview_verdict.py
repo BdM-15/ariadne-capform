@@ -75,7 +75,7 @@ def test_overview_capture_verdict_builds_six_cards():
     assert verdict["cards"][0]["id"] == "tam"
     assert verdict["cards"][0]["value"] == "$120.5M"
     assert verdict["cards"][1]["value"] == "+25.0%"
-    assert verdict["cards"][2]["hint"].startswith("12 expiring")
+    assert verdict["cards"][2]["hint"].startswith("12 contracts")
     assert len(verdict["shipley"]) == 4
     assert "brief" not in verdict
 

@@ -118,10 +118,16 @@
         var lines = [params[0].axisValue];
         params.forEach(function (p) {
           if (p.seriesName === "$ expiring" && p.data) {
-            var acts = p.data.actions != null ? formatCount(p.data.actions) : "—";
-            lines.push(formatMoneyFromMillions(p.data.value) + " expiring · " + acts + " actions");
-          } else if (p.seriesName === "Actions") {
-            lines.push(formatCount(p.value) + " actions (month total line)");
+            var n =
+              p.data.contracts != null
+                ? p.data.contracts
+                : p.data.actions != null
+                  ? p.data.actions
+                  : null;
+            var count = n != null ? formatCount(n) : "—";
+            lines.push(formatMoneyFromMillions(p.data.value) + " expiring · " + count + " contracts");
+          } else if (p.seriesName === "Contracts" || p.seriesName === "Actions") {
+            lines.push(formatCount(p.value) + " contracts (month total line)");
           }
         });
         return lines.join("<br/>");

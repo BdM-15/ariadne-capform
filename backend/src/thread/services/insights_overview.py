@@ -83,7 +83,7 @@ OVERVIEW_CHART_GUIDES: dict[str, dict[str, str]] = {
     },
     "expiring_timeline": {
         "label": "Expiring timeline",
-        "read": "Monthly buckets of contracts ending in the next 18 months. Cyan bars = obligated $M; amber line = action count.",
+        "read": "Monthly buckets of base contracts/orders ending in the next 18 months (modification_number = 0). Cyan bars = contract $M; amber line = contract count.",
         "use": "Spot recompete clusters before they hit — pair with shape badges on rows below for flexible-pricing shaping windows.",
     },
 }
@@ -505,7 +505,7 @@ def overview_capture_verdict(
             "id": "recompete",
             "label": "Recompete pipe",
             "value": format_money_from_millions(recompete_m),
-            "hint": f"{format_count(recompete_count)} expiring · 18 mo",
+            "hint": f"{format_count(recompete_count)} contracts · 18 mo",
             "tooltip": (
                 "Contracts ending in the next 18 months that match your facets — "
                 "obligation total and count across the full slice, not just the list below."

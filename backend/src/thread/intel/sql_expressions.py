@@ -101,6 +101,17 @@ MONTHS_TO_END_EXPR = """(
     + EXTRACT(MONTH FROM age(period_of_performance_current_end_date, CURRENT_DATE))
 )::int"""
 
+# Base award / order row — excludes modification actions (USAspending modification_number = '0').
+BASE_AWARD_WHERE = "AND COALESCE(modification_number, '') = '0'"
+
+# Contract-level dollars on base rows — not per-modification federal_action_obligation.
+EXPIRING_CONTRACT_VALUE_EXPR = """COALESCE(
+    NULLIF(potential_total_value_of_award, 0),
+    NULLIF(total_dollars_obligated, 0),
+    NULLIF(federal_action_obligation, 0),
+    0
+)"""
+
 _OPEN_SET_ASIDE_CHART_BUCKETS = "'(Not Applicable)', 'NO SET ASIDE USED'"
 
 EXTENT_COMPETED_OPEN_EXPR = """(
@@ -130,6 +141,11 @@ SET_ASIDE_PARENT_BACKED_EXPR = f"""(
     AND NULLIF(TRIM(COALESCE(recipient_parent_name, '')), '') IS NOT NULL
     AND UPPER(TRIM(recipient_parent_name)) <> UPPER(TRIM(COALESCE(recipient_name, '')))
 )"""
+
+
+def is_base_award(modification_number: object) -> bool:
+    """True when modification_number == '0' (base contract/order, not a mod action)."""
+    return str(modification_number if modification_number is not None else "") == "0"
 
 
 def round_numeric(expr: str, places: int = 2) -> str:

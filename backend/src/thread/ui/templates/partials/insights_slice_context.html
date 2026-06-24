@@ -4,7 +4,7 @@
     <span class="insights-slice-bar-label">Slice</span>
     <span class="insights-slice-bar-summary font-mono text-slate-400">
       {% if query.naics_codes %}NAICS {{ query.naics_codes|join(', ') }}{% endif %}
-      {% if explore.rows|length %} · {{ explore.rows|length }} expiring in list{% endif %}
+      {% if explore.rows|length %} · {{ explore.rows|length }} contracts in list{% endif %}
       {% if overview_verdict.cards %}
       {% set recompete_card = (overview_verdict.cards|selectattr('id', 'equalto', 'recompete')|list|first) %}
       {% if recompete_card %} · pipe {{ recompete_card.value }}{% endif %}

@@ -9,7 +9,7 @@
   {% if entity and entity.value %}
   <p class="text-[10px] text-slate-500 mb-2 font-mono">Scoped to <span class="text-neon-cyan">{{ entity.display_label }}</span> within active slice</p>
   {% endif %}
-  <p class="insights-explore-meta">{{ explore.summary }} · {{ explore.rows|length }} expiring (18 mo)</p>
+  <p class="insights-explore-meta">{{ explore.summary }} · {{ explore.rows|length }} contracts expiring (18 mo)</p>
   {% with rows=explore.rows, active_lens=active_lens %}
   {% include "partials/insights_recompete_rows.html" %}
   {% endwith %}

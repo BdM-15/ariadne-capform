@@ -8,7 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.intel.pg_queries import table_exists
-from thread.intel.sql_expressions import AGENCY_EXPR, MONTHS_TO_END_EXPR, PRIME_TABLE
+from thread.intel.sql_expressions import AGENCY_EXPR, BASE_AWARD_WHERE, MONTHS_TO_END_EXPR, PRIME_TABLE
 
 
 async def discover_expiring_award(
@@ -32,6 +32,7 @@ async def discover_expiring_award(
         WHERE period_of_performance_current_end_date IS NOT NULL
           AND period_of_performance_current_end_date <= CURRENT_DATE + (:months_ahead || ' months')::interval
           AND period_of_performance_current_end_date >= CURRENT_DATE
+          {BASE_AWARD_WHERE}
           AND recipient_name IS NOT NULL
           AND NULLIF(TRIM(naics_code), '') IS NOT NULL
         ORDER BY period_of_performance_current_end_date ASC
