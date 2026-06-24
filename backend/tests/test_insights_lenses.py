@@ -175,6 +175,24 @@ def test_insights_slice_partial_requires_facets():
     )
 
 
+def test_slice_stage_embeds_facet_snapshot():
+    client = TestClient(create_app())
+    res = client.post(
+        "/partials/insights/slice",
+        data={
+            "run": "1",
+            "lens": "overview",
+            "naics_codes": "541512",
+            "agency": "Department of Energy",
+            "min_contract_value": "1M",
+        },
+        headers={"HX-Request": "true"},
+    )
+    assert res.status_code == 200
+    assert 'id="insights-slice-facets"' in res.text
+    assert 'value="541512"' in res.text
+
+
 def test_insights_slice_post_entity_drill_keeps_facets():
     """Long office names must POST with form body — GET URLs truncate and drop facets."""
     client = TestClient(create_app())

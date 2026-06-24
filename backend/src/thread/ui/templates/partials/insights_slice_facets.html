@@ -1,0 +1,6 @@
+{# Authoritative facet snapshot for the active slice — drills read this, not the sidebar form. #}
+<div id="insights-slice-facets" class="hidden" aria-hidden="true">
+  {% for key, val in (facet_form or {}).items() %}
+  <input type="hidden" name="{{ key }}" value="{{ val }}" />
+  {% endfor %}
+</div>

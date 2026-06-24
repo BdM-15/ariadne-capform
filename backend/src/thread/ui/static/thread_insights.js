@@ -98,27 +98,74 @@
     return document.getElementById("insights-radar-form");
   }
 
+  function sliceFacetSnapshot() {
+    return document.getElementById("insights-slice-facets");
+  }
+
+  function forEachFacetField(root, fn) {
+    if (!root) return;
+    root.querySelectorAll("input[name], select[name], textarea[name]").forEach(function (field) {
+      if (field.name) fn(field.value, field.name);
+    });
+  }
+
+  function buildSliceFormData(extra) {
+    var fd = new FormData();
+    forEachFacetField(sliceFacetSnapshot(), function (value, key) {
+      if (value != null && String(value).length) fd.set(key, String(value));
+    });
+    try {
+      var session = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+      if (session) {
+        Object.keys(session).forEach(function (key) {
+          if (key === "saved_at" || key === "award_key" || key === "lens") return;
+          if (!fd.has(key) && session[key]) fd.set(key, String(session[key]));
+        });
+      }
+    } catch (_) {}
+    var form = insightsForm();
+    if (form) {
+      new FormData(form).forEach(function (value, key) {
+        if (value != null && String(value).length) fd.set(key, String(value));
+      });
+    }
+    fd.set("run", "1");
+    Object.keys(extra || {}).forEach(function (key) {
+      var val = extra[key];
+      if (val != null && String(val).length) fd.set(key, String(val));
+    });
+    return fd;
+  }
+
+  function syncSidebarFromSliceFacets() {
+    var snap = sliceFacetSnapshot();
+    var form = insightsForm();
+    if (!snap || !form) return;
+    forEachFacetField(snap, function (value, key) {
+      var input = form.querySelector('[name="' + key + '"]');
+      if (input) input.value = value;
+    });
+  }
+
   function afterInsightsStageSwap() {
     clearLoadingStatus();
     var stage = document.getElementById("insights-stage-content");
     if (stage) stage.classList.remove("is-loading");
     var lensInput = document.getElementById("insights-active-lens");
     if (lensInput && stage && stage.dataset.activeLens) lensInput.value = stage.dataset.activeLens;
+    syncSidebarFromSliceFacets();
     window.persistInsightsSession();
     if (window.initInsightsPage) window.initInsightsPage();
     if (window.htmx && stage) window.htmx.process(stage);
   }
 
-  // ponytail: fetch+FormData — htmx.ajax({source:form}) does not hx-include facet fields on POST
+  // ponytail: facet snapshot on #insights-stage-content — sidebar form is often empty after bookmark load
   window.postInsightsSlice = function (extra, loadingMsg) {
-    var form = insightsForm();
-    if (!form) return Promise.reject(new Error("Slice form missing"));
-    var fd = new FormData(form);
-    fd.set("run", "1");
-    Object.keys(extra || {}).forEach(function (key) {
-      var val = extra[key];
-      if (val != null && String(val).length) fd.set(key, String(val));
-    });
+    var stage = document.getElementById("insights-stage-content");
+    if (!stage || stage.getAttribute("data-has-slice") !== "1") {
+      return Promise.reject(new Error("Run slice first"));
+    }
+    var fd = buildSliceFormData(extra);
     if (extra && extra.lens) {
       var lensInput = document.getElementById("insights-active-lens");
       if (lensInput) lensInput.value = extra.lens;
@@ -135,8 +182,7 @@
       }
     }
     if (loadingMsg) setStageStatus(loadingMsg, "loading");
-    var stage = document.getElementById("insights-stage-content");
-    if (stage) stage.classList.add("is-loading");
+    stage.classList.add("is-loading");
     return fetch("/partials/insights/slice", {
       method: "POST",
       body: fd,
@@ -203,12 +249,16 @@
   };
 
   window.persistInsightsSession = function () {
-    var form = insightsForm();
-    if (!form) return;
     var session = { run: 1, saved_at: Date.now() };
-    new FormData(form).forEach(function (value, key) {
+    forEachFacetField(sliceFacetSnapshot(), function (value, key) {
       if (value) session[key] = String(value);
     });
+    var form = insightsForm();
+    if (form) {
+      new FormData(form).forEach(function (value, key) {
+        if (value) session[key] = String(value);
+      });
+    }
     var stage = document.getElementById("insights-stage-content");
     if (stage && stage.dataset.activeLens) session.lens = stage.dataset.activeLens;
     var lens = document.getElementById("insights-active-lens");

@@ -61,7 +61,9 @@
     var values = sliceDrillValues(field, value, meta);
     if (!values || !window.postInsightsSlice) return;
     intensityDrillLock = true;
-    window.postInsightsSlice(values, "Opening Agency profile…").finally(function () {
+    window.postInsightsSlice(values, "Opening Agency profile…").catch(function () {
+      if (window.showInsightsSliceLoading) window.showInsightsSliceLoading("Run slice first, then click a dot.");
+    }).finally(function () {
       if (window.releaseIntensityDrillLock) window.releaseIntensityDrillLock();
     });
   }
