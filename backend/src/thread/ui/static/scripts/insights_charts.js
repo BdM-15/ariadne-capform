@@ -3,6 +3,7 @@
  */
 (function () {
   var SLICE_TARGET = "#insights-stage-content";
+  var intensityDrillLock = false;
 
   function formParams(form) {
     var params = new URLSearchParams();
@@ -40,13 +41,27 @@
 
     var lensInput = document.getElementById("insights-active-lens");
     if (lensInput) lensInput.value = lens;
+    syncEntityState(kind, scope, value);
     if (window.persistInsightsSession) window.persistInsightsSession();
     return params;
   }
 
+  function syncEntityState(kind, scope, value) {
+    var root = document.getElementById("insights-entity-state");
+    if (!root) return;
+    var kindInput = root.querySelector('input[name="entity_kind"]');
+    var valueInput = root.querySelector('input[name="entity_value"]');
+    var scopeInput = root.querySelector('input[name="entity_scope"]');
+    if (kindInput) kindInput.value = kind || "";
+    if (valueInput) valueInput.value = value || "";
+    if (scopeInput) scopeInput.value = scope || "";
+  }
+
   function requestSliceDrill(field, value, meta) {
+    if (intensityDrillLock) return;
     var params = sliceDrillParams(field, value, meta);
     if (!params || !window.htmx) return;
+    intensityDrillLock = true;
     if (window.showInsightsSliceLoading) window.showInsightsSliceLoading("Opening Agency profile…");
     window.htmx.ajax("GET", "/partials/insights/slice?" + params.toString(), {
       target: SLICE_TARGET,
@@ -54,6 +69,10 @@
       indicator: "#insights-slice-loading",
     });
   }
+
+  window.releaseIntensityDrillLock = function () {
+    intensityDrillLock = false;
+  };
 
   function intensityOfficeValue(params) {
     var d = params.data || {};
@@ -113,6 +132,7 @@
     if (!zr) return;
     if (host._intensityZrClick) zr.off("click", host._intensityZrClick);
     host._intensityZrClick = function (ev) {
+      if (ev && ev.event) ev.event.stopPropagation();
       var idx = nearestIntensityIndex(chart, ev.offsetX, ev.offsetY);
       if (idx < 0) return;
       var data = intensityScatterData(chart)[idx];
@@ -127,10 +147,6 @@
     if (host._intensityBoundChart === chart) return;
     host._intensityBoundChart = chart;
     chart.off("click");
-    chart.on("click", function (params) {
-      if (!params || !params.data) return;
-      openIntensityOffice(host, params);
-    });
     bindIntensityZrClick(host, chart);
     host.style.cursor = "pointer";
   };
@@ -273,17 +289,44 @@
     });
   }
 
-  window.initInsightsHone = function () {
-    bindChartDrill();
+  window.rebindOfficesScatter = function () {
     document.querySelectorAll('.clew-echarts-host[data-chart-key="intensity"]').forEach(function (host) {
       var chart = window.echarts.getInstanceByDom(host);
       if (!chart || !window.bindIntensityChart) return;
-      if (host._intensityBoundChart && host._intensityBoundChart !== chart) {
-        host._intensityBoundChart = null;
-      }
+      host._intensityBoundChart = null;
       window.bindIntensityChart(host, chart);
     });
   };
+
+  window.initInsightsHone = function () {
+    bindChartDrill();
+    window.rebindOfficesScatter();
+  };
+
+  document.body.addEventListener("htmx:afterSettle", function (evt) {
+    var target = evt.detail && evt.detail.target;
+    if (!target || !target.querySelector) return;
+    if (!target.querySelector('[data-chart-key="intensity"]')) return;
+    window.setTimeout(function () {
+      window.rebindOfficesScatter();
+    }, 50);
+  });
+
+  document.body.addEventListener("htmx:afterSwap", function (evt) {
+    if (window.releaseIntensityDrillLock) window.releaseIntensityDrillLock();
+    var target = evt.detail && evt.detail.target;
+    if (!target || target.id !== "insights-stage-content") return;
+    var lens = target.dataset && target.dataset.activeLens;
+    if (lens === "agency") {
+      target.querySelectorAll(".insights-lens-tab").forEach(function (tab) {
+        if (tab.textContent && tab.textContent.trim() === "Agency" && tab.scrollIntoView) {
+          tab.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+      });
+      var body = target.querySelector("#insights-lens-body");
+      if (body && body.scrollIntoView) body.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+  });
 
   document.addEventListener("DOMContentLoaded", function () {
     window.initInsightsHone();

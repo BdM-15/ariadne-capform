@@ -483,6 +483,7 @@
     document.body.addEventListener("htmx:afterSwap", function (e) {
       var t = e.detail && e.detail.target;
       if (!t || !isStageSwap(t)) return;
+      if (window.releaseIntensityDrillLock) window.releaseIntensityDrillLock();
       clearLoadingStatus();
       var stage = document.getElementById("insights-stage-content");
       var lensInput = document.getElementById("insights-active-lens");
@@ -497,6 +498,7 @@
 
     document.body.addEventListener("htmx:responseError", function (e) {
       if (!isSliceRequest(e)) return;
+      if (window.releaseIntensityDrillLock) window.releaseIntensityDrillLock();
       var status = e.detail.xhr && e.detail.xhr.status;
       setStageStatus("Slice request failed" + (status ? " (HTTP " + status + ")" : "") + ".", "error");
       clearLoadingStatus();
@@ -504,7 +506,16 @@
 
     document.body.addEventListener("htmx:sendError", function (e) {
       if (!isSliceRequest(e)) return;
+      if (window.releaseIntensityDrillLock) window.releaseIntensityDrillLock();
       setStageStatus("Network error — could not reach server.", "error");
+      clearLoadingStatus();
+    });
+
+    document.body.addEventListener("htmx:timeout", function (e) {
+      if (!isSliceRequest(e)) return;
+      if (window.releaseIntensityDrillLock) window.releaseIntensityDrillLock();
+      setStageStatus("Request timed out — server may be overloaded. Try again.", "error");
+      clearLoadingStatus();
     });
 
     document.body.addEventListener("htmx:afterRequest", function (e) {

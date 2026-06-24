@@ -171,7 +171,6 @@ async def build_slice_panel(
     )
     query = overview_result.query
     has_slice = bool(query and query.has_filters() and run)
-
     if has_slice and lens == "overview":
         explore = await explore_radar(
             session,
@@ -225,7 +224,13 @@ async def build_slice_panel(
     cache_age_seconds = max(cache_ages) if cache_ages else None
 
     pipeline_stats: dict[str, int | float] = {"count": 0, "millions": 0.0}
-    if has_slice and query is not None and overview_result.status == "ready":
+    # ponytail: entity drill only needs cached overview + profile — skip expiring stats CTE
+    if (
+        has_slice
+        and query is not None
+        and overview_result.status == "ready"
+        and lens == "overview"
+    ):
         pipeline_stats = await intel_queries.expiring_pipeline_stats(
             session, query, months_ahead=EXPIRING_MONTHS_AHEAD
         )
@@ -236,12 +241,12 @@ async def build_slice_panel(
             pipeline=pipeline_stats,
             expiring_rows=explore.rows,
         )
-        if overview_result.status == "ready"
+        if overview_result.status == "ready" and lens == "overview"
         else {"cards": (), "shipley": ()}
     )
 
     explain_avail: SliceExplainAvailability | None = None
-    if has_slice and overview_result.status == "ready":
+    if has_slice and overview_result.status == "ready" and lens == "overview":
         explain_avail = await slice_explain_availability(settings)
 
     return SlicePanelContext(

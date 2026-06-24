@@ -150,6 +150,8 @@ async def build_entity_profile(
     try:
         if entity.kind == "competitor":
             raw = await _competitor_profile(session, scoped, entity, slice_query, settings)
+        elif entity.scope == "office":
+            raw = await _agency_office_profile(session, scoped, entity, slice_query)
         else:
             raw = await _agency_profile(session, scoped, entity, slice_query)
     except Exception as exc:  # pragma: no cover — surfaced in UI
@@ -168,7 +170,11 @@ async def build_entity_profile(
             error=str(raw["error"]),
         )
 
-    raw["recompete_rows"] = await fetch_entity_recompete(session, slice_query, entity)
+    # ponytail: office drill skips recompete enrich (pricing-pressure CTE) for faster Agency tab open
+    if entity.scope == "office":
+        raw["recompete_rows"] = []
+    else:
+        raw["recompete_rows"] = await fetch_entity_recompete(session, slice_query, entity)
     store_cached_entity_profile(
         settings,
         slice_query,
@@ -217,6 +223,45 @@ async def _competition_mix(
     extent = await extent_competed_breakdown(session, facet_sql, facet_params)
     pricing = await pricing_bucket_breakdown(session, facet_sql, facet_params)
     return {"set_aside": set_aside, "extent_competed": extent, "pricing_buckets": pricing}
+
+
+async def _agency_office_profile(
+    session: AsyncSession,
+    scoped: InsightFacetQuery,
+    entity: EntityContext,
+    slice_query: InsightFacetQuery,
+) -> dict[str, Any]:
+    """Lighter Agency profile for awarding-office drill — fewer PG round-trips."""
+    facet_sql, facet_params = build_facet_sql(scoped)
+    kpis = await _entity_kpis(session, scoped)
+    contractors = await top_recipients(session, scoped, limit=12)
+    spend = await spend_trend(session, scoped, limit=12)
+    sub_flow = await agency_sub_flow(session, scoped, limit=12)
+    set_aside = await set_aside_breakdown(session, facet_sql, facet_params)
+    extent = await extent_competed_breakdown(session, facet_sql, facet_params)
+
+    return {
+        "status": "ready",
+        "mode": "agency_profile",
+        "entity": {
+            "kind": entity.kind,
+            "value": entity.value,
+            "scope": entity.scope,
+            "label": entity.display_label,
+        },
+        "kpis": kpis,
+        "top_contractors": contractors,
+        "spend_trend": spend.get("bars") or [],
+        "agency_sub_flow": sub_flow.get("rows") or [],
+        "agency_sub_flow_group": sub_flow.get("group"),
+        "top_agencies": [],
+        "agency_recipient_matrix": {"rows": [], "mode": "agency_recipient_matrix"},
+        "money_flow": [],
+        "slice_summary": _slice_hint(slice_query),
+        "set_aside": set_aside,
+        "extent_competed": extent,
+        "pricing_buckets": [],
+    }
 
 
 async def _agency_profile(
