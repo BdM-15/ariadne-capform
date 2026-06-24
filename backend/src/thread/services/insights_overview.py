@@ -679,7 +679,12 @@ async def build_overview(
         and isinstance(cache.overview.get("expiring_timeline"), dict)
         and cached_v == OVERVIEW_SCHEMA_VERSION
     ):
-        overview = attach_overview_echarts(dict(cache.overview))
+        cached_overview = dict(cache.overview)
+        overview = (
+            cached_overview
+            if cached_overview.get("charts")
+            else attach_overview_echarts(cached_overview)
+        )
         return OverviewResult(
             query=query,
             summary=describe_query(query),
@@ -701,8 +706,8 @@ async def build_overview(
             error=str(raw["error"]),
         )
 
-    store_cached_overview(settings, query, raw)
-    overview = attach_overview_echarts(raw)
+    overview = attach_overview_echarts(dict(raw))
+    store_cached_overview(settings, query, overview)
     return OverviewResult(
         query=query,
         summary=describe_query(query),

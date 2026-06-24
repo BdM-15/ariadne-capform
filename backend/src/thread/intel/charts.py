@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.intel.facet_query import InsightFacetQuery, build_facet_sql
+from thread.intel.pg_parallel import gather_pg, run_pg
 from thread.intel.pg_queries import table_exists
 from thread.ui.formatters import format_count, format_money_from_millions
 from thread.intel.sql_expressions import (
@@ -144,21 +145,40 @@ async def run_slice_overview(
             return dict(cached[1])
 
     facet_sql, facet_params = build_facet_sql(query)
-    kpis = await _slice_kpis(session, facet_sql, facet_params)
-    spend = await spend_trend(session, query, limit=limit)
-    intensity = await agency_intensity(session, query, limit=INTENSITY_OFFICE_LIMIT)
-    set_aside = await set_aside_breakdown(session, facet_sql, facet_params, limit=limit)
-    extent = await extent_competed_breakdown(session, facet_sql, facet_params, limit=limit)
-    recipients = await top_recipients(session, query, limit=limit)
-    pricing = await pricing_bucket_breakdown(session, facet_sql, facet_params, limit=limit)
-    idv_split = await idv_channel_split(session, facet_sql, facet_params)
-    motion_channels = await capture_channel_breakdown(session, facet_sql, facet_params)
-    motion_timing = await capture_channel_timing(session, facet_sql, facet_params)
-    motion_teaming = await teaming_targets(session, facet_sql, facet_params)
-    motion_parent = await set_aside_parent_shadow(session, facet_sql, facet_params)
-    motion_expiring = await expiring_capture_channels(session, facet_sql, facet_params)
-    motion_paths = await motion_money_paths(session, facet_sql, facet_params)
-    expiring_tl = await expiring_timeline(session, facet_sql, facet_params)
+    # ponytail: independent chart queries — fan out on separate PG sessions (pool semaphore)
+    (
+        kpis,
+        spend,
+        intensity,
+        set_aside,
+        extent,
+        recipients,
+        pricing,
+        idv_split,
+        motion_channels,
+        motion_timing,
+        motion_teaming,
+        motion_parent,
+        motion_expiring,
+        motion_paths,
+        expiring_tl,
+    ) = await gather_pg(
+        lambda s: _slice_kpis(s, facet_sql, facet_params),
+        lambda s: spend_trend(s, query, limit=limit),
+        lambda s: agency_intensity(s, query, limit=INTENSITY_OFFICE_LIMIT),
+        lambda s: set_aside_breakdown(s, facet_sql, facet_params, limit=limit),
+        lambda s: extent_competed_breakdown(s, facet_sql, facet_params, limit=limit),
+        lambda s: top_recipients(s, query, limit=limit),
+        lambda s: pricing_bucket_breakdown(s, facet_sql, facet_params, limit=limit),
+        lambda s: idv_channel_split(s, facet_sql, facet_params),
+        lambda s: capture_channel_breakdown(s, facet_sql, facet_params),
+        lambda s: capture_channel_timing(s, facet_sql, facet_params),
+        lambda s: teaming_targets(s, facet_sql, facet_params),
+        lambda s: set_aside_parent_shadow(s, facet_sql, facet_params),
+        lambda s: expiring_capture_channels(s, facet_sql, facet_params),
+        lambda s: motion_money_paths(s, facet_sql, facet_params),
+        lambda s: expiring_timeline(s, facet_sql, facet_params),
+    )
 
     result: dict[str, Any] = {
         "status": "ready",
@@ -802,24 +822,35 @@ async def agency_intensity(
         FROM {PRIME_TABLE}
         WHERE 1=1 {facet_sql}
     """
-    rows = (await session.execute(text(sql), {**facet_params, "limit": limit})).all()
-    total_row = (await session.execute(text(total_sql), facet_params)).first()
+    async def _intensity_rows(s: AsyncSession):
+        return (await s.execute(text(sql), {**facet_params, "limit": limit})).all()
+
+    async def _intensity_total(s: AsyncSession):
+        return (await s.execute(text(total_sql), facet_params)).first()
+
+    async def _intensity_office_count(s: AsyncSession):
+        return (
+            await s.execute(
+                text(
+                    f"""
+                    SELECT COUNT(DISTINCT {group_expr}) AS n
+                    FROM {PRIME_TABLE}
+                    WHERE {group_expr} != ''
+                      AND {group_expr} != '(Unspecified)'
+                      AND {group_expr} != '(Unspecified office)'
+                      {facet_sql}
+                    """
+                ),
+                facet_params,
+            )
+        ).first()
+
+    rows, total_row, office_count_row = await gather_pg(
+        _intensity_rows,
+        _intensity_total,
+        _intensity_office_count,
+    )
     slice_total_m = float(total_row.millions or 0) if total_row else 0.0
-    office_count_row = (
-        await session.execute(
-            text(
-                f"""
-                SELECT COUNT(DISTINCT {group_expr}) AS n
-                FROM {PRIME_TABLE}
-                WHERE {group_expr} != ''
-                  AND {group_expr} != '(Unspecified)'
-                  AND {group_expr} != '(Unspecified office)'
-                  {facet_sql}
-                """
-            ),
-            facet_params,
-        )
-    ).first()
     office_total = int(office_count_row.n or 0) if office_count_row else 0
     points = [
         {

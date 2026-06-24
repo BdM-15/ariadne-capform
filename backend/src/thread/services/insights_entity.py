@@ -27,6 +27,7 @@ from thread.intel.facet_query import InsightFacetQuery, build_facet_sql
 from thread.intel.sql_expressions import EXPIRING_MONTHS_AHEAD
 from thread.intel import pg_queries as intel_queries
 from thread.intel.charts import enrich_expiring_rows_shape_gates
+from thread.intel.pg_parallel import gather_pg
 from thread.intel.pg_queries import table_exists
 from thread.intel.sql_expressions import AGENCY_EXPR, PRIME_TABLE, round_numeric
 
@@ -219,9 +220,11 @@ async def _competition_mix(
     scoped: InsightFacetQuery,
 ) -> dict[str, Any]:
     facet_sql, facet_params = build_facet_sql(scoped)
-    set_aside = await set_aside_breakdown(session, facet_sql, facet_params)
-    extent = await extent_competed_breakdown(session, facet_sql, facet_params)
-    pricing = await pricing_bucket_breakdown(session, facet_sql, facet_params)
+    set_aside, extent, pricing = await gather_pg(
+        lambda s: set_aside_breakdown(s, facet_sql, facet_params),
+        lambda s: extent_competed_breakdown(s, facet_sql, facet_params),
+        lambda s: pricing_bucket_breakdown(s, facet_sql, facet_params),
+    )
     return {"set_aside": set_aside, "extent_competed": extent, "pricing_buckets": pricing}
 
 
@@ -233,12 +236,14 @@ async def _agency_office_profile(
 ) -> dict[str, Any]:
     """Lighter Agency profile for awarding-office drill — fewer PG round-trips."""
     facet_sql, facet_params = build_facet_sql(scoped)
-    kpis = await _entity_kpis(session, scoped)
-    contractors = await top_recipients(session, scoped, limit=12)
-    spend = await spend_trend(session, scoped, limit=12)
-    sub_flow = await agency_sub_flow(session, scoped, limit=12)
-    set_aside = await set_aside_breakdown(session, facet_sql, facet_params)
-    extent = await extent_competed_breakdown(session, facet_sql, facet_params)
+    kpis, contractors, spend, sub_flow, set_aside, extent = await gather_pg(
+        lambda s: _entity_kpis(s, scoped),
+        lambda s: top_recipients(s, scoped, limit=12),
+        lambda s: spend_trend(s, scoped, limit=12),
+        lambda s: agency_sub_flow(s, scoped, limit=12),
+        lambda s: set_aside_breakdown(s, facet_sql, facet_params),
+        lambda s: extent_competed_breakdown(s, facet_sql, facet_params),
+    )
 
     return {
         "status": "ready",

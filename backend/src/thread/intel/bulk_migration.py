@@ -369,6 +369,23 @@ def ensure_intel_indexes(settings: Settings) -> None:
             f"CREATE INDEX IF NOT EXISTS idx_intel_sub_prime_award_key "
             f"ON {SUB_TABLE}(prime_award_unique_key)"
         ),
+        f"CREATE INDEX IF NOT EXISTS idx_intel_prime_mod ON {PRIME_TABLE}(modification_number)",
+        (
+            f"CREATE INDEX IF NOT EXISTS idx_intel_prime_naics_mod "
+            f"ON {PRIME_TABLE}(naics_code, modification_number)"
+        ),
+        (
+            f"CREATE INDEX IF NOT EXISTS idx_intel_prime_awarding_office "
+            f"ON {PRIME_TABLE}(awarding_office_name)"
+        ),
+        (
+            f"CREATE INDEX IF NOT EXISTS idx_intel_prime_naics_office "
+            f"ON {PRIME_TABLE}(naics_code, awarding_office_name)"
+        ),
+        (
+            f"CREATE INDEX IF NOT EXISTS idx_intel_prime_naics_agency "
+            f"ON {PRIME_TABLE}(naics_code, awarding_agency_name)"
+        ),
     ]
     _append_log(settings, "building analytics indexes (may take 30+ minutes on full dataset)...")
     with psycopg.connect(dsn) as conn:

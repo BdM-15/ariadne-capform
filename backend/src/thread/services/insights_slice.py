@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from typing import Any
 
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from thread.config import Settings
 from thread.intel.facet_query import ADVANCED_FACET_FIELDS, InsightFacetQuery
+from thread.intel.pg_parallel import run_pg
 from thread.services.insights_entity import EntityContext, EntityProfileResult, build_entity_profile, entity_from_params
 from thread.services.insights_explore import (
     RadarExploreResult,
@@ -157,46 +159,58 @@ async def build_slice_panel(
         "exclude_agencies": exclude_agencies,
     }
 
-    overview_result: OverviewResult = await build_overview(
-        session,
-        settings,
-        run=run,
-        **facet_kwargs,
-    )
-
     entity = entity_from_params(
         entity_kind=entity_kind,
         entity_value=entity_value,
         entity_scope=entity_scope,
     )
-    query = overview_result.query
-    has_slice = bool(query and query.has_filters() and run)
+    slice_query = _facet_from_params(**facet_kwargs)
+    has_slice = bool(slice_query and slice_query.has_filters() and run)
+
+    overview_result: OverviewResult
+    explore: RadarExploreResult
+    entity_result: EntityProfileResult
+
     if has_slice and lens == "overview":
-        explore = await explore_radar(
-            session,
-            settings,
-            run=True,
-            entity_kind=entity_kind,
-            entity_value=entity_value,
-            entity_scope=entity_scope,
-            **facet_kwargs,
+        overview_result, explore, pipeline_stats, explain_avail = await asyncio.gather(
+            build_overview(session, settings, run=run, **facet_kwargs),
+            run_pg(
+                lambda s: explore_radar(
+                    s,
+                    settings,
+                    run=True,
+                    entity_kind=entity_kind,
+                    entity_value=entity_value,
+                    entity_scope=entity_scope,
+                    **facet_kwargs,
+                )
+            ),
+            run_pg(
+                lambda s: intel_queries.expiring_pipeline_stats(
+                    s,
+                    slice_query,
+                    months_ahead=EXPIRING_MONTHS_AHEAD,
+                )
+            ),
+            slice_explain_availability(settings),
         )
-    else:
-        explore = RadarExploreResult(
-            query=query if has_slice else None,
-            summary="",
-            rows=(),
-            intel_live=overview_result.intel_live,
+        entity_result = EntityProfileResult(
+            entity=entity or EntityContext(kind=lens, value="", scope="agency"),
+            profile={"idle": True},
             status="idle",
         )
-
-    if lens in {"agency", "competitor"} and has_slice:
-        entity_result = await build_entity_profile(
-            session,
-            settings,
-            query,
-            entity,
-            lens=lens,
+    elif has_slice and lens in {"agency", "competitor"}:
+        overview_result, entity_result = await asyncio.gather(
+            build_overview(session, settings, run=run, **facet_kwargs),
+            run_pg(
+                lambda s: build_entity_profile(
+                    s,
+                    settings,
+                    slice_query,
+                    entity,
+                    lens=lens,
+                )
+            ),
         )
         if entity is None:
             entity_result = EntityProfileResult(
@@ -204,12 +218,38 @@ async def build_slice_panel(
                 profile={"idle": True},
                 status="idle",
             )
+        explore = RadarExploreResult(
+            query=slice_query,
+            summary="",
+            rows=(),
+            intel_live=overview_result.intel_live,
+            status="idle",
+        )
+        pipeline_stats = {"count": 0, "millions": 0.0}
+        explain_avail = None
     else:
+        overview_result = await build_overview(
+            session,
+            settings,
+            run=run,
+            **facet_kwargs,
+        )
+        explore = RadarExploreResult(
+            query=slice_query if has_slice else None,
+            summary="",
+            rows=(),
+            intel_live=overview_result.intel_live,
+            status="idle",
+        )
         entity_result = EntityProfileResult(
             entity=entity or EntityContext(kind=lens, value="", scope="agency"),
             profile={"idle": True},
             status="idle",
         )
+        pipeline_stats = {"count": 0, "millions": 0.0}
+        explain_avail = None
+
+    query = overview_result.query
 
     cache_ages = [
         age
@@ -223,17 +263,13 @@ async def build_slice_panel(
     cache_hit = bool(cache_ages)
     cache_age_seconds = max(cache_ages) if cache_ages else None
 
-    pipeline_stats: dict[str, int | float] = {"count": 0, "millions": 0.0}
-    # ponytail: entity drill only needs cached overview + profile — skip expiring stats CTE
     if (
         has_slice
-        and query is not None
-        and overview_result.status == "ready"
         and lens == "overview"
+        and overview_result.status != "ready"
     ):
-        pipeline_stats = await intel_queries.expiring_pipeline_stats(
-            session, query, months_ahead=EXPIRING_MONTHS_AHEAD
-        )
+        pipeline_stats = {"count": 0, "millions": 0.0}
+        explain_avail = None
     overview_verdict = (
         overview_capture_verdict(
             overview_result.overview,
@@ -244,10 +280,6 @@ async def build_slice_panel(
         if overview_result.status == "ready" and lens == "overview"
         else {"cards": (), "shipley": ()}
     )
-
-    explain_avail: SliceExplainAvailability | None = None
-    if has_slice and overview_result.status == "ready" and lens == "overview":
-        explain_avail = await slice_explain_availability(settings)
 
     return SlicePanelContext(
         facet_form=facet_form,

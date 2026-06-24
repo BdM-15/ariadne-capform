@@ -40,7 +40,7 @@ class Settings(BaseSettings):
 
     thread_postgres_port: int = 55432
     database_url: str = "postgresql+asyncpg://thread:thread@127.0.0.1:55432/thread"
-    database_pool_size: int = 10
+    database_pool_size: int = 20
     database_echo: bool = False
 
     intel_migration_source: Path = Path("../capture-insights/data/capture.duckdb")
