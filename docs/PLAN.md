@@ -4,7 +4,7 @@
 > Single `python app.py` launcher · PostgreSQL-only · Grok/xAI primary reasoning ·  
 > Web research (SearXNG/Crawl4AI first) · Review-gated everywhere · Theseus visual language.
 
-**Last updated:** 2026-06-23 (Phase 17e-g — DR methods embedded in Insights; Competition FFP/vehicles; Trace inline Sankeys; Clew stays standalone workbench)
+**Last updated:** 2026-06-24 (Phase 17e — awarding-office capture intensity, drill reliability, parallel PG overview queries; analytics indexes rebuilding via `--indexes-only`)
 
 ---
 
@@ -21,17 +21,17 @@ We completed **Phase 0 scaffold** and diverted briefly into env alignment, git, 
 | Reference corpus | ✅ Done | Briefing packet, call plan, risk register, Shipley, USAspending |
 | Workflow DB models | 🟡 Partial | Opportunities, packet, actions, review, **`operator_tasks` (Phase 16 ✅)** |
 | Alembic migrations | ✅ Done | Workflow tables via Alembic; intel tables via bulk migration script |
-| Intel migration (bulk zip→PG) | ✅ Complete | 64.2M prime + 1.5M sub · indexes built · `scripts/run-intel-migration.ps1 --status` |
+| Intel migration (bulk zip→PG) | ✅ Complete | 64.2M prime + 1.5M sub · base indexes built · **2026-06-24:** `--indexes-only` adding NAICS/office composites (in progress) |
 | `pg_queries` intel layer | ✅ Done | Core queries + Clew analyze + portfolio intel signals |
 | LLM router (Grok + Ollama) | ✅ Done | Reasoning → xAI; admin → Ollama |
 | Web research module | ✅ MVP | SearXNG/Crawl4AI adapters + `/api/research/*` |
 | Skill runtime + MCP | ✅ MVP | 8 MCP manifests + skills run UX on `/tools/skills` |
-| Frontend command center | 🟡 Product gap | Shell + Pulse + Filament ✅ — **Data Insights 17e-g in progress** (funnel plumbing ✅; full viz depth 🟡) |
+| Frontend command center | 🟡 Product gap | Shell + Pulse + Filament ✅ — **Data Insights 17e** funnel + office-level intensity + drill ✅; **17e-g** viz depth 🟡; PG perf ✅ (parallel queries + cache) |
 | Theseus visual language | ✅ Done | `frontend/styles/theseus.css` synced from proj-theseus |
 | Orchestration (LangGraph) | 🟡 Placeholder | Env + tracing bootstrap; runtime deferred |
 | Git | ✅ Done | Repo pushed; commit early/often |
 
-**Resume here:** Foundation + intel bulk load ✅. **MVP focus:** close **Lane 1 identification loop** — Data Insights command surface (17e) → Watch → Track → packet fill. **Defer:** Incubator 21b–21d, intel ETL polish beyond views, Clew interact/FH hierarchy, education/DOX.
+**Resume here:** Foundation + intel bulk load ✅ · Insights slice perf + office drill ✅ · **indexes `--indexes-only` running (2026-06-24)**. **MVP focus:** **17e-g-a** Agency funding-office DR graph + remaining entity depth. **Defer:** Incubator 21b–21d, intel ETL polish beyond views, Clew interact/FH hierarchy, education/DOX.
 
 ---
 
@@ -517,7 +517,7 @@ Thread **COPY-loads raw USAspending bulk CSV** with type casts + derived `fy`/`q
 | `2_enrichment` | KBR flags, derived columns | ❌ | Defer — operator-specific |
 | `3–4` embeddings | pgvector semantic search | ❌ | Defer (Phase 8 semantic vault) |
 | `5` canonicalize | `s3_processed` schema | ❌ Different storage model | N/A |
-| `6` indexes/MVs | Filter tables, `mv_agency_analysis_summary` | Partial — 6 btree indexes via `ensure_intel_indexes` | Add query-driven indexes (below) |
+| `6` indexes/MVs | Filter tables, `mv_agency_analysis_summary` | Partial — btree indexes via `ensure_intel_indexes` (+ NAICS/office composites **2026-06-24**) | MVs / `pg_trgm` for ILIKE facets post-MVP |
 
 **Read-only audit (2026-06-22, existing PG — no deletes):**
 
@@ -531,9 +531,9 @@ Thread **COPY-loads raw USAspending bulk CSV** with type casts + derived `fy`/`q
 | Missing NAICS | 15,632 | Small — acceptable for MVP |
 | Sub null `prime_awardee_name` | 6,570 | FFATA raw — Clew teaming joins need `COALESCE` or cleanup view |
 
-**Indexes present:** `naics_code`, `(naics_code, period_of_performance_current_end_date)`, `contract_award_unique_key`, `contract_transaction_unique_key`, sub name indexes.
+**Indexes present:** `naics_code`, `(naics_code, pop_end)`, `(naics_code, modification_number)`, `(naics_code, awarding_office_name)`, `(naics_code, awarding_agency_name)`, `awarding_office_name`, `modification_number`, `action_date`, `recipient_uei`, `recipient_name`, `pop_end`, award/txn keys, sub name + `prime_award_unique_key`.
 
-**Indexes to add (post-MVP `intel_etl` or `--indexes-only` extension):** `action_date`, `recipient_uei`, `recipient_name`, `period_of_performance_current_end_date` standalone, `sub.prime_award_unique_key` — recompete/radar queries currently may seq-scan without NAICS filter.
+**2026-06-24 `--indexes-only`:** adds composite NAICS/office indexes above — safe to re-run; tail `.thread/intel_migration.log`. **Still defer:** `pg_trgm` GIN for leading-wildcard agency ILIKE; analytics matviews.
 
 **Recommended path (do not copy-paste Data_Insights):**
 
@@ -670,7 +670,7 @@ All AI/skill/research outputs land as `candidate` + `pending_review`. Promotion 
 |--------|------------|-------------|
 | Command Center (`/`) | Attention widgets, compact nav, pursuit rail — **not** analytics home | Widget row (12c–12h): reviews, phase band, hot signals, health strip, **quick actions**; anti-pattern: metrics dump |
 | Portfolio Pulse (`/pulse`) | Morning briefing: **watchlist** + inbox + digest + capture snapshot | Identify-only; Track → `/capture/{id}`; not packet home |
-| Data Insights (`/insights`) | 🟡 Overview + lens tabs + entity drill (17e-a–f ✅, **17e-g lite** ✅) | Full 17e-g heat maps · query cache |
+| Data Insights (`/insights`) | 🟡 Overview + lens tabs + **office-level intensity** + reliable entity drill (17e-a–f ✅, **17e-g lite** ✅) | Full 17e-g heat maps · **17e-g-a** funding-office DR graph |
 | **Filament** (`/capture`) | ✅ Post-identify pursuit list; nav **Filament** (connected packets, not hand-jammed decks) | CRM pipeline board (deferred) |
 | Filament workspace (`/capture/{id}`) | ✅ Slide canvas + **connected fill routes** (14j/20a/20b) + evidence inspector; MS pills | Phase 20c ranked routing matrix + optional Grok advisor |
 | Sidebar nav | Command / Identify / **Filament** (home first) / **Tools** / Win / System | Studio route (Phase 21) |
@@ -1011,7 +1011,7 @@ flowchart TD
 | Set-aside donut | Small biz vs full & open? | `get_set_aside_breakdown` · use `set_aside_chart_bucket` view | **P0** |
 | Extent competed bar | How competed is work? | `by_extent_competed` (vehicle analysis) | **P0** |
 | Top recipients bar | Who wins here? | `top_recipients` · click → Hone recipient; show resolved **UEI** on hover/row | **P0** |
-| **Capture intensity** scatter (**hero**) | Where to focus BD first? High actions **and** high $ | `get_agency_intensity` — quadrant + median lines, hone agency | **P0** |
+| **Capture intensity** scatter (**hero**) | Where to focus BD first? High actions **and** high $ | `agency_intensity` — **awarding-office dots** (top 64), quadrant + office table; click → Agency profile | **P0** ✅ |
 | Agency → sub-agency flow | Who buys, and through which sub-tiers? | Clew `money_flow` / stacked bars — **hone path before office** | **P0** |
 | Top agencies bar | Who buys? (supporting) | agency rollups | **P1** |
 | Expiring table | What recompetes soon? | current `/insights` explore rows | **P0** (exists — move under Recompete lens) |
@@ -1041,7 +1041,7 @@ flowchart TD
 
 | Sub-slice | Scope | Done when |
 |-----------|--------|-----------|
-| **17e-g-a** 🟡 | **Agency profile** — **office scope:** awarding → **funding-office DR graph** (charity-graph / BFS expose — not sub-agency bar only); relationship heat map, money-flow Sankey, pricing mix, top contractors | Capture-intensity dot click → Agency; customer map = multi-funding fan-out |
+| **17e-g-a** 🟡 | **Agency profile** — **office scope:** awarding → **funding-office DR graph** (charity-graph / BFS expose — not sub-agency bar only); relationship heat map, money-flow Sankey, pricing mix, top contractors | **Office dot click → Agency profile ✅** (lite profile, parallel PG); funding-office DR graph = next |
 | **17e-g-b** 🟡 | **Competitor profile** — heat map, teaming Sankey, adjacent competitors (shared-agency co-occurrence), top agencies/NAICS | DR trace methods on entity — not Clew redirect |
 | **17e-g-c** 🟡 | **Competition lens (slice-wide)** — set-aside + extent + **pricing buckets** + **vehicle×pricing** + **FFP shaping radar** + shape-now targets table | Port `get_ffp_shaping_radar`, `get_vehicle_breakdown` from capture-insights |
 | **17e-g-d** 🟡 | **Trace lens (inline)** — money-flow + teaming Sankeys + agency×recipient heat map on active slice | Optional Clew link for saved traces; **default = Insights** |
@@ -1140,9 +1140,11 @@ Every **profile surface** (Agency, Competitor, Opportunity/Capture workspace, fu
 | Improvement | capture-insights | Thread 17e |
 |-------------|------------------|------------|
 | Context | Global NAICS-defaulted market | **Slice-relative** medians — quadrants mean something for *this* query |
-| Action | View-only scatter | Click quadrant point → **Hone agency** → breadcrumb |
-| Companion | Separate Agency tab re-bootstrap | Same slice; flow chart + Recompete lens inherit hone |
-| Callout | None | Deterministic “above the line” agencies list (Grok bullets post-MVP) |
+| Granularity | Department-level agencies | **Awarding-office dots** (contracting shop) + scrollable office table |
+| Action | View-only scatter | Click dot → **Agency profile** (POST drill + facet snapshot; no URL truncation) |
+| Companion | Separate Agency tab re-bootstrap | Same slice; lite office profile skips heavy recompete CTE on drill |
+| Performance | Single-threaded chart SQL | **Parallel PG** (`pg_parallel.py`) + 10m disk cache w/ pre-built ECharts |
+| Callout | None | Deterministic “above the line” hot buyers list (Grok bullets post-MVP) |
 
 **Facet model — do not limit to current search form (17e-f):**
 
@@ -1628,6 +1630,7 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 | **P0** | **17e-g** Entity depth + Competition/Trace DR integration | **17e-g-a–d** — heat maps, Sankeys, FFP shaping, adjacent competitors; Clew secondary |
 | **P1** | **2e-c** Overview visual polish — metric cards, chart panels, Motion grid density, Explain panel | Professional capture-dashboard feel (ink/neon, no chart title duplication) |
 | **P1** | **17e-i** ✅ Query cache — disk-backed 10m TTL for overview + explore + entity profiles (`.thread/insights_slice_cache/`) | Tab switch / drill-back without re-querying PG |
+| **P1** | **17e-perf** ✅ Parallel overview PG queries + ECharts in cache + pool 20 · **indexes** 🟡 `--indexes-only` running | Cold slice ~3× faster; warm slice near-instant |
 | **P1** | **2e-a** ✅ Explain slice + `pipeline_health` pivot doctrine in Grok prompt | On-demand; SAM auto-monitor = **17j-a** |
 | **Defer** | **17j** SAM forward-pipeline orchestration (monitor recommender, Explain→task) | After 17e-g + 2e-c |
 | **Defer** | **17e-h** Profile exports (docx/pptx/vault) + schema registry | Storytelling doctrine locked; build after cache + 17e-g depth |
@@ -1636,7 +1639,9 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 | **Defer** | 17b-interact, 17d-agency, 17c vectors | Clew/Insights UX depth |
 | **Defer** | 20c-b/c, 22 education, DOX | Post-MVP operator mastery |
 
-**Done recently:** **17e-a–d** Insights command surface (shared `intel/charts.py`, Overview hero, lens tabs, NAICS portfolio, hone partial) · Intel migration ✅ · 23a analytics views ✅
+**Done recently (2026-06-24):** Awarding-office capture intensity + office table · POST/fetch entity drill + stage facet snapshot · fast office Agency profile · parallel `run_slice_overview` + slice-panel gather · `pg_parallel.py` · analytics indexes in `ensure_intel_indexes` · ECharts stored in slice cache
+
+**Done recently (prior):** **17e-a–d** Insights command surface (shared `intel/charts.py`, Overview hero, lens tabs, NAICS portfolio, hone partial) · Intel migration ✅ · 23a analytics views ✅
 
 **Done (2026-06-18):** Phase 14k — Milestone deck alignment (private refs gitignored); reference slides in navigator; workspace tabs retired in favor of utilities bar + action drawer.
 
@@ -1658,8 +1663,8 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
 - [x] Phase 21a — Incubator capture hold (seed, edit, reject, parse preview)
 - [ ] **Phase 17e** — Data Insights command surface (MVP blocker)
   - [x] 17e-a — slice context bar + operator NAICS portfolio
-  - [x] 17e-b — Overview lens (intensity hero + charts)
-  - [x] 17e-c — Hone interactions (agency/sub/recipient/office)
+  - [x] 17e-b — Overview lens (intensity hero + charts; **awarding-office scatter** 2026-06-24)
+  - [x] 17e-c — Hone interactions (agency/sub/recipient/office; POST drill + facet snapshot 2026-06-24)
   - [x] 17e-d — Lens tabs (incl. Live SAM)
   - [x] 17e-e — E2E sign-off smoke
   - [x] 17e-f — Extended facets (advanced panel)
@@ -1668,7 +1673,9 @@ In-app Studio is **not** a full `/teach` port — it reuses vault + review gate.
   - [ ] 17e-g-e — Parent vehicle peers / BFS graph (defer → 17c-graph)
   - [ ] **20d** — Packet MS-critical field execution + skill-wired fill chains (post-MVP blocker, honest)
   - [ ] 17e-h — Profile schema registry + docx/pptx/vault export (deferred)
-  - [x] 17e-i — Slice query cache (10m disk TTL + Cached pill in slice bar)
+  - [x] 17e-i — Slice query cache (10m disk TTL + Cached pill + ECharts on cache hit)
+  - [x] 17e-perf — Parallel PG overview queries (`pg_parallel.py`, pool 20)
+  - [ ] 17e-perf-indexes — NAICS/office composite indexes (`--indexes-only`, in progress 2026-06-24)
   - [x] 2e-a — Explain slice (Grok/local) + pipeline_health pivot in prompt
   - [ ] 2e-c — Overview visual polish (metric cards, chart panels, Motion density)
   - [ ] 17j — SAM forward-pipeline orchestration (monitor recommender, Explain→task, Live SAM depth)
