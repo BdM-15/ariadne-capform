@@ -471,8 +471,9 @@ async def build_overview(
             error="PG intel not ready — resume migration.",
         )
 
+    # Explicit Run slice must refresh PG — disk cache may predate new overview fields.
     cache = get_cached_overview(settings, query)
-    if cache and cache.overview:
+    if cache and cache.overview and isinstance(cache.overview.get("expiring_timeline"), dict):
         overview = attach_overview_echarts(dict(cache.overview))
         return OverviewResult(
             query=query,
