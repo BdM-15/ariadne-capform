@@ -60,6 +60,33 @@ def test_query_accepts_recipient_uei():
     assert "UEI: ABC123DEF456" in describe_query(q)
 
 
+def test_min_obligation_filter_sql():
+    q = query_from_dict({"id": "big", "name": "Big deals", "naics_codes": "561210", "min_obligation": "1M"})
+    assert q is not None
+    assert q.min_obligation == 1_000_000.0
+    sql, params = build_facet_sql(q)
+    assert "federal_action_obligation" in sql
+    assert params["min_obligation"] == 1_000_000.0
+    assert "Min obligation" in describe_query(q)
+
+
+def test_exclude_agencies_filter_sql():
+    q = query_from_dict(
+        {
+            "id": "no-doe",
+            "name": "561210 w/o DOE",
+            "naics_codes": "561210",
+            "exclude_agencies": "Department of Energy, DOE",
+        }
+    )
+    assert q is not None
+    assert q.exclude_agencies == ("Department of Energy", "DOE")
+    sql, params = build_facet_sql(q)
+    assert "NOT" in sql
+    assert params["exclude_agency_0"] == "%Department of Energy%"
+    assert "Exclude:" in describe_query(q)
+
+
 def test_active_query_from_file(settings, tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "thread_state_dir", tmp_path / ".thread")
     state_dir = settings.resolve(settings.thread_state_dir)

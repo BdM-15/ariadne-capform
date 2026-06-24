@@ -44,6 +44,13 @@
           <span class="insights-field-label">Recipient</span>
           <input class="insights-field-input" name="recipient" placeholder="Prime contractor" value="{{ facet_form.recipient if facet_form else '' }}" />
         </label>
+        <label class="insights-field">
+          <span class="insights-field-label">
+            Min obligation
+            <span class="settings-label-tip" title="Floor on federal_action_obligation per prime award — drop micro-actions. Supports 500K, 1M, $250000.">?</span>
+          </span>
+          <input class="insights-field-input" name="min_obligation" placeholder="1M" value="{{ facet_form.min_obligation if facet_form else '' }}" />
+        </label>
 
         <button type="submit" class="btn btn-hero-magenta insights-facet-run-btn">Run slice</button>
         <p id="insights-slice-working" class="insights-slice-working htmx-indicator" aria-live="polite">Running…</p>
@@ -59,6 +66,13 @@
             <label class="insights-field"><span class="insights-field-label">POP state</span><input class="insights-field-input" name="pop_state" value="{{ facet_form.pop_state if facet_form else '' }}" /></label>
             <label class="insights-field"><span class="insights-field-label">Competition</span><input class="insights-field-input" name="extent_competed" value="{{ facet_form.extent_competed if facet_form else '' }}" /></label>
             <label class="insights-field"><span class="insights-field-label">Set-aside</span><input class="insights-field-input" name="type_of_set_aside" value="{{ facet_form.type_of_set_aside if facet_form else '' }}" /></label>
+            <label class="insights-field">
+              <span class="insights-field-label">
+                Exclude agencies
+                <span class="settings-label-tip" title="Comma-separated funding/awarding agencies to omit — e.g. Department of Energy to normalize a NAICS slice.">?</span>
+              </span>
+              <input class="insights-field-input" name="exclude_agencies" placeholder="Department of Energy" value="{{ facet_form.exclude_agencies if facet_form else '' }}" />
+            </label>
           </div>
         </details>
 

@@ -5,7 +5,7 @@
   aria-label="Insights lenses"
   {% if oob is defined and oob %}hx-swap-oob="true"{% endif %}
 >
-  {% set facet_qs = "agency=" ~ (facet_form.agency or '') ~ "&sub_agency=" ~ (facet_form.sub_agency or '') ~ "&recipient=" ~ (facet_form.recipient or '') ~ "&naics_codes=" ~ (facet_form.naics_codes or '') ~ "&psc_codes=" ~ (facet_form.psc_codes or '') ~ "&run=1" %}
+  {% set facet_qs = "agency=" ~ (facet_form.agency or '') ~ "&sub_agency=" ~ (facet_form.sub_agency or '') ~ "&recipient=" ~ (facet_form.recipient or '') ~ "&naics_codes=" ~ (facet_form.naics_codes or '') ~ "&psc_codes=" ~ (facet_form.psc_codes or '') ~ "&min_obligation=" ~ (facet_form.min_obligation or '') ~ "&exclude_agencies=" ~ (facet_form.exclude_agencies or '') ~ "&run=1" %}
   {% for tab in lens_tabs %}
   <button
     type="button"

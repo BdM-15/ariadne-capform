@@ -63,12 +63,14 @@ def facet_form_from_params(
     recipient: str = "",
     naics_codes: str = "",
     psc_codes: str = "",
+    min_obligation: str = "",
     awarding_office: str = "",
     funding_office: str = "",
     recipient_uei: str = "",
     pop_state: str = "",
     extent_competed: str = "",
     type_of_set_aside: str = "",
+    exclude_agencies: str = "",
 ) -> dict[str, str]:
     form = {
         "agency": agency.strip(),
@@ -76,6 +78,7 @@ def facet_form_from_params(
         "recipient": recipient.strip(),
         "naics_codes": naics_codes.strip(),
         "psc_codes": psc_codes.strip(),
+        "min_obligation": min_obligation.strip(),
     }
     for field in ADVANCED_FACET_FIELDS:
         form[field] = (locals().get(field) or "").strip()
@@ -92,12 +95,14 @@ async def build_slice_panel(
     recipient: str = "",
     naics_codes: str = "",
     psc_codes: str = "",
+    min_obligation: str = "",
     awarding_office: str = "",
     funding_office: str = "",
     recipient_uei: str = "",
     pop_state: str = "",
     extent_competed: str = "",
     type_of_set_aside: str = "",
+    exclude_agencies: str = "",
     run: bool = False,
     sam_title: str = "",
     sam_agency_keyword: str = "",
@@ -120,12 +125,14 @@ async def build_slice_panel(
         recipient=recipient,
         naics_codes=naics_codes,
         psc_codes=psc_codes,
+        min_obligation=min_obligation,
         awarding_office=awarding_office,
         funding_office=funding_office,
         recipient_uei=recipient_uei,
         pop_state=pop_state,
         extent_competed=extent_competed,
         type_of_set_aside=type_of_set_aside,
+        exclude_agencies=exclude_agencies,
     )
     facet_kwargs = {
         "agency": agency,
@@ -133,12 +140,14 @@ async def build_slice_panel(
         "recipient": recipient,
         "naics_codes": naics_codes,
         "psc_codes": psc_codes,
+        "min_obligation": min_obligation,
         "awarding_office": awarding_office,
         "funding_office": funding_office,
         "recipient_uei": recipient_uei,
         "pop_state": pop_state,
         "extent_competed": extent_competed,
         "type_of_set_aside": type_of_set_aside,
+        "exclude_agencies": exclude_agencies,
     }
 
     overview_result: OverviewResult = await build_overview(

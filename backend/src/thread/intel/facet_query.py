@@ -19,6 +19,16 @@ ADVANCED_FACET_FIELDS: tuple[str, ...] = (
     "pop_state",
     "extent_competed",
     "type_of_set_aside",
+    "exclude_agencies",
+)
+
+MAIN_FACET_FIELDS: tuple[str, ...] = (
+    "agency",
+    "sub_agency",
+    "recipient",
+    "naics_codes",
+    "psc_codes",
+    "min_obligation",
 )
 
 
@@ -39,6 +49,8 @@ class InsightFacetQuery:
     pop_state: str | None = None
     extent_competed: str | None = None
     type_of_set_aside: str | None = None
+    min_obligation: float | None = None
+    exclude_agencies: tuple[str, ...] = ()
     description: str = ""
 
     def has_filters(self) -> bool:
@@ -65,6 +77,44 @@ def _active_path(settings: Settings) -> Path:
     return settings.resolve(settings.thread_state_dir) / "active_insight_query.json"
 
 
+def _parse_min_obligation(raw: Any) -> float | None:
+    """Parse minimum prime-action obligation in raw USD (supports 1M, 500K, $250000)."""
+    if raw is None:
+        return None
+    text = str(raw).strip().replace(",", "").replace("$", "")
+    if not text:
+        return None
+    multiplier = 1.0
+    suffix = text[-1]
+    if suffix in "Kk":
+        multiplier = 1_000.0
+        text = text[:-1]
+    elif suffix in "Mm":
+        multiplier = 1_000_000.0
+        text = text[:-1]
+    elif suffix in "Bb":
+        multiplier = 1_000_000_000.0
+        text = text[:-1]
+    try:
+        value = float(text) * multiplier
+    except ValueError:
+        return None
+    return value if value > 0 else None
+
+
+def _parse_phrase_list(raw: Any) -> tuple[str, ...]:
+    """Comma/semicolon-separated phrases — preserves spaces (agency names)."""
+    if raw is None:
+        return ()
+    if isinstance(raw, str):
+        items = [c.strip() for c in re.split(r"[,;]+", raw) if c.strip()]
+    elif isinstance(raw, list):
+        items = [str(c).strip() for c in raw if str(c).strip()]
+    else:
+        return ()
+    return tuple(items)
+
+
 def _parse_codes(raw: Any) -> tuple[str, ...]:
     if raw is None:
         return ()
@@ -84,6 +134,8 @@ def query_from_dict(raw: dict[str, Any]) -> InsightFacetQuery | None:
         return None
     naics = _parse_codes(raw.get("naics_codes") or raw.get("naics"))
     psc = _parse_codes(raw.get("psc_codes") or raw.get("psc"))
+    exclude_agencies = _parse_phrase_list(raw.get("exclude_agencies"))
+    min_obligation = _parse_min_obligation(raw.get("min_obligation"))
     agency = (str(raw["agency"]).strip() or None) if raw.get("agency") else None
     sub_agency = (str(raw["sub_agency"]).strip() or None) if raw.get("sub_agency") else None
     recipient = (
@@ -112,6 +164,8 @@ def query_from_dict(raw: dict[str, Any]) -> InsightFacetQuery | None:
         pop_state=_opt_str("pop_state"),
         extent_competed=_opt_str("extent_competed"),
         type_of_set_aside=_opt_str("type_of_set_aside"),
+        min_obligation=min_obligation,
+        exclude_agencies=exclude_agencies,
         description=str(raw.get("description") or ""),
     )
     return q if q.has_filters() else None
@@ -145,6 +199,8 @@ def _write_queries(settings: Settings, queries: list[InsightFacetQuery]) -> None
             "pop_state": q.pop_state,
             "extent_competed": q.extent_competed,
             "type_of_set_aside": q.type_of_set_aside,
+            "min_obligation": q.min_obligation,
+            "exclude_agencies": list(q.exclude_agencies),
             "description": q.description,
         }
         for q in queries
@@ -202,6 +258,8 @@ def new_insight_query_from_form(
     pop_state: str = "",
     extent_competed: str = "",
     type_of_set_aside: str = "",
+    min_obligation: str = "",
+    exclude_agencies: str = "",
     description: str = "",
 ) -> InsightFacetQuery | None:
     raw = {
@@ -217,6 +275,8 @@ def new_insight_query_from_form(
         "pop_state": pop_state.strip() or None,
         "extent_competed": extent_competed.strip() or None,
         "type_of_set_aside": type_of_set_aside.strip() or None,
+        "min_obligation": min_obligation.strip() or None,
+        "exclude_agencies": exclude_agencies.strip(),
         "description": description.strip(),
     }
     existing = {q.id for q in load_insight_queries(settings)}
@@ -290,6 +350,10 @@ def describe_query(query: InsightFacetQuery | None) -> str:
         parts.append(f"Competition: {query.extent_competed}")
     if query.type_of_set_aside:
         parts.append(f"Set-aside: {query.type_of_set_aside}")
+    if query.min_obligation:
+        parts.append(f"Min obligation: ${query.min_obligation:,.0f}")
+    if query.exclude_agencies:
+        parts.append(f"Exclude: {', '.join(query.exclude_agencies)}")
     return " · ".join(parts) if parts else query.name
 
 
@@ -352,5 +416,18 @@ def build_facet_sql(query: InsightFacetQuery) -> tuple[str, dict[str, Any]]:
     if query.type_of_set_aside:
         clauses.append("AND type_of_set_aside ILIKE :type_of_set_aside")
         params["type_of_set_aside"] = f"%{query.type_of_set_aside}%"
+
+    if query.min_obligation:
+        clauses.append("AND COALESCE(federal_action_obligation, 0) >= :min_obligation")
+        params["min_obligation"] = query.min_obligation
+
+    if query.exclude_agencies:
+        for i, excluded in enumerate(query.exclude_agencies):
+            clauses.append(
+                f"AND NOT ({AGENCY_EXPR} ILIKE :exclude_agency_{i} "
+                f"OR awarding_sub_agency_name ILIKE :exclude_agency_{i} "
+                f"OR funding_agency_name ILIKE :exclude_agency_{i})"
+            )
+            params[f"exclude_agency_{i}"] = f"%{excluded}%"
 
     return " ".join(clauses), params

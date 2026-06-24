@@ -414,6 +414,8 @@ async def insights_slice_partial(
     pop_state: str = Query(""),
     extent_competed: str = Query(""),
     type_of_set_aside: str = Query(""),
+    min_obligation: str = Query(""),
+    exclude_agencies: str = Query(""),
     run: int = Query(0, ge=0, le=1),
     entity_kind: str = Query(""),
     entity_value: str = Query(""),
@@ -441,6 +443,8 @@ async def insights_slice_partial(
             pop_state=pop_state,
             extent_competed=extent_competed,
             type_of_set_aside=type_of_set_aside,
+            min_obligation=min_obligation,
+            exclude_agencies=exclude_agencies,
         ),
     )
     return templates.TemplateResponse(
@@ -466,6 +470,8 @@ async def insights_explain_slice_partial(
     pop_state: str = Form(""),
     extent_competed: str = Form(""),
     type_of_set_aside: str = Form(""),
+    min_obligation: str = Form(""),
+    exclude_agencies: str = Form(""),
     run: int = Form(1),
     entity_kind: str = Form(""),
     entity_value: str = Form(""),
@@ -499,6 +505,8 @@ async def insights_explain_slice_partial(
             pop_state=pop_state,
             extent_competed=extent_competed,
             type_of_set_aside=type_of_set_aside,
+            min_obligation=min_obligation,
+            exclude_agencies=exclude_agencies,
         ),
     )
     ctx: dict = {
@@ -545,6 +553,8 @@ async def insights_graph_expand(
     pop_state: str = Query(""),
     extent_competed: str = Query(""),
     type_of_set_aside: str = Query(""),
+    min_obligation: str = Query(""),
+    exclude_agencies: str = Query(""),
     entity_value: str = Query(""),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
@@ -566,6 +576,8 @@ async def insights_graph_expand(
         pop_state=pop_state,
         extent_competed=extent_competed,
         type_of_set_aside=type_of_set_aside,
+        min_obligation=min_obligation,
+        exclude_agencies=exclude_agencies,
     )
     if query is None or not query.has_filters():
         return JSONResponse({"error": "Active facet slice required"}, status_code=400)
@@ -636,6 +648,8 @@ async def insights_radar_explore_partial(
     pop_state: str = Query(""),
     extent_competed: str = Query(""),
     type_of_set_aside: str = Query(""),
+    min_obligation: str = Query(""),
+    exclude_agencies: str = Query(""),
     run: int = Query(0, ge=0, le=1),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -656,6 +670,8 @@ async def insights_radar_explore_partial(
             pop_state=pop_state,
             extent_competed=extent_competed,
             type_of_set_aside=type_of_set_aside,
+            min_obligation=min_obligation,
+            exclude_agencies=exclude_agencies,
         ),
     )
     return templates.TemplateResponse(
@@ -672,12 +688,14 @@ def _advanced_facet_kwargs(
     recipient: str = "",
     naics_codes: str = "",
     psc_codes: str = "",
+    min_obligation: str = "",
     awarding_office: str = "",
     funding_office: str = "",
     recipient_uei: str = "",
     pop_state: str = "",
     extent_competed: str = "",
     type_of_set_aside: str = "",
+    exclude_agencies: str = "",
 ) -> dict[str, str]:
     return {
         "agency": agency,
@@ -685,12 +703,14 @@ def _advanced_facet_kwargs(
         "recipient": recipient,
         "naics_codes": naics_codes,
         "psc_codes": psc_codes,
+        "min_obligation": min_obligation,
         "awarding_office": awarding_office,
         "funding_office": funding_office,
         "recipient_uei": recipient_uei,
         "pop_state": pop_state,
         "extent_competed": extent_competed,
         "type_of_set_aside": type_of_set_aside,
+        "exclude_agencies": exclude_agencies,
     }
 
 
@@ -712,6 +732,8 @@ async def clew_drawer_partial(
     pop_state: str = Query(""),
     extent_competed: str = Query(""),
     type_of_set_aside: str = Query(""),
+    min_obligation: str = Query(""),
+    exclude_agencies: str = Query(""),
     mode: str = Query("money_flow"),
     run: int = Query(0, ge=0, le=1),
     db: AsyncSession = Depends(get_db),
@@ -729,6 +751,8 @@ async def clew_drawer_partial(
         pop_state=pop_state,
         extent_competed=extent_competed,
         type_of_set_aside=type_of_set_aside,
+        min_obligation=min_obligation,
+        exclude_agencies=exclude_agencies,
     )
     drilldown = await build_drilldown(db, settings, mode=mode, run=bool(run), **facets)
     return templates.TemplateResponse(
@@ -756,6 +780,8 @@ async def clew_queue_review(
     pop_state: str = Form(""),
     extent_competed: str = Form(""),
     type_of_set_aside: str = Form(""),
+    min_obligation: str = Form(""),
+    exclude_agencies: str = Form(""),
     mode: str = Form("money_flow"),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -772,6 +798,8 @@ async def clew_queue_review(
         pop_state=pop_state,
         extent_competed=extent_competed,
         type_of_set_aside=type_of_set_aside,
+        min_obligation=min_obligation,
+        exclude_agencies=exclude_agencies,
     )
     payload = {"mode": mode, **{k: (v.strip() or None) for k, v in facets.items()}}
     result = await run_skill(settings, db, "clew_intel", payload)
@@ -808,6 +836,8 @@ async def insights_radar_drilldown_partial(
     pop_state: str = Query(""),
     extent_competed: str = Query(""),
     type_of_set_aside: str = Query(""),
+    min_obligation: str = Query(""),
+    exclude_agencies: str = Query(""),
     mode: str = Query("money_flow"),
     run: int = Query(0, ge=0, le=1),
     db: AsyncSession = Depends(get_db),
@@ -830,6 +860,8 @@ async def insights_radar_drilldown_partial(
             pop_state=pop_state,
             extent_competed=extent_competed,
             type_of_set_aside=type_of_set_aside,
+            min_obligation=min_obligation,
+            exclude_agencies=exclude_agencies,
         ),
     )
     return templates.TemplateResponse(
@@ -853,6 +885,8 @@ async def insights_radar_analyze(
     pop_state: str = Form(""),
     extent_competed: str = Form(""),
     type_of_set_aside: str = Form(""),
+    min_obligation: str = Form(""),
+    exclude_agencies: str = Form(""),
     mode: str = Form("money_flow"),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -869,6 +903,8 @@ async def insights_radar_analyze(
         pop_state=pop_state,
         extent_competed=extent_competed,
         type_of_set_aside=type_of_set_aside,
+        min_obligation=min_obligation,
+        exclude_agencies=exclude_agencies,
     )
     payload = {"mode": mode, **{k: (v.strip() or None) for k, v in facets.items()}}
     result = await run_skill(settings, db, "clew_intel", payload)
@@ -933,6 +969,8 @@ async def insights_save_radar_lens(
     pop_state: str = Form(""),
     extent_competed: str = Form(""),
     type_of_set_aside: str = Form(""),
+    min_obligation: str = Form(""),
+    exclude_agencies: str = Form(""),
     description: str = Form(""),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -951,6 +989,8 @@ async def insights_save_radar_lens(
         pop_state=pop_state,
         extent_competed=extent_competed,
         type_of_set_aside=type_of_set_aside,
+        min_obligation=min_obligation,
+        exclude_agencies=exclude_agencies,
         description=description,
     )
     if query is None:
@@ -2831,6 +2871,8 @@ async def watchlist_add_recompete(
     pop_state: str = Form(""),
     extent_competed: str = Form(""),
     type_of_set_aside: str = Form(""),
+    min_obligation: str = Form(""),
+    exclude_agencies: str = Form(""),
     entity_kind: str = Form(""),
     entity_value: str = Form(""),
     entity_scope: str = Form(""),
@@ -2883,6 +2925,8 @@ async def watchlist_add_recompete(
                 pop_state=pop_state,
                 extent_competed=extent_competed,
                 type_of_set_aside=type_of_set_aside,
+                min_obligation=min_obligation,
+                exclude_agencies=exclude_agencies,
             ),
         )
         return templates.TemplateResponse(

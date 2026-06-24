@@ -48,6 +48,8 @@ def facet_cache_key(query: InsightFacetQuery) -> str:
         "pop_state": query.pop_state,
         "extent_competed": query.extent_competed,
         "type_of_set_aside": query.type_of_set_aside,
+        "min_obligation": query.min_obligation,
+        "exclude_agencies": list(query.exclude_agencies),
     }
     raw = json.dumps(payload, sort_keys=True, default=str)
     return hashlib.sha256(raw.encode()).hexdigest()[:24]

@@ -53,12 +53,14 @@ def _facet_from_params(
     recipient: str = "",
     naics_codes: str = "",
     psc_codes: str = "",
+    min_obligation: str = "",
     awarding_office: str = "",
     funding_office: str = "",
     recipient_uei: str = "",
     pop_state: str = "",
     extent_competed: str = "",
     type_of_set_aside: str = "",
+    exclude_agencies: str = "",
 ) -> InsightFacetQuery | None:
     raw = {
         "id": "explore",
@@ -68,6 +70,7 @@ def _facet_from_params(
         "recipient": recipient.strip() or None,
         "naics_codes": naics_codes.strip(),
         "psc_codes": psc_codes.strip(),
+        "min_obligation": min_obligation.strip() or None,
     }
     for field in ADVANCED_FACET_FIELDS:
         value = locals().get(field, "")
@@ -127,6 +130,8 @@ async def explore_radar(
     pop_state: str = "",
     extent_competed: str = "",
     type_of_set_aside: str = "",
+    min_obligation: str = "",
+    exclude_agencies: str = "",
     limit: int = 15,
     run: bool = False,
     entity_kind: str = "",
@@ -147,6 +152,8 @@ async def explore_radar(
         pop_state=pop_state,
         extent_competed=extent_competed,
         type_of_set_aside=type_of_set_aside,
+        min_obligation=min_obligation,
+        exclude_agencies=exclude_agencies,
     )
     facet_input = {
         "agency": agency,
@@ -154,12 +161,14 @@ async def explore_radar(
         "recipient": recipient,
         "naics_codes": naics_codes,
         "psc_codes": psc_codes,
+        "min_obligation": min_obligation,
         "awarding_office": awarding_office,
         "funding_office": funding_office,
         "recipient_uei": recipient_uei,
         "pop_state": pop_state,
         "extent_competed": extent_competed,
         "type_of_set_aside": type_of_set_aside,
+        "exclude_agencies": exclude_agencies,
     }
     if query is None:
         if not run and not _radar_has_input(**facet_input):
