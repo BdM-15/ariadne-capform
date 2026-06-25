@@ -13,11 +13,22 @@ from thread.db.session import SessionLocal
 T = TypeVar("T")
 
 # Stay within connection pool headroom while overview fans out ~15 queries.
-_PG_SEM = asyncio.Semaphore(8)
+# Bind one semaphore per running loop so tests (new loop each) never reuse a
+# semaphore bound to a closed loop.
+_PG_SEMS: dict[asyncio.AbstractEventLoop, asyncio.Semaphore] = {}
+
+
+def _pg_sem() -> asyncio.Semaphore:
+    loop = asyncio.get_running_loop()
+    sem = _PG_SEMS.get(loop)
+    if sem is None:
+        sem = asyncio.Semaphore(8)
+        _PG_SEMS[loop] = sem
+    return sem
 
 
 async def run_pg(coro_fn: Callable[[AsyncSession], Awaitable[T]]) -> T:
-    async with _PG_SEM:
+    async with _pg_sem():
         async with SessionLocal() as session:
             return await coro_fn(session)
 

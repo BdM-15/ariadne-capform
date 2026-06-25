@@ -29,7 +29,7 @@ def test_find_dedup_hints_name_match(tmp_path: Path):
     vault = tmp_path / "vault"
     _seed_vault(vault)
     append_trusted_page(
-        Settings(knowledge_vault_path=vault),
+        Settings(knowledge_vault_path=vault, vault_allow_test_promote=True),
         "entities/agencies/army-cio.md",
         name="Army CIO",
         page_type="agency",
@@ -147,7 +147,7 @@ def test_promote_uses_patched_target(tmp_path: Path):
 
     vault = tmp_path / "vault"
     _seed_vault(vault)
-    settings = Settings(knowledge_vault_path=vault)
+    settings = Settings(knowledge_vault_path=vault, vault_allow_test_promote=True)
     existing = append_trusted_page(
         settings,
         "entities/agencies/merge-here.md",

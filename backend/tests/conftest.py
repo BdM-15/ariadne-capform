@@ -3,11 +3,46 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from thread.config import Settings
+
+_BACKEND_DIR = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _run_from_backend_dir():
+    """Pin cwd to backend/ so asset/template tests using paths like
+    ``Path("src/thread/ui/templates/...")`` resolve regardless of where pytest
+    is invoked from."""
+    prev = Path.cwd()
+    os.chdir(_BACKEND_DIR)
+    yield
+    os.chdir(prev)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_thread_state(tmp_path, monkeypatch):
+    """Hermetic per-test ``.thread`` state and neutralized operator overrides.
+
+    Tests construct ``Settings()`` which reads the real repo ``.env`` and
+    ``.thread/`` directory. Without isolation, operator overrides
+    (``THREAD_ALLOW_TEST_PROMOTE``) and saved state (``insight_queries.json``,
+    ``watchlist.json``, ...) leak in and pollute assertions. Each test gets a
+    fresh temp state dir; tests needing an override set it explicitly via
+    ``Settings(...)`` kwargs (init kwargs outrank env).
+    """
+    from thread.config import get_settings
+
+    monkeypatch.setenv("THREAD_STATE_DIR", str(tmp_path / "thread_state"))
+    monkeypatch.setenv("THREAD_VAULT_SANDBOX", "false")
+    monkeypatch.setenv("THREAD_ALLOW_TEST_PROMOTE", "false")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 def _postgres_available() -> bool:
