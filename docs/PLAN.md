@@ -6,7 +6,7 @@
 > **This file is the MVP path.** Parked features, inspiration, and history live in
 > [`BACKLOG.md`](BACKLOG.md) and [`PLAN-archive-v4.md`](PLAN-archive-v4.md). Nothing was deleted in the v5 reorg — only re-sequenced.
 
-**Last updated:** 2026-06-24 — v5 reorg: redefined MVP as _the loop with real depth_, not thin plumbing.
+**Last updated:** 2026-06-24 — M0 complete: indexes verified, E2E sign-off passes, test suite stabilized (19 → 3 residual infra failures).
 
 ---
 
@@ -113,8 +113,15 @@ references the original slice IDs so continuity with the archive is intact.
 
 ### M0 · Stabilize foundation _(close out in-flight)_
 
-- Finish intel composite indexes (`--indexes-only`); confirm the loop runs E2E with **no errors**.
-- **Exit:** baseline find→fill→artifact loop runs clean (even if shallow).
+- **Status:** ✅ Complete (2026-06-24)
+- Intel composite indexes verified valid on `intel_usaspending_prime_awards` (`naics_agency`, `naics_mod`, `naics_office`, `naics_pop_end`, `awarding_office`, plus base indexes).
+- MVP funnel E2E (`test_insights_mvp_signoff_funnel`) passes.
+- Test stabilization delivered: suite improved from 19 failures to 3 residual test-infrastructure failures.
+- Residual notes (tracked in [BACKLOG.md](BACKLOG.md#test-isolation-debt-m0-findings-2026-06-24), not M0 blockers):
+  1.  Windows asyncpg/TestClient loop flake (`test_task_drawer_partial_404`, order-dependent).
+  2.  Shared operator Postgres pollution in one inbox-count assertion (`test_intel_inbox_excludes_vault_and_skill_creator`).
+  3.  MinerU status-note test drift (`test_ingest_quick_capture_pdf_only`).
+- **Exit met:** baseline find→fill→artifact loop runs clean (shallow but stable).
 
 ### M1 · Identify with real depth _(Data Insights · Entity profiles · Clew)_
 
@@ -123,6 +130,12 @@ references the original slice IDs so continuity with the archive is intact.
 - **17e-g-d** Trace lens inline (Sankeys + heat map on active slice); **2e-c** Overview visual polish (storytelling, not metric dump).
 - **Clew robust** — interactive node expand (17b-interact-lite), trace handoff, money-flow output reusable as an artifact.
 - **Exit:** operator runs a slice and can genuinely **decide what to pursue**, and export a trace/money-flow artifact.
+
+**M1 progress:**
+
+- ✅ **17e-g-a.1** (2026-06-24) — office Agency drill upgraded lite → decision-grade: unified into one parallel `_agency_profile` so awarding-office drill now returns money-flow Sankey, agency×recipient heat map, pricing mix, top agencies, and recompete shape-gate timing (was skipped for speed). Net −7 LOC; full agency profile now parallelized.
+- ⬜ Next candidates: **17e-g-a (graph)** funding-office BFS/DR customer-trace graph · **17e-g-c** slice-wide FFP shaping radar (`ffp_shaping_radar` primitive exists, unwired) · **17e-g-b** competitor-profile depth audit.
+
 
 ### M2 · Capture with mapped fill paths _(Living Packet · Skills wiring)_
 
@@ -173,7 +186,7 @@ live in [BACKLOG · Simplification backlog](BACKLOG.md#-simplification-backlog-p
 | Area                                                                             | Status                          |
 | -------------------------------------------------------------------------------- | ------------------------------- |
 | `python app.py` launcher · PostgreSQL 16 (`:55432`) · Docker Compose             | ✅                              |
-| Intel bulk load — 64.2M prime + 1.5M sub · base + NAICS/office composite indexes | ✅ (indexes finishing)          |
+| Intel bulk load — 64.2M prime + 1.5M sub · base + NAICS/office composite indexes | ✅ (complete, verified valid)   |
 | Alembic workflow migrations · vault bootstrap · reference corpus                 | ✅                              |
 | LLM router (Grok primary, Ollama admin) · web research MVP (SearXNG/Crawl4AI)    | ✅                              |
 | HTMX shell (Pulse, Insights, Filament/Capture, Knowledge, Review, Tools, Tasks)  | ✅ shell · 🟡 depth             |
@@ -209,9 +222,10 @@ Core API (`/api/health`, `/portfolio/pulse`, `/opportunities`, `/…/packet`, `/
 
 **North star:** pass the sign-off test _for real_ (find → watch → track → open packet → fill → artifact).
 
-1. **M0** — finish intel composite indexes; confirm clean E2E loop.
-2. **M1** — Insights entity depth (17e-g-a/b), Competition & Trace lenses (17e-g-c/d), Clew interactivity, Overview polish (2e-c).
-3. Then **M2 → M3**, with **M4** cockpit + fun-not-boring polish running alongside.
+1. **M1** — Insights entity depth (17e-g-a/b), Competition & Trace lenses (17e-g-c/d), Clew interactivity, Overview polish (2e-c).
+2. Then **M2 → M3**, with **M4** cockpit + fun-not-boring polish running alongside.
+
+**M0 note:** completed and closed; residual test-infra debt is tracked in [BACKLOG.md](BACKLOG.md#test-isolation-debt-m0-findings-2026-06-24).
 
 **Capture new ideas** in [`BACKLOG.md` → Idea Inbox](BACKLOG.md#-idea-inbox-capture-fast-triage-later) — one line, triage later, don't derail the milestone.
 
