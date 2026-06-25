@@ -116,17 +116,16 @@ M0 stabilization took the suite from **19 → 3 failures** (486 passed). The 3 r
 `conftest.py` pins cwd to `backend/` + isolates `.thread` per-test; `pg_parallel.py` uses a per-loop
 semaphore; dedup tests opt into `vault_allow_test_promote`. Remaining (tracked):
 
-| Residual | Root cause | Fix direction |
-|----------|-----------|---------------|
+| Residual                                                              | Root cause                                                                                                                                        | Fix direction                                                                                                |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `test_task_drawer` / `test_insights_lens_tab` (order-dependent flake) | Windows ProactorEventLoop + asyncpg: `TestClient` without `with client:` spins a loop per request; global engine connections bind to closed loops | Use `with TestClient(...) as client:` in multi-call tests, or set `WindowsSelectorEventLoopPolicy` for tests |
-| `test_intel_inbox_excludes_vault_and_skill_creator` (`14 == 1`) | Tests share the operator's **real Postgres** (`:55432`); `TestClient` writes commit `review_records` that persist across tests/runs | **Separate test database** (or transactional rollback for app-DB TestClient tests) |
-| `test_ingest_quick_capture_pdf_only` (`"MinerU" not in text`) | Test/code drift — the document status note no longer emits `MinerU` under `mineru_enabled=False` | Re-align test with `format_document_status_note`, or restore the marker |
+| `test_intel_inbox_excludes_vault_and_skill_creator` (`14 == 1`)       | Tests share the operator's **real Postgres** (`:55432`); `TestClient` writes commit `review_records` that persist across tests/runs               | **Separate test database** (or transactional rollback for app-DB TestClient tests)                           |
+| `test_ingest_quick_capture_pdf_only` (`"MinerU" not in text`)         | Test/code drift — the document status note no longer emits `MinerU` under `mineru_enabled=False`                                                  | Re-align test with `format_document_status_note`, or restore the marker                                      |
 
 **Highest leverage:** a dedicated **test Postgres** (compose service or schema) removes the shared-prod-DB
 class entirely and unblocks deterministic DB assertions.
 
 ---
-
 
 ## 📚 Reference & inspiration index (read-only)
 

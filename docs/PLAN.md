@@ -136,7 +136,6 @@ references the original slice IDs so continuity with the archive is intact.
 - ✅ **17e-g-a.1** (2026-06-24) — office Agency drill upgraded lite → decision-grade: unified into one parallel `_agency_profile` so awarding-office drill now returns money-flow Sankey, agency×recipient heat map, pricing mix, top agencies, and recompete shape-gate timing (was skipped for speed). Net −7 LOC; full agency profile now parallelized.
 - ⬜ Next candidates: **17e-g-a (graph)** funding-office BFS/DR customer-trace graph · **17e-g-c** slice-wide FFP shaping radar (`ffp_shaping_radar` primitive exists, unwired) · **17e-g-b** competitor-profile depth audit.
 
-
 ### M2 · Capture with mapped fill paths _(Living Packet · Skills wiring)_
 
 - **Map every MS1-critical data element → working fill route:** deterministic (USAspending PG, 1102/SAM MCP), non-deterministic (web research, Grok prose skills), and **graphics** (Clew money-flow, huashu).
