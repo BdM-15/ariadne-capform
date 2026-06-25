@@ -151,8 +151,6 @@ async def build_entity_profile(
     try:
         if entity.kind == "competitor":
             raw = await _competitor_profile(session, scoped, entity, slice_query, settings)
-        elif entity.scope == "office":
-            raw = await _agency_office_profile(session, scoped, entity, slice_query)
         else:
             raw = await _agency_profile(session, scoped, entity, slice_query)
     except Exception as exc:  # pragma: no cover — surfaced in UI
@@ -171,11 +169,8 @@ async def build_entity_profile(
             error=str(raw["error"]),
         )
 
-    # ponytail: office drill skips recompete enrich (pricing-pressure CTE) for faster Agency tab open
-    if entity.scope == "office":
-        raw["recompete_rows"] = []
-    else:
-        raw["recompete_rows"] = await fetch_entity_recompete(session, slice_query, entity)
+    # Decision-grade for every agency scope (incl. office) — recompete timing drives go/no-go.
+    raw["recompete_rows"] = await fetch_entity_recompete(session, slice_query, entity)
     store_cached_entity_profile(
         settings,
         slice_query,
@@ -228,61 +223,42 @@ async def _competition_mix(
     return {"set_aside": set_aside, "extent_competed": extent, "pricing_buckets": pricing}
 
 
-async def _agency_office_profile(
-    session: AsyncSession,
-    scoped: InsightFacetQuery,
-    entity: EntityContext,
-    slice_query: InsightFacetQuery,
-) -> dict[str, Any]:
-    """Lighter Agency profile for awarding-office drill — fewer PG round-trips."""
-    facet_sql, facet_params = build_facet_sql(scoped)
-    kpis, contractors, spend, sub_flow, set_aside, extent = await gather_pg(
-        lambda s: _entity_kpis(s, scoped),
-        lambda s: top_recipients(s, scoped, limit=12),
-        lambda s: spend_trend(s, scoped, limit=12),
-        lambda s: agency_sub_flow(s, scoped, limit=12),
-        lambda s: set_aside_breakdown(s, facet_sql, facet_params),
-        lambda s: extent_competed_breakdown(s, facet_sql, facet_params),
-    )
-
-    return {
-        "status": "ready",
-        "mode": "agency_profile",
-        "entity": {
-            "kind": entity.kind,
-            "value": entity.value,
-            "scope": entity.scope,
-            "label": entity.display_label,
-        },
-        "kpis": kpis,
-        "top_contractors": contractors,
-        "spend_trend": spend.get("bars") or [],
-        "agency_sub_flow": sub_flow.get("rows") or [],
-        "agency_sub_flow_group": sub_flow.get("group"),
-        "top_agencies": [],
-        "agency_recipient_matrix": {"rows": [], "mode": "agency_recipient_matrix"},
-        "money_flow": [],
-        "slice_summary": _slice_hint(slice_query),
-        "set_aside": set_aside,
-        "extent_competed": extent,
-        "pricing_buckets": [],
-    }
-
-
 async def _agency_profile(
     session: AsyncSession,
     scoped: InsightFacetQuery,
     entity: EntityContext,
     slice_query: InsightFacetQuery,
 ) -> dict[str, Any]:
-    kpis = await _entity_kpis(session, scoped)
-    contractors = await top_recipients(session, scoped, limit=12)
-    spend = await spend_trend(session, scoped, limit=12)
-    sub_flow = await agency_sub_flow(session, scoped, limit=12)
-    agencies_for_matrix = await _top_agencies_in_scope(session, scoped, limit=10)
-    competition = await _competition_mix(session, scoped)
-    matrix = await agency_recipient_matrix(session, scoped, limit=100)
-    flow = await money_flow(session, scoped, limit=14)
+    """Decision-grade Agency profile (agency / sub-agency / office) — all queries in parallel.
+
+    Office scope used to run a lighter subset for speed; with the M0 NAICS/office composite
+    indexes + parallel fan-out + slice cache it now returns the full relationship picture
+    (money flow, agency×recipient heat map, pricing mix, top agencies) like any agency drill.
+    """
+    facet_sql, facet_params = build_facet_sql(scoped)
+    (
+        kpis,
+        contractors,
+        spend,
+        sub_flow,
+        agencies_for_matrix,
+        set_aside,
+        extent,
+        pricing,
+        matrix,
+        flow,
+    ) = await gather_pg(
+        lambda s: _entity_kpis(s, scoped),
+        lambda s: top_recipients(s, scoped, limit=12),
+        lambda s: spend_trend(s, scoped, limit=12),
+        lambda s: agency_sub_flow(s, scoped, limit=12),
+        lambda s: _top_agencies_in_scope(s, scoped, limit=10),
+        lambda s: set_aside_breakdown(s, facet_sql, facet_params),
+        lambda s: extent_competed_breakdown(s, facet_sql, facet_params),
+        lambda s: pricing_bucket_breakdown(s, facet_sql, facet_params),
+        lambda s: agency_recipient_matrix(s, scoped, limit=100),
+        lambda s: money_flow(s, scoped, limit=14),
+    )
 
     return {
         "status": "ready",
@@ -302,7 +278,9 @@ async def _agency_profile(
         "agency_recipient_matrix": matrix,
         "money_flow": flow.get("flows") or [],
         "slice_summary": _slice_hint(slice_query),
-        **competition,
+        "set_aside": set_aside,
+        "extent_competed": extent,
+        "pricing_buckets": pricing,
     }
 
 

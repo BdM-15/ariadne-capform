@@ -83,6 +83,26 @@ def test_insights_agency_drill_partial():
     assert "Department of Defense" in html or "insights-explore-msg" in html
 
 
+def test_insights_office_drill_is_decision_grade():
+    """Office-scope Agency drill is no longer the lite placeholder profile (17e-g-a.1)."""
+    client = TestClient(create_app())
+    res = client.get(
+        "/partials/insights/slice",
+        params={
+            "run": 1,
+            "lens": "agency",
+            "naics_codes": "561210",
+            "entity_kind": "agency",
+            "entity_value": "Department of Defense",
+            "entity_scope": "office",
+        },
+    )
+    assert res.status_code == 200
+    html = res.text
+    assert "insights-agency-lens" in html
+    assert "Placeholder until Agency polish" not in html
+
+
 def test_explore_query_for_entity_scopes_recipient():
     from thread.services.insights_entity import explore_query_for_entity, entity_from_params
 

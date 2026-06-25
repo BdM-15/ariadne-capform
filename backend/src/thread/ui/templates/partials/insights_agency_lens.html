@@ -29,11 +29,6 @@
   <div class="insights-entity-header mb-3">
     <h3 class="text-sm font-semibold text-neon-cyan m-0">{{ entity.display_label }}</h3>
     <p class="text-[10px] text-slate-500 font-mono mt-1">Within {{ entity_profile.slice_summary or 'active slice' }}</p>
-    {% if entity.scope == 'office' %}
-    <p class="insights-agency-trace-placeholder text-[10px] text-slate-500 mt-2 mb-0">
-      <strong class="text-slate-400">Customer trace (17e-g-a):</strong> awarding office → funding-office fan-out via DR relation graph / Sankey — not the sub-agency bar alone. Placeholder until Agency polish.
-    </p>
-    {% endif %}
   </div>
   <div class="insights-kpi-strip flex flex-wrap gap-2 mb-4">
     <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta">${{ "%.1f"|format(kpis.millions or 0) }}M obligated</span>
