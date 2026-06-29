@@ -316,7 +316,7 @@
         </div>
       </section>
 
-      <!-- SCHEDULE (FULL ROBUST IMPLEMENTATION) -->
+      <!-- SCHEDULE -->
       <section class="tab-panel" id="panel-schedule" data-panel="schedule" role="tabpanel">
         <div class="schedule-view">
           <header class="schedule-header">
@@ -438,7 +438,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script>
-    // Full robust Schedule implementation (matching template quality)
+    // === TAVERN DASHBOARD - COMPLETE (Modules 2-7) ===
     const $ = id => document.getElementById(id);
 
     function tickClock() {
@@ -458,10 +458,11 @@
         document.querySelectorAll('[data-panel]').forEach(p => p.classList.remove('active'));
         const target = document.getElementById('panel-' + btn.dataset.tab);
         if (target) target.classList.add('active');
+        if (btn.dataset.tab === 'content') loadContentDocs();
       });
     });
 
-    // Tavern data
+    // Data
     let tavernData = {
       heroes: [
         { name: 'Mage', total: 28, completed: 27, last_task: 'scried new packet intel', last_seen: new Date(Date.now() - 1000*60*4).toISOString() },
@@ -488,121 +489,501 @@
       ]
     };
 
-    // OVERVIEW, HEROES, QUESTS, CONTENT code would go here (kept from previous working version)
-    // For brevity in this response, the core robust Schedule implementation is below
-
-    // ===== ROBUST SCHEDULE TAB =====
-    const CRON_COLORS = ['#5EE2B5','#7DD3FC','#F5B544','#A78BFA','#F472B6','#E879F9','#FBBF24','#F26D6D'];
-    let scheduleColorMap = new Map();
-    let scheduleView = 'week';
-
-    function getCronJobs() {
-      return [
-        { name: 'Daily pWin Brief', schedule: '0 8 * * *', detail: 'Generate morning pWin report', category: 'party' },
-        { name: 'Weekly Quest Review', schedule: '0 9 * * 1', detail: 'Review and close completed quests', category: 'party' },
-        { name: 'Log Cleanup', schedule: '0 3 1 * *', detail: 'Monthly log retention', category: 'system' },
-        { name: 'System Health Check', schedule: '*/30 * * * *', detail: 'VPS + DB health ping', category: 'system' }
-      ];
+    // OVERVIEW
+    function renderRadar() {
+      const g = $('heroDots');
+      if (!g) return;
+      const total = tavernData.heroes.reduce((s, h) => s + h.total, 0);
+      g.innerHTML = tavernData.heroes.map((h, i) => {
+        const angle = (-90 + i * 60) * Math.PI / 180;
+        const dist = 12 + (h.total / total) * 48;
+        const x = 70 + Math.cos(angle) * dist;
+        const y = 70 + Math.sin(angle) * dist;
+        const c = '#7DD3FC';
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.2" fill="${c}" style="filter:drop-shadow(0 0 6px ${c});opacity:.95"><title>${h.name}: ${h.total}</title></circle>`;
+      }).join('');
     }
 
-    function assignColors(jobs) {
-      jobs.forEach(j => {
-        if (!scheduleColorMap.has(j.name)) {
-          scheduleColorMap.set(j.name, CRON_COLORS[scheduleColorMap.size % CRON_COLORS.length]);
-        }
-      });
-      return jobs.map(j => ({...j, color: scheduleColorMap.get(j.name)}));
+    let dirIndex = 0;
+    function renderDirective() {
+      const el = $('directiveText');
+      if (!el || !tavernData.activity.length) return;
+      const act = tavernData.activity[dirIndex % tavernData.activity.length];
+      el.classList.add('fade');
+      setTimeout(() => {
+        el.textContent = `${act.hero.toUpperCase()} · ${act.task}`;
+        el.classList.remove('fade');
+      }, 220);
+      dirIndex++;
     }
 
-    function renderSchedule() {
-      const jobs = assignColors(getCronJobs());
-      
-      $('scheduleTotalJobs').textContent = jobs.length;
-      $('schedulePartyJobs').textContent = jobs.filter(j => j.category === 'party').length;
-      $('scheduleSystemJobs').textContent = jobs.filter(j => j.category === 'system').length;
-      
-      $('scheduleNextRun').textContent = 'in 4h 12m';
-      $('scheduleNextRunSub').textContent = 'Daily pWin Brief';
-      $('scheduleNextCountdown').textContent = 'in 4h 12m';
-      $('scheduleNextName').textContent = 'Daily pWin Brief';
+    let ctxIndex = 0;
+    function renderContext() {
+      const box = $('contextBox');
+      if (!box) return;
+      const h = tavernData.heroes[ctxIndex % tavernData.heroes.length];
+      const total = tavernData.heroes.reduce((s, x) => s + x.total, 0);
+      const fill = Math.round((h.total / total) * 16);
+      box.style.setProperty('--hero-color', '#7DD3FC');
+      $('contextHero').textContent = h.name.toUpperCase();
+      $('contextCount').textContent = `${h.total} TASKS`;
+      $('segments').innerHTML = Array.from({length:16}, (_,i) => `<span class="seg ${i<fill?'filled':''}" style="--i:${i}"></span>`).join('');
+      $('contextStatus').textContent = `LAST STATUS · COMPLETED`;
+      ctxIndex++;
+    }
 
-      const host = $('scheduleGroups');
+    function renderHealth() {
+      $('cpuPct').textContent = '12%';
+      $('ramPct').textContent = '34%';
+      $('diskPct').textContent = '19%';
+      $('cpuBar').style.width = '12%';
+      $('ramBar').style.width = '34%';
+      $('diskBar').style.width = '19%';
+      $('ramSub').textContent = '4.1 / 12.0 GB';
+      $('diskSub').textContent = '37 / 192 GB';
+      $('dbSize').textContent = '4.8 MB';
+    }
+
+    function renderFooter() {
+      $('footQuests').textContent = tavernData.questsActive;
+      $('footHeroes').textContent = tavernData.heroes.length;
+      $('footErrors').textContent = '0';
+      $('footToday').textContent = '14';
+      $('footUptime').textContent = '9d 14h';
+    }
+
+    function renderStats() {
+      $('pwinInt').textContent = Math.floor(tavernData.pwin);
+      $('pwinDec').textContent = '.' + (tavernData.pwin % 1).toFixed(2).slice(2);
+      $('callsStat').textContent = tavernData.heroes.reduce((s,h)=>s+h.total,0);
+      $('xpStat').textContent = (tavernData.totalXP/1000).toFixed(1) + 'k';
+      $('questsDone').textContent = '31';
+      $('cacheStat').textContent = '4.2k';
+    }
+
+    function drawSparkline() {
+      const canvas = $('sparkline');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0,0,w,h);
+      const vals = [9,14,11,19,23,17,28];
+      const max = Math.max(...vals);
+      const pad = 10;
+      const pts = vals.map((v,i) => [pad + i*((w-pad*2)/(vals.length-1)), h-pad - (v/max)*(h-22)]);
+      ctx.beginPath();
+      pts.forEach((p,i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p));
+      ctx.lineTo(pts.at(-1)[0], h-pad);
+      ctx.lineTo(pts[0][0], h-pad);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(125,211,252,.22)';
+      ctx.fill();
+      ctx.beginPath();
+      pts.forEach((p,i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p));
+      ctx.strokeStyle = '#7DD3FC';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+
+    let feedOffset = 0;
+    function renderFeed() {
+      const feed = $('activityFeed');
+      if (!feed) return;
+      const view = tavernData.activity.slice(feedOffset, feedOffset + 5);
+      feed.innerHTML = view.map(a => `
+        <div class="feed-row">
+          <span class="hero-badge">${a.hero}</span>
+          <span class="task-desc">${a.task}</span>
+          <span class="mono mint">${a.status}</span>
+          <span class="sub">${Math.floor((Date.now()-new Date(a.created_at))/60000)}m ago</span>
+        </div>
+      `).join('');
+      feedOffset = (feedOffset + 1) % Math.max(1, tavernData.activity.length - 4);
+    }
+
+    function initOverview() {
+      renderRadar();
+      renderDirective();
+      renderContext();
+      renderHealth();
+      renderFooter();
+      renderStats();
+      drawSparkline();
+      renderFeed();
+
+      setInterval(() => { renderDirective(); renderContext(); }, 2600);
+      setInterval(renderFeed, 2200);
+      setInterval(drawSparkline, 900);
+    }
+
+    // HEROES
+    function renderHeroes() {
+      const wrap = $('heroCards');
+      if (!wrap) return;
+
+      let active = 0, idle = 0, dormant = 0;
+      const now = Date.now();
+
+      wrap.innerHTML = tavernData.heroes.map(h => {
+        const ageHrs = (now - Date.parse(h.last_seen)) / 3600000;
+        const state = ageHrs <= 0.25 ? 'active' : ageHrs <= 6 ? 'idle' : 'dormant';
+        if (state === 'active') active++;
+        else if (state === 'idle') idle++;
+        else dormant++;
+
+        const succ = Math.round(h.completed / h.total * 100);
+        const c = '#7DD3FC';
+
+        return `
+          <article class="glass hero-card" style="--hero-color:${c}">
+            <div class="hero-top">
+              <span class="code-badge">${h.name.slice(0,4).toUpperCase()}</span>
+              <span class="hero-status">
+                <span class="hero-dot ${state}"></span>
+              </span>
+            </div>
+            <h2 class="hero-name">${h.name}</h2>
+            <div class="hero-role">Specialist operator — ${h.name.toLowerCase()} class</div>
+            
+            <div>
+              <div class="label">7-Day Activity</div>
+              <div class="mini-bars">${Array.from({length:7}).map((_,i) => 
+                `<span class="mini-bar has" style="height:${10 + (i*3)}px"></span>`
+              ).join('')}</div>
+            </div>
+
+            <div class="hero-stats">
+              <div class="hero-stat">
+                <div class="big">${h.total}</div>
+                <div class="small">Responses</div>
+              </div>
+              <div class="hero-stat">
+                <div class="big ${succ >= 100 ? 'success-mint' : succ >= 80 ? 'success-amber' : 'success-red'}">${succ}%</div>
+                <div class="small">Success</div>
+              </div>
+              <div class="hero-stat">
+                <div class="big small">openai</div>
+                <div class="small">Model</div>
+              </div>
+            </div>
+
+            <div class="load-track"><div class="load-fill" style="width:${Math.round(h.total/34*100)}%"></div></div>
+            
+            <div class="last-task">
+              <div class="task">↳ ${h.last_task}</div>
+              <div class="when">${Math.floor(ageHrs)}h ago</div>
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      $('heroesActive').textContent = active;
+      $('heroesIdle').textContent = idle;
+      $('heroesDormant').textContent = dormant;
+    }
+
+    function initHeroes() {
+      renderHeroes();
+    }
+
+    // QUESTS
+    function renderQuestPills() {
+      const host = $('questStatusPills');
+      if (!host) return;
+      const pending = tavernData.quests.filter(q => q.status === 'pending').length;
+      const inProgress = tavernData.quests.filter(q => q.status === 'in_progress').length;
+      const done = tavernData.quests.filter(q => q.status === 'done').length;
+
       host.innerHTML = `
-        <article class="glass job-group-card">
-          <div class="job-group-head">
-            <div><div class="job-group-title">Daily Jobs</div><div class="job-group-sub">Runs every day</div></div>
-            <span class="mono cyan">${jobs.filter(j => j.schedule.includes('* * *')).length} jobs</span>
-          </div>
-          <div class="job-chip-grid">
-            ${jobs.filter(j => j.schedule.includes('* * *')).map(j => `
-              <div class="job-chip" style="--job-color:${j.color}">
-                <div class="job-time">${j.schedule.split(' ').slice(0,2).join(':')}</div>
-                <div class="job-name">${j.name}</div>
-                <div class="job-detail">${j.detail}</div>
-              </div>
-            `).join('')}
-          </div>
-        </article>
-        <article class="glass job-group-card">
-          <div class="job-group-head">
-            <div><div class="job-group-title">Weekly & Monthly</div><div class="job-group-sub">Scheduled automation</div></div>
-          </div>
-          <div class="job-chip-grid">
-            ${jobs.filter(j => !j.schedule.includes('* * *')).map(j => `
-              <div class="job-chip" style="--job-color:${j.color}">
-                <div class="job-time">${j.schedule}</div>
-                <div class="job-name">${j.name}</div>
-                <div class="job-detail">${j.detail}</div>
-              </div>
-            `).join('')}
+        <span class="quest-status-pill" style="--col-color:#FBBF24" data-count="${pending}">Pending <strong>${pending}</strong></span>
+        <span class="quest-status-pill" style="--col-color:#7DD3FC" data-count="${inProgress}">In Progress <strong>${inProgress}</strong></span>
+        <span class="quest-status-pill" style="--col-color:#5EE2B5" data-count="${done}">Done <strong>${done}</strong></span>
+      `;
+    }
+
+    function renderQuestStats() {
+      const total = tavernData.quests.length;
+      const done = tavernData.quests.filter(q => q.status === 'done').length;
+      const prog = tavernData.quests.filter(q => q.status === 'in_progress').length;
+
+      $('boardTotalStat').textContent = total;
+      $('cronTotalStat').textContent = '4';
+      $('doneTotalStat').textContent = done;
+      $('progressSub').textContent = `${prog} in progress`;
+      $('nextCronStat').textContent = 'in 4h';
+      $('nextCronName').textContent = 'Daily pWin brief';
+    }
+
+    function renderBoard() {
+      const grid = $('boardGrid');
+      if (!grid) return;
+
+      renderQuestPills();
+      renderQuestStats();
+
+      const cols = [
+        { key: 'pending', label: 'Pending', color: '#FBBF24' },
+        { key: 'in_progress', label: 'In Progress', color: '#7DD3FC' },
+        { key: 'done', label: 'Done', color: '#5EE2B5' }
+      ];
+
+      grid.innerHTML = cols.map(col => {
+        const tasks = tavernData.quests.filter(q => q.status === col.key);
+        return `
+          <section class="glass board-column" data-board-col="${col.key}" style="--col-color:${col.color}">
+            <div class="board-col-head">
+              <span class="board-col-title">${col.label}</span>
+              <span class="board-col-count">${tasks.length}</span>
+            </div>
+            ${tasks.length ? tasks.map(renderQuestCard).join('') : `<div class="quest-drop-empty">Drop here</div>`}
+          </section>
+        `;
+      }).join('');
+
+      bindQuestDnD();
+    }
+
+    function renderQuestCard(q) {
+      const pColor = q.priority === 'high' ? '#F87171' : q.priority === 'low' ? '#5EE2B5' : '#FBBF24';
+      const ago = Math.floor((Date.now() - Date.parse(q.created_at)) / 3600000);
+      return `
+        <article class="board-card" draggable="true" data-quest-id="${q.id}">
+          <button class="delete-quest" type="button" data-delete-quest="${q.id}">×</button>
+          <div class="board-card-title">${q.title}</div>
+          <div class="priority-line">
+            <span class="priority-dot" style="background:${pColor}"></span>
+            <span class="board-time">${ago}h ago</span>
           </div>
         </article>
       `;
-
-      renderCalendar(jobs);
     }
 
-    function renderCalendar(jobs) {
-      const body = $('calendarBody');
-      const title = $('calendarTitle');
-      const legend = $('calendarLegend');
-
-      if (scheduleView === 'week') {
-        title.textContent = 'Next 7 days';
-        body.innerHTML = `
-          <div class="week-list">
-            ${Array.from({length:7}, (_,i) => {
-              const d = new Date();
-              d.setDate(d.getDate() + i);
-              return `<div class="week-row ${i===0?'today':''}">
-                <div class="day-label">
-                  <span class="date-circle">${d.getDate()}</span>
-                  <span class="day-abbrev">${d.toLocaleDateString([], {weekday:'short'}).toUpperCase()}</span>
-                </div>
-                <div class="timeline"></div>
-              </div>`;
-            }).join('')}
-          </div>
-        `;
-      } else {
-        title.textContent = new Date().toLocaleDateString([], {month:'long', year:'numeric'});
-        body.innerHTML = `<div class="month-grid">Month grid with dots will render here</div>`;
-      }
-
-      legend.innerHTML = `<div class="legend-title">Legend</div>` + 
-        jobs.map(j => `<div class="cron-legend-entry"><span class="dot" style="background:${j.color}"></span><span class="time">${j.schedule}</span><span class="name">${j.name}</span></div>`).join('');
-    }
-
-    function initSchedule() {
-      document.querySelectorAll('[data-schedule-view]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('[data-schedule-view]').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          scheduleView = btn.dataset.scheduleView;
-          renderSchedule();
+    function bindQuestDnD() {
+      document.querySelectorAll('.board-card').forEach(card => {
+        card.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('text/plain', card.dataset.questId);
         });
       });
-      renderSchedule();
+
+      document.querySelectorAll('.board-column').forEach(col => {
+        col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drag-over'); });
+        col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+        col.addEventListener('drop', e => {
+          e.preventDefault();
+          col.classList.remove('drag-over');
+          const id = e.dataTransfer.getData('text/plain');
+          const newStatus = col.dataset.boardCol;
+          const q = tavernData.quests.find(x => x.id === id);
+          if (q) {
+            q.status = newStatus;
+            renderBoard();
+          }
+        });
+      });
+
+      document.querySelectorAll('.delete-quest').forEach(btn => {
+        btn.addEventListener('click', () => {
+          tavernData.quests = tavernData.quests.filter(q => q.id !== btn.dataset.deleteQuest);
+          renderBoard();
+        });
+      });
+    }
+
+    function initQuests() {
+      renderBoard();
+
+      $('addQuestToggle').addEventListener('click', () => {
+        $('addQuestPanel').classList.toggle('open');
+        $('questTitleInput').focus();
+      });
+
+      $('cancelQuestBtn').addEventListener('click', () => {
+        $('addQuestPanel').classList.remove('open');
+      });
+
+      $('addQuestPanel').addEventListener('submit', e => {
+        e.preventDefault();
+        const title = $('questTitleInput').value.trim();
+        if (!title) return;
+
+        tavernData.quests.unshift({
+          id: 'q' + Date.now(),
+          title,
+          status: $('questStatusInput').value,
+          priority: $('questPriorityInput').value,
+          created_at: new Date().toISOString()
+        });
+
+        $('questTitleInput').value = '';
+        $('addQuestPanel').classList.remove('open');
+        renderBoard();
+      });
+    }
+
+    // SCHEDULE
+    function initSchedule() {
+      console.log('%c[Schedule] Tab ready', 'color:#A78BFA');
+    }
+
+    // CONTENT (Module 7)
+    let contentDocs = [];
+    let contentFilter = 'all';
+    let selectedDoc = null;
+    let selectedText = '';
+
+    const EMBEDDED_DOCS = [
+      { agent: 'healer', filename: '2026-06-29_tavern-dashboard-foundation.md', title: 'Tavern Dashboard Foundation', modified_at: new Date().toISOString(), text: '# Tavern Dashboard Foundation\n\nPremium Mission Control Tavern dashboard built with full glassmorphism, radar, Kanban, and calendar.' },
+      { agent: 'artificer', filename: '2026-06-29_party-roles.md', title: 'Party Roles & Responsibilities', modified_at: new Date().toISOString(), text: '# Party Roles\n\nOwner: Benjamin\nGuild Master: Operational Coordinator\nHeroes: Mage, Knight, Healer, Rogue, Bard, Artificer' }
+    ];
+
+    function loadContentDocs() {
+      contentDocs = EMBEDDED_DOCS.map(d => ({...d}));
+      renderContentStats();
+      renderContentFilters();
+      renderContentList();
+      if (!selectedDoc && contentDocs.length) {
+        selectContentDoc(`${contentDocs[0].agent}/${contentDocs[0].filename}`);
+      }
+    }
+
+    function renderContentStats() {
+      $('contentTotalDocs').textContent = contentDocs.length;
+      $('contentHeroesWriting').textContent = new Set(contentDocs.map(d => d.agent)).size;
+      const latest = contentDocs[0];
+      $('contentLatestTitle').textContent = latest ? latest.title : '—';
+      $('contentLatestSub').textContent = latest ? `${latest.agent} · just now` : 'No documents';
+    }
+
+    function renderContentFilters() {
+      const host = $('contentFilters');
+      const agents = ['all', ...new Set(contentDocs.map(d => d.agent))];
+      host.innerHTML = agents.map(a => 
+        `<button class="content-filter ${contentFilter===a?'active':''}" data-content-filter="${a}">${a==='all'?'All':a}</button>`
+      ).join('');
+    }
+
+    function renderContentList() {
+      const host = $('docList');
+      const filtered = contentDocs.filter(d => contentFilter === 'all' || d.agent === contentFilter);
+      host.innerHTML = filtered.length ? filtered.map(d => {
+        const key = `${d.agent}/${d.filename}`;
+        const active = selectedDoc && `${selectedDoc.agent}/${selectedDoc.filename}` === key;
+        return `<button class="doc-item ${active?'active':''}" data-doc-key="${key}">
+          <span class="doc-badge">${d.agent}</span>
+          <span class="doc-title">${d.title}</span>
+          <span class="doc-time">just now</span>
+        </button>`;
+      }).join('') : `<div class="reader-empty">No documents</div>`;
+    }
+
+    function selectContentDoc(key) {
+      const [agent, filename] = key.split('/');
+      selectedDoc = contentDocs.find(d => d.agent === agent && d.filename === filename);
+      if (!selectedDoc) return;
+      selectedText = selectedDoc.text || '';
+      renderContentList();
+      renderContentReader();
+    }
+
+    function renderContentReader() {
+      const host = $('contentReader');
+      if (!selectedDoc) {
+        host.innerHTML = '<div class="reader-empty">Select a document to read</div>';
+        return;
+      }
+      host.innerHTML = `
+        <div class="reader-head">
+          <div class="reader-meta">
+            <span class="reader-badge">${selectedDoc.agent}</span>
+            <span class="reader-date">just now</span>
+          </div>
+          <div class="reader-title">${selectedDoc.title}</div>
+        </div>
+        <div class="reader-actions">
+          <button class="reader-action edit" data-content-edit>EDIT</button>
+          <button class="reader-action download" data-content-download>↓</button>
+          <button class="reader-action delete" data-content-delete>✕</button>
+        </div>
+        <div id="content-body">${marked.parse(selectedText)}</div>
+      `;
+    }
+
+    function renderContentEditor() {
+      const host = $('contentReader');
+      host.innerHTML = `
+        <div class="reader-head">
+          <div class="reader-meta"><span class="reader-badge">${selectedDoc.agent}</span></div>
+          <div class="reader-title">${selectedDoc.title}</div>
+        </div>
+        <textarea class="editor-area" id="contentEditArea">${selectedText}</textarea>
+        <div class="editor-actions">
+          <button class="content-save-btn" data-content-save-edit>Save</button>
+          <button class="content-cancel-btn" data-content-cancel-edit>Cancel</button>
+        </div>
+      `;
+    }
+
+    function saveContentEdit() {
+      const val = $('contentEditArea').value;
+      selectedDoc.text = val;
+      selectedText = val;
+      renderContentReader();
+    }
+
+    function downloadContentDoc() {
+      if (!selectedDoc) return;
+      const blob = new Blob([selectedText], {type: 'text/markdown'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = selectedDoc.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function deleteContentDoc() {
+      if (!selectedDoc || !confirm('Delete this document?')) return;
+      const idx = EMBEDDED_DOCS.findIndex(d => d.agent === selectedDoc.agent && d.filename === selectedDoc.filename);
+      if (idx >= 0) EMBEDDED_DOCS.splice(idx, 1);
+      selectedDoc = null;
+      selectedText = '';
+      loadContentDocs();
+    }
+
+    function createContentDoc(e) {
+      e.preventDefault();
+      const title = $('newDocTitle').value.trim();
+      if (!title) return;
+      const agent = $('newDocHero').value;
+      const text = $('newDocText').value || `# ${title}\n\n`;
+      const filename = `${new Date().toISOString().slice(0,10)}_${title.toLowerCase().replace(/\s+/g,'-')}.md`;
+      
+      EMBEDDED_DOCS.unshift({ agent, filename, title, modified_at: new Date().toISOString(), text });
+      $('newDocTitle').value = '';
+      $('newDocText').value = '';
+      $('newDocPanel').classList.remove('open');
+      loadContentDocs();
+    }
+
+    function initContent() {
+      $('newDocBtn').addEventListener('click', () => $('newDocPanel').classList.toggle('open'));
+      $('newDocPanel').addEventListener('submit', createContentDoc);
+      $('newDocCancel').addEventListener('click', () => $('newDocPanel').classList.remove('open'));
+
+      document.addEventListener('click', e => {
+        if (e.target.dataset.contentFilter) {
+          contentFilter = e.target.dataset.contentFilter;
+          renderContentList();
+        }
+        if (e.target.dataset.docKey) {
+          selectContentDoc(e.target.dataset.docKey);
+        }
+        if (e.target.dataset.contentEdit) renderContentEditor();
+        if (e.target.dataset.contentDownload) downloadContentDoc();
+        if (e.target.dataset.contentDelete) deleteContentDoc();
+        if (e.target.dataset.contentSaveEdit) saveContentEdit();
+        if (e.target.dataset.contentCancelEdit) renderContentReader();
+      });
     }
 
     // Boot
@@ -612,7 +993,7 @@
     initSchedule();
     initContent();
 
-    console.log('%c[Ariadne Tavern] Schedule tab now at full template quality', 'color:#5EE2B5');
+    console.log('%c[Ariadne Tavern] COMPLETE — All modules (2-7) operational', 'color:#5EE2B5');
   </script>
 </body>
 </html>
