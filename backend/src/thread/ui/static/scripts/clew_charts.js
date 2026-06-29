@@ -268,6 +268,26 @@
         );
         return lines.join("<br/>");
       };
+    } else if (intelMeta.tooltipTemplate === "relationship_heatmap") {
+      option.tooltip = option.tooltip || {};
+      option.tooltip.formatter = function (params) {
+        var d = params.data || [];
+        var xi = d[0];
+        var yi = d[1];
+        var actions = d[2];
+        var millions = d[3];
+        var buyer = (intelMeta.agencies && intelMeta.agencies[xi]) || "";
+        var prime = (intelMeta.recipients && intelMeta.recipients[yi]) || "";
+        var col = intelMeta.colLabel || "Buyer";
+        var row = intelMeta.rowLabel || "Contractor";
+        var lines = [
+          "<strong>" + row + ":</strong> " + prime,
+          "<strong>" + col + ":</strong> " + buyer,
+          actions + " actions · " + formatMoneyFromMillions(millions),
+        ];
+        lines.push("<span style='color:#94a3b8;font-size:10px'>Click → competitor profile</span>");
+        return lines.join("<br/>");
+      };
     } else if (option.tooltip && option.tooltip.trigger === "item" && intelMeta.mode !== "agency_intensity") {
       option.tooltip.formatter = function (params) {
         if (params.data && params.data.value != null) {
@@ -332,6 +352,8 @@
   function scheduleChartInit() {
     window.requestAnimationFrame(function () {
       window.initClewCharts();
+      // Charts are disposed/remounted here — rebind insights drill handlers after mount.
+      if (window.initInsightsHone) window.initInsightsHone();
     });
   }
 
@@ -359,7 +381,9 @@
   });
 
   document.addEventListener("DOMContentLoaded", function () {
-    if (document.querySelector(".clew-echarts-host")) window.initClewCharts();
+    if (!document.querySelector(".clew-echarts-host")) return;
+    window.initClewCharts();
+    if (window.initInsightsHone) window.initInsightsHone();
   });
 
   function showClewError(message) {

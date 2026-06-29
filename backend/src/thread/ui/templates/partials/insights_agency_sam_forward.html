@@ -1,0 +1,67 @@
+<div class="insights-agency-sam-forward mt-2" id="insights-agency-sam-forward">
+  <div class="flex flex-wrap items-center gap-2 mb-2">
+    <p class="insights-motion-teaming-title m-0">SAM forward — buying sentiment (90d)</p>
+    <label class="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono cursor-pointer">
+      <input
+        type="checkbox"
+        class="accent-neon-cyan"
+        {% if sam_match_naics %}checked{% endif %}
+        hx-post="/partials/insights/slice"
+        hx-target="#insights-stage-content"
+        hx-swap="outerHTML"
+        hx-indicator="#insights-slice-loading"
+        hx-include="#insights-radar-form, #insights-entity-state"
+        hx-vals='js:{"lens": "agency", "run": "1", "sam_match_naics": this.checked ? "1" : "0"}'
+      />
+      Also match slice NAICS
+    </label>
+  </div>
+  {% if agency_sam_forward.status == 'not_configured' %}
+  <p class="insights-explore-msg text-[10px]">
+    Add <span class="font-mono text-neon-cyan">SAM_GOV_API_KEY</span> to
+    <span class="font-mono">.env</span> for live forward notices.
+  </p>
+  {% elif agency_sam_forward.status == 'error' %}
+  <p class="insights-explore-msg insights-explore-msg-warn text-[10px]">{{ agency_sam_forward.error }}</p>
+  {% elif agency_sam_forward.notices and agency_sam_forward.notices|length > 0 %}
+  <p class="insights-explore-meta text-[10px] mb-2">{{ agency_sam_forward.summary }} · {{ agency_sam_forward.notices|length }} notices</p>
+  <ul class="insights-result-list">
+    {% for notice in agency_sam_forward.notices[:12] %}
+    <li class="insights-result-row">
+      <div class="insights-result-main">
+        <span class="insights-result-title">{{ notice.title }}</span>
+        <span class="insights-result-sub">{{ notice.agency }}</span>
+        <span class="flex flex-wrap gap-1.5 mt-0.5">
+          {% if notice.notice_type %}
+          <span class="pill pill-compact text-[9px] border-neon-magenta/35 text-neon-magenta">{{ notice.notice_type }}</span>
+          {% endif %}
+          {% if notice.naics_code %}
+          <span class="pill pill-compact text-[9px] border-edge text-slate-500">NAICS {{ notice.naics_code }}</span>
+          {% endif %}
+          {% if notice.posted_date %}
+          <span class="text-[9px] text-slate-600">posted {{ notice.posted_date }}</span>
+          {% endif %}
+        </span>
+        {% if notice.solicitation_number %}
+        <span class="insights-result-mono">Sol {{ notice.solicitation_number }}</span>
+        {% endif %}
+      </div>
+      <form hx-post="/watchlist/add/sam" hx-target="#insights-body" hx-swap="outerHTML">
+        <input type="hidden" name="notice_id" value="{{ notice.notice_id }}" />
+        <input type="hidden" name="title" value="{{ notice.title }}" />
+        <input type="hidden" name="agency" value="{{ notice.agency }}" />
+        <input type="hidden" name="solicitation_number" value="{{ notice.solicitation_number or '' }}" />
+        <input type="hidden" name="notice_type" value="{{ notice.notice_type or '' }}" />
+        <input type="hidden" name="naics_code" value="{{ notice.naics_code or '' }}" />
+        <button type="submit" class="btn btn-primary btn-compact" title="Add to Pulse watchlist">Watch</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif agency_sam_forward.status == 'empty' %}
+  <p class="insights-explore-meta text-[10px]">{{ agency_sam_forward.summary }}</p>
+  <p class="insights-idle-hint text-[10px]">No SAM notices in 90-day window for this buyer keyword{% if sam_match_naics %} with NAICS filter{% endif %}.</p>
+  {% else %}
+  <p class="insights-idle-hint text-[10px]">SAM forward loads with agency drill.</p>
+  {% endif %}
+</div>

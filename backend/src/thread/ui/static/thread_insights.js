@@ -131,12 +131,34 @@
         if (value != null && String(value).length) fd.set(key, String(value));
       });
     }
+    forEachNamedField(entityState(), function (value, key) {
+      if (value != null && String(value).length) fd.set(key, String(value));
+    });
     fd.set("run", "1");
     Object.keys(extra || {}).forEach(function (key) {
       var val = extra[key];
       if (val != null && String(val).length) fd.set(key, String(val));
     });
     return fd;
+  }
+
+  function setLensEntity(lens, scope, value) {
+    var root = entityState();
+    if (!root) return;
+    function setField(name, val) {
+      var input = root.querySelector('[name="' + name + '"]');
+      if (input) input.value = val || "";
+    }
+    if (lens === "competitor") {
+      setField("competitor_entity_value", value);
+      setField("competitor_entity_scope", scope || "recipient");
+    } else {
+      setField("agency_entity_value", value);
+      setField("agency_entity_scope", scope || "agency");
+    }
+    setField("entity_kind", "");
+    setField("entity_value", "");
+    setField("entity_scope", "");
   }
 
   function syncSidebarFromSliceFacets() {
@@ -149,8 +171,156 @@
     });
   }
 
+  var traceAwardFocus = { fundingOffice: null, recipient: null };
+  var spineBaselineHtml = null;
+  var spineFocusToken = 0;
+  var spineServerFocused = false;
+
+  function normTraceLabel(value) {
+    return (value || "").trim().toLowerCase();
+  }
+
+  function spineRows() {
+    var panel = document.getElementById("insights-award-spine-scroll");
+    return panel ? panel.querySelectorAll(".insights-result-row") : [];
+  }
+
+  function rowMatchesTraceFocus(row, focus) {
+    if (!focus.fundingOffice && !focus.recipient) return true;
+    var office = row.getAttribute("data-funding-office") || "";
+    var recipient = row.getAttribute("data-recipient") || "";
+    if (focus.fundingOffice && normTraceLabel(office) !== normTraceLabel(focus.fundingOffice)) return false;
+    if (focus.recipient && normTraceLabel(recipient) !== normTraceLabel(focus.recipient)) return false;
+    return true;
+  }
+
+  function restoreSpineBaseline() {
+    var scroll = document.getElementById("insights-award-spine-scroll");
+    if (scroll && spineBaselineHtml != null) scroll.innerHTML = spineBaselineHtml;
+    spineServerFocused = false;
+  }
+
+  function updateSpineCaption(text, hasFocus) {
+    var caption = document.getElementById("insights-award-spine-caption");
+    var clearBtn = document.getElementById("insights-trace-focus-clear");
+    if (clearBtn) clearBtn.classList.toggle("is-visible", hasFocus);
+    if (!caption) return;
+    var hintText = caption.getAttribute("data-focus-hint") || "";
+    if (!hasFocus) {
+      var base = caption.getAttribute("data-base-summary") || "";
+      caption.textContent = "";
+      if (base) caption.appendChild(document.createTextNode(base));
+      if (hintText) {
+        var hintEl = document.createElement("span");
+        hintEl.className = "insights-trace-focus-hint text-slate-600";
+        hintEl.textContent = hintText;
+        caption.appendChild(hintEl);
+      }
+      return;
+    }
+    caption.textContent = text || "";
+  }
+
+  function applyTraceAwardFocus() {
+    var focus = traceAwardFocus;
+    var hasFocus = !!(focus.fundingOffice || focus.recipient);
+    var rows = spineRows();
+    var matchCount = 0;
+    rows.forEach(function (row) {
+      row.classList.remove("trace-focus-match", "trace-focus-dim");
+      if (!hasFocus) return;
+      if (spineServerFocused) {
+        row.classList.add("trace-focus-match");
+        matchCount += 1;
+        return;
+      }
+      var match = rowMatchesTraceFocus(row, focus);
+      row.classList.toggle("trace-focus-match", match);
+      row.classList.toggle("trace-focus-dim", !match);
+      if (match) matchCount += 1;
+    });
+    if (!hasFocus) {
+      updateSpineCaption("", false);
+      return;
+    }
+    if (spineServerFocused) return;
+    var parts = [];
+    if (focus.fundingOffice) parts.push(focus.fundingOffice);
+    if (focus.recipient) parts.push(focus.recipient);
+    updateSpineCaption(
+      matchCount + " of " + rows.length + " loaded · " + parts.join(" × "),
+      true
+    );
+  }
+
+  function fetchTraceSpineRows(focus) {
+    var scroll = document.getElementById("insights-award-spine-scroll");
+    if (!scroll) return;
+    if (!focus.fundingOffice && !focus.recipient) return;
+    if (spineBaselineHtml == null) spineBaselineHtml = scroll.innerHTML;
+    var token = ++spineFocusToken;
+    scroll.classList.add("is-loading");
+    updateSpineCaption("Loading contracts for trace…", true);
+    var lensInput = document.getElementById("insights-active-lens");
+    var fd = buildSliceFormData({
+      trace_buyer_office: focus.fundingOffice,
+      trace_recipient: focus.recipient,
+      lens: lensInput && lensInput.value ? lensInput.value : "agency",
+    });
+    fetch("/partials/insights/award-spine-focus", { method: "POST", body: fd })
+      .then(function (res) {
+        if (!res.ok) throw new Error("spine focus " + res.status);
+        return res.text();
+      })
+      .then(function (html) {
+        if (token !== spineFocusToken) return;
+        scroll.innerHTML = html;
+        scroll.classList.remove("is-loading");
+        spineServerFocused = true;
+        var meta = scroll.querySelector("#insights-spine-focus-meta");
+        var summary = meta ? meta.getAttribute("data-summary") : "";
+        if (meta) meta.remove();
+        updateSpineCaption(summary || "Trace-scoped contracts", true);
+        applyTraceAwardFocus();
+      })
+      .catch(function () {
+        if (token !== spineFocusToken) return;
+        scroll.classList.remove("is-loading");
+        spineServerFocused = false;
+        applyTraceAwardFocus();
+      });
+  }
+
+  window.clearTraceAwardFocus = function () {
+    spineFocusToken += 1;
+    traceAwardFocus = { fundingOffice: null, recipient: null };
+    restoreSpineBaseline();
+    spineBaselineHtml = null;
+    applyTraceAwardFocus();
+  };
+
+  window.setTraceAwardFocus = function (patch, opts) {
+    opts = opts || {};
+    if (opts.clear) {
+      window.clearTraceAwardFocus();
+      return;
+    }
+    patch = patch || {};
+    if (patch.fundingOffice !== undefined) {
+      traceAwardFocus.fundingOffice = patch.fundingOffice || null;
+      if (opts.resetRecipient) traceAwardFocus.recipient = null;
+    }
+    if (patch.recipient !== undefined) traceAwardFocus.recipient = patch.recipient || null;
+    spineServerFocused = false;
+    applyTraceAwardFocus();
+    fetchTraceSpineRows(traceAwardFocus);
+  };
+
   function afterInsightsStageSwap() {
     clearLoadingStatus();
+    spineBaselineHtml = null;
+    spineFocusToken += 1;
+    window.clearTraceAwardFocus();
     var stage = document.getElementById("insights-stage-content");
     if (stage) stage.classList.remove("is-loading");
     var lensInput = document.getElementById("insights-active-lens");
@@ -162,6 +332,8 @@
   }
 
   // ponytail: facet snapshot on #insights-stage-content — sidebar form is often empty after bookmark load
+  window.setLensEntity = setLensEntity;
+
   window.postInsightsSlice = function (extra, loadingMsg) {
     var stage = document.getElementById("insights-stage-content");
     if (!stage || stage.getAttribute("data-has-slice") !== "1") {
@@ -173,15 +345,9 @@
       if (lensInput) lensInput.value = extra.lens;
     }
     if (extra && extra.entity_value) {
-      var root = entityState();
-      if (root) {
-        var kindInput = root.querySelector('input[name="entity_kind"]');
-        var valueInput = root.querySelector('input[name="entity_value"]');
-        var scopeInput = root.querySelector('input[name="entity_scope"]');
-        if (kindInput && extra.entity_kind) kindInput.value = extra.entity_kind;
-        if (valueInput) valueInput.value = extra.entity_value;
-        if (scopeInput && extra.entity_scope) scopeInput.value = extra.entity_scope;
-      }
+      var drillLens =
+        extra.lens || (extra.entity_kind === "competitor" ? "competitor" : "agency");
+      setLensEntity(drillLens, extra.entity_scope, extra.entity_value);
     }
     if (window.showInsightsSliceLoading) window.showInsightsSliceLoading(loadingMsg || "Opening profile…");
     else if (loadingMsg) setStageStatus(loadingMsg, "loading");
@@ -300,7 +466,15 @@
         if (value) params.append(key, String(value));
       });
     }
-    ["entity_kind", "entity_value", "entity_scope"].forEach(function (key) {
+    [
+      "agency_entity_value",
+      "agency_entity_scope",
+      "competitor_entity_value",
+      "competitor_entity_scope",
+      "entity_kind",
+      "entity_value",
+      "entity_scope",
+    ].forEach(function (key) {
       if (session[key] && !params.has(key)) params.set(key, session[key]);
     });
     return params;
@@ -584,14 +758,12 @@
         ).catch(function () {});
         return;
       }
-      var btn = event.target.closest("button.insights-award-open[data-award-key]");
-      var row = event.target.closest("li.insights-result-row.insights-award-open[data-award-key]");
-      var key = "";
-      if (btn) key = btn.getAttribute("data-award-key") || "";
-      else if (row && !event.target.closest(".insights-result-actions")) key = row.getAttribute("data-award-key") || "";
-      key = key.trim();
+      var opener = event.target.closest("li.insights-award-open[data-award-key]");
+      if (!opener) return;
+      var key = (opener.getAttribute("data-award-key") || "").trim();
       if (!key) return;
       event.preventDefault();
+      event.stopPropagation();
       window.openInsightsAwardDrawer(key);
     }, true);
 
@@ -654,11 +826,23 @@
     });
 
     document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
       var r = awardRoot();
-      if (e.key === "Escape" && r && !r.classList.contains("task-drawer-hidden")) {
+      if (r && !r.classList.contains("task-drawer-hidden")) {
         window.closeInsightsAwardDrawer();
+        return;
+      }
+      if (traceAwardFocus.fundingOffice || traceAwardFocus.recipient) {
+        window.clearTraceAwardFocus();
       }
     });
+
+    document.body.addEventListener("click", function (event) {
+      var clearBtn = event.target.closest("#insights-trace-focus-clear");
+      if (!clearBtn) return;
+      event.preventDefault();
+      window.clearTraceAwardFocus();
+    }, true);
   }
 
   mountOverlaysOnBody();

@@ -123,7 +123,7 @@ async def run_facet_analysis(
 
 
 INTENSITY_OFFICE_LIMIT = 64
-OVERVIEW_SCHEMA_VERSION = 4  # ponytail: bump when overview/intensity shape changes — invalidates slice cache
+OVERVIEW_SCHEMA_VERSION = 5  # ponytail: bump when overview/intensity shape changes — invalidates slice cache
 
 
 async def run_slice_overview(
@@ -162,6 +162,8 @@ async def run_slice_overview(
         motion_expiring,
         motion_paths,
         expiring_tl,
+        vehicles,
+        ffp,
     ) = await gather_pg(
         lambda s: _slice_kpis(s, facet_sql, facet_params),
         lambda s: spend_trend(s, query, limit=limit),
@@ -178,6 +180,8 @@ async def run_slice_overview(
         lambda s: expiring_capture_channels(s, facet_sql, facet_params),
         lambda s: motion_money_paths(s, facet_sql, facet_params),
         lambda s: expiring_timeline(s, facet_sql, facet_params),
+        lambda s: vehicle_breakdown(s, facet_sql, facet_params, limit=limit),
+        lambda s: ffp_shaping_radar(s, query),
     )
 
     result: dict[str, Any] = {
@@ -201,6 +205,8 @@ async def run_slice_overview(
             "money_paths": motion_paths,
         },
         "expiring_timeline": expiring_tl,
+        "vehicle_breakdown": vehicles,
+        "ffp_shaping": ffp,
         "summary": "Slice overview",
     }
     _OVERVIEW_CACHE[cache_key] = (time.monotonic(), dict(result))
@@ -895,7 +901,7 @@ async def agency_intensity(
         "office_shown": len(points),
         "caption": (
             f"Top {len(points)} of {office_total} awarding offices by obligated $. "
-            "Click any dot → Agency profile. Funding-office trace ships in Agency polish (17e-g-a)."
+            "Click any dot → Agency profile with funding-office customer map."
         ),
     }
 
@@ -942,6 +948,852 @@ async def agency_sub_flow(
         for r in rows
     ]
     return {"rows": flow_rows, "group": label}
+
+
+def _office_node_id(kind: str, label: str) -> str:
+    return f"{kind}::{label}"
+
+
+async def office_customer_trace(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    *,
+    awarding_office: str,
+    limit: int = 14,
+    recipients_per_funding: int = 3,
+) -> dict[str, Any]:
+    """Awarding office → funding office customer map — DR expose hop-1 + prime BFS hop-2."""
+    office = (awarding_office or query.awarding_office or "").strip()
+    empty: dict[str, Any] = {
+        "mode": "office_customer_trace",
+        "method": "Awarding office → funding office (requirements owner) obligation paths.",
+        "flows": [],
+        "relations_graph": {},
+        "funding_office_count": 0,
+        "summary": "No awarding office in scope.",
+    }
+    if not office:
+        return empty
+
+    facet_sql, facet_params = build_facet_sql(query)
+    funding_sql = f"""
+        SELECT
+            COALESCE(NULLIF(TRIM(funding_office_name), ''), '(Unspecified funding)') AS funding_office,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE COALESCE(NULLIF(TRIM(awarding_office_name), ''), '') = :awarding_office
+          {facet_sql}
+        GROUP BY funding_office
+        ORDER BY millions DESC NULLS LAST
+        LIMIT :limit
+    """
+    funding_rows = (
+        await session.execute(
+            text(funding_sql),
+            {**facet_params, "awarding_office": office, "limit": limit},
+        )
+    ).all()
+    if not funding_rows:
+        return {
+            **empty,
+            "summary": f"No funding-office paths for awarding office “{office[:48]}”.",
+        }
+
+    flows = [
+        {
+            "source": office,
+            "target": str(r.funding_office),
+            "millions": float(r.millions or 0),
+            "actions": int(r.actions),
+        }
+        for r in funding_rows
+    ]
+    total_m = sum(f["millions"] for f in flows) or 1.0
+    for f in flows:
+        f["pct"] = round(100.0 * f["millions"] / total_m, 1)
+
+    top_funding = [f["target"] for f in flows[: min(8, len(flows))]]
+    recipient_sql = f"""
+        WITH ranked AS (
+            SELECT
+                COALESCE(NULLIF(TRIM(funding_office_name), ''), '(Unspecified funding)') AS funding_office,
+                recipient_name AS recipient,
+                COUNT(*) AS actions,
+                {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions,
+                ROW_NUMBER() OVER (
+                    PARTITION BY COALESCE(NULLIF(TRIM(funding_office_name), ''), '(Unspecified funding)')
+                    ORDER BY SUM(COALESCE(federal_action_obligation, 0)) DESC NULLS LAST
+                ) AS rn
+            FROM {PRIME_TABLE}
+            WHERE COALESCE(NULLIF(TRIM(awarding_office_name), ''), '') = :awarding_office
+              AND recipient_name IS NOT NULL
+              {facet_sql}
+            GROUP BY funding_office, recipient_name
+        )
+        SELECT funding_office, recipient, actions, millions
+        FROM ranked
+        WHERE rn <= :recipients_per_funding
+          AND funding_office = ANY(:top_funding)
+        ORDER BY millions DESC NULLS LAST
+    """
+    recipient_rows = (
+        await session.execute(
+            text(recipient_sql),
+            {
+                **facet_params,
+                "awarding_office": office,
+                "recipients_per_funding": recipients_per_funding,
+                "top_funding": top_funding,
+            },
+        )
+    ).all()
+
+    awarding_id = _office_node_id("awarding_office", office)
+    nodes: dict[str, dict[str, Any]] = {
+        awarding_id: {
+            "id": awarding_id,
+            "label": office,
+            "kind": "awarding_office",
+            "hop": 0,
+            "millions_out": total_m,
+            "millions_in": 0.0,
+            "millions_total": total_m,
+            "actions": sum(f["actions"] for f in flows),
+            "magnitude_tier": "high" if total_m >= 10 else "medium" if total_m >= 1 else "low",
+        },
+    }
+    edges: list[dict[str, Any]] = []
+    for f in flows:
+        fund_label = f["target"]
+        fund_id = _office_node_id("funding_office", fund_label)
+        fm = f["millions"]
+        tier = "high" if fm >= 10 else "medium" if fm >= 1 else "low"
+        nodes.setdefault(
+            fund_id,
+            {
+                "id": fund_id,
+                "label": fund_label,
+                "kind": "funding_office",
+                "hop": 1,
+                "millions_in": 0.0,
+                "millions_out": 0.0,
+                "millions_total": 0.0,
+                "actions": 0,
+                "magnitude_tier": tier,
+            },
+        )
+        nodes[fund_id]["millions_in"] += fm
+        nodes[fund_id]["millions_total"] += fm
+        nodes[fund_id]["actions"] += f["actions"]
+        edges.append({
+            "source": awarding_id,
+            "target": fund_id,
+            "kind": "customer_trace",
+            "family": "customer_trace",
+            "millions": fm,
+            "actions": f["actions"],
+            "hop": 1,
+        })
+
+    for r in recipient_rows:
+        fund_id = _office_node_id("funding_office", str(r.funding_office))
+        if fund_id not in nodes:
+            continue
+        prime_label = str(r.recipient)
+        prime_id = _office_node_id("prime", prime_label)
+        pm = float(r.millions or 0)
+        tier = "high" if pm >= 10 else "medium" if pm >= 1 else "low"
+        nodes.setdefault(
+            prime_id,
+            {
+                "id": prime_id,
+                "label": prime_label,
+                "kind": "prime",
+                "hop": 2,
+                "millions_in": pm,
+                "millions_out": 0.0,
+                "millions_total": pm,
+                "actions": int(r.actions),
+                "magnitude_tier": tier,
+            },
+        )
+        edges.append({
+            "source": fund_id,
+            "target": prime_id,
+            "kind": "obligation",
+            "family": "org_money",
+            "millions": pm,
+            "actions": int(r.actions),
+            "hop": 2,
+        })
+
+    relations_graph = {
+        "mode": "office_customer_graph",
+        "method": (
+            "BFS expose — hop 1: awarding → funding offices (customers); "
+            "hop 2: top primes per funding office."
+        ),
+        "nodes": list(nodes.values())[:48],
+        "edges": edges[:96],
+        "relation_families": ["customer_trace", "org_money"],
+        "summary": {
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+            "max_hop": 2 if recipient_rows else 1,
+            "millions_in_subgraph": round(total_m, 2),
+            "seed_awarding_office": office,
+            "funding_office_count": len(flows),
+        },
+    }
+
+    return {
+        "mode": "office_customer_trace",
+        "method": relations_graph["method"],
+        "flows": flows,
+        "relations_graph": relations_graph,
+        "funding_office_count": len(flows),
+        "summary": (
+            f"{len(flows)} funding offices · ${total_m:.1f}M through "
+            f"awarding office “{_truncate_office_label(office)}”."
+        ),
+    }
+
+
+def _truncate_office_label(label: str, *, max_len: int = 40) -> str:
+    s = (label or "").strip()
+    if len(s) <= max_len:
+        return s
+    return s[: max_len - 1] + "…"
+
+
+def _empty_customer_trace(summary: str = "No buyer trace in scope.") -> dict[str, Any]:
+    return {
+        "mode": "customer_trace",
+        "method": "Buyer hierarchy — requirements owners and top performers.",
+        "flows": [],
+        "relations_graph": {},
+        "funding_office_count": 0,
+        "summary": summary,
+    }
+
+
+async def buyer_customer_trace(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    *,
+    root_label: str,
+    root_scope: str,
+    limit: int = 14,
+    children_per_parent: int = 3,
+    recipients_per_funding: int = 3,
+    subs_per_prime: int = 2,
+) -> dict[str, Any]:
+    """Scope-adaptive customer trace — agency / sub-agency / office."""
+    root = (root_label or "").strip()
+    if not root:
+        return _empty_customer_trace()
+    if root_scope == "office":
+        trace = await office_customer_trace(
+            session,
+            query,
+            awarding_office=root,
+            limit=limit,
+            recipients_per_funding=recipients_per_funding,
+        )
+        if trace.get("flows"):
+            await _enrich_customer_trace_subs(session, query, trace, subs_per_prime=subs_per_prime)
+        trace["mode"] = "customer_trace"
+        return trace
+    if root_scope == "sub_agency":
+        return await _hierarchy_customer_trace(
+            session,
+            query,
+            root_label=root,
+            root_kind="sub_agency",
+            child_col="awarding_office_name",
+            child_kind="awarding_office",
+            grandchild_col="recipient_name",
+            grandchild_kind="prime",
+            sankey_title="Customer map — sub-agency → contracting office",
+            graph_title="Customer trace — sub-agency → offices → primes",
+            limit=limit,
+            children_per_parent=children_per_parent,
+        )
+    if root_scope == "agency":
+        return await _hierarchy_customer_trace(
+            session,
+            query,
+            root_label=root,
+            root_kind="agency",
+            child_col="awarding_sub_agency_name",
+            child_kind="sub_agency",
+            grandchild_col="awarding_office_name",
+            grandchild_kind="awarding_office",
+            sankey_title="Customer map — agency → sub-agency",
+            graph_title="Customer trace — agency → sub-agencies → offices",
+            limit=limit,
+            children_per_parent=children_per_parent,
+        )
+    return _empty_customer_trace()
+
+
+async def _hierarchy_customer_trace(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    *,
+    root_label: str,
+    root_kind: str,
+    child_col: str,
+    child_kind: str,
+    grandchild_col: str,
+    grandchild_kind: str,
+    sankey_title: str,
+    graph_title: str,
+    limit: int,
+    children_per_parent: int,
+) -> dict[str, Any]:
+    facet_sql, facet_params = build_facet_sql(query)
+    child_sql = f"""
+        SELECT
+            COALESCE(NULLIF(TRIM({child_col}), ''), '(Unspecified)') AS child,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE 1=1
+          {facet_sql}
+        GROUP BY child
+        ORDER BY millions DESC NULLS LAST
+        LIMIT :limit
+    """
+    child_rows = (
+        await session.execute(text(child_sql), {**facet_params, "limit": limit})
+    ).all()
+    if not child_rows:
+        return _empty_customer_trace(f"No {child_kind} paths for “{root_label[:48]}”.")
+
+    flows = [
+        {
+            "source": root_label,
+            "target": str(r.child),
+            "millions": float(r.millions or 0),
+            "actions": int(r.actions),
+        }
+        for r in child_rows
+    ]
+    total_m = sum(f["millions"] for f in flows) or 1.0
+    for f in flows:
+        f["pct"] = round(100.0 * f["millions"] / total_m, 1)
+
+    top_children = [f["target"] for f in flows[: min(8, len(flows))]]
+    grandchild_sql = f"""
+        WITH ranked AS (
+            SELECT
+                COALESCE(NULLIF(TRIM({child_col}), ''), '(Unspecified)') AS parent,
+                COALESCE(NULLIF(TRIM({grandchild_col}), ''), '(Unspecified)') AS grandchild,
+                COUNT(*) AS actions,
+                {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions,
+                ROW_NUMBER() OVER (
+                    PARTITION BY COALESCE(NULLIF(TRIM({child_col}), ''), '(Unspecified)')
+                    ORDER BY SUM(COALESCE(federal_action_obligation, 0)) DESC NULLS LAST
+                ) AS rn
+            FROM {PRIME_TABLE}
+            WHERE 1=1
+              {facet_sql}
+            GROUP BY parent, grandchild
+        )
+        SELECT parent, grandchild, actions, millions
+        FROM ranked
+        WHERE rn <= :children_per_parent
+          AND parent = ANY(:top_children)
+        ORDER BY millions DESC NULLS LAST
+    """
+    grandchild_rows = (
+        await session.execute(
+            text(grandchild_sql),
+            {
+                **facet_params,
+                "children_per_parent": children_per_parent,
+                "top_children": top_children,
+            },
+        )
+    ).all()
+
+    root_id = _office_node_id(root_kind, root_label)
+    nodes: dict[str, dict[str, Any]] = {
+        root_id: {
+            "id": root_id,
+            "label": root_label,
+            "kind": root_kind,
+            "hop": 0,
+            "millions_out": total_m,
+            "millions_in": 0.0,
+            "millions_total": total_m,
+            "actions": sum(f["actions"] for f in flows),
+            "magnitude_tier": "high" if total_m >= 10 else "medium" if total_m >= 1 else "low",
+        },
+    }
+    edges: list[dict[str, Any]] = []
+    for f in flows:
+        child_label = f["target"]
+        child_id = _office_node_id(child_kind, child_label)
+        cm = f["millions"]
+        tier = "high" if cm >= 10 else "medium" if cm >= 1 else "low"
+        nodes.setdefault(
+            child_id,
+            {
+                "id": child_id,
+                "label": child_label,
+                "kind": child_kind,
+                "hop": 1,
+                "millions_in": 0.0,
+                "millions_out": 0.0,
+                "millions_total": 0.0,
+                "actions": 0,
+                "magnitude_tier": tier,
+            },
+        )
+        nodes[child_id]["millions_in"] += cm
+        nodes[child_id]["millions_total"] += cm
+        nodes[child_id]["actions"] += f["actions"]
+        edges.append({
+            "source": root_id,
+            "target": child_id,
+            "kind": "customer_trace",
+            "family": "customer_trace",
+            "millions": cm,
+            "actions": f["actions"],
+            "hop": 1,
+        })
+
+    for r in grandchild_rows:
+        child_id = _office_node_id(child_kind, str(r.parent))
+        if child_id not in nodes:
+            continue
+        gc_label = str(r.grandchild)
+        gc_id = _office_node_id(grandchild_kind, gc_label)
+        gm = float(r.millions or 0)
+        tier = "high" if gm >= 10 else "medium" if gm >= 1 else "low"
+        nodes.setdefault(
+            gc_id,
+            {
+                "id": gc_id,
+                "label": gc_label,
+                "kind": grandchild_kind,
+                "hop": 2,
+                "millions_in": gm,
+                "millions_out": 0.0,
+                "millions_total": gm,
+                "actions": int(r.actions),
+                "magnitude_tier": tier,
+            },
+        )
+        edges.append({
+            "source": child_id,
+            "target": gc_id,
+            "kind": "obligation" if grandchild_kind == "prime" else "customer_trace",
+            "family": "org_money" if grandchild_kind == "prime" else "customer_trace",
+            "millions": gm,
+            "actions": int(r.actions),
+            "hop": 2,
+        })
+
+    relations_graph = {
+        "mode": "customer_trace_graph",
+        "method": graph_title,
+        "nodes": list(nodes.values())[:48],
+        "edges": edges[:96],
+        "relation_families": ["customer_trace", "org_money"],
+        "summary": {
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+            "max_hop": 2 if grandchild_rows else 1,
+            "millions_in_subgraph": round(total_m, 2),
+            "root_scope": root_kind,
+        },
+    }
+    return {
+        "mode": "customer_trace",
+        "method": relations_graph["method"],
+        "flows": flows,
+        "relations_graph": relations_graph,
+        "sankey_title": sankey_title,
+        "graph_title": graph_title,
+        "funding_office_count": len(flows),
+        "summary": (
+            f"{len(flows)} {child_kind.replace('_', ' ')}s · ${total_m:.1f}M under "
+            f"“{_truncate_office_label(root_label)}”."
+        ),
+    }
+
+
+async def _subs_for_primes(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    primes: list[str],
+    *,
+    subs_per_prime: int,
+) -> list[dict[str, Any]]:
+    if not primes or subs_per_prime < 1:
+        return []
+    if not await table_exists(session, SUB_TABLE):
+        return []
+    facet_sql, facet_params = _subaward_facet_sql(query)
+    where_extra = f"AND {facet_sql}" if facet_sql else ""
+    sql = f"""
+        WITH ranked AS (
+            SELECT
+                prime_awardee_name AS prime,
+                subawardee_name AS sub,
+                {round_numeric("SUM(COALESCE(NULLIF(subaward_amount, '')::DOUBLE PRECISION, 0)) / 1000000.0")} AS millions,
+                COUNT(*) AS links,
+                ROW_NUMBER() OVER (
+                    PARTITION BY prime_awardee_name
+                    ORDER BY SUM(COALESCE(NULLIF(subaward_amount, '')::DOUBLE PRECISION, 0)) DESC NULLS LAST
+                ) AS rn
+            FROM {SUB_TABLE}
+            WHERE prime_awardee_name = ANY(:primes)
+              AND subawardee_name IS NOT NULL
+              {where_extra}
+            GROUP BY prime_awardee_name, subawardee_name
+        )
+        SELECT prime, sub, millions, links
+        FROM ranked
+        WHERE rn <= :subs_per_prime
+        ORDER BY millions DESC NULLS LAST
+    """
+    rows = (
+        await session.execute(
+            text(sql),
+            {**facet_params, "primes": primes, "subs_per_prime": subs_per_prime},
+        )
+    ).all()
+    return [
+        {
+            "prime": r.prime,
+            "sub": r.sub,
+            "millions": float(r.millions or 0),
+            "links": int(r.links),
+        }
+        for r in rows
+    ]
+
+
+async def _enrich_customer_trace_subs(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    trace: dict[str, Any],
+    *,
+    subs_per_prime: int,
+) -> None:
+    graph = trace.get("relations_graph") or {}
+    nodes_list = graph.get("nodes") or []
+    edges = list(graph.get("edges") or [])
+    nodes = {n["id"]: n for n in nodes_list}
+    primes = [n["label"] for n in nodes_list if n.get("kind") == "prime"]
+    if not primes:
+        return
+    sub_edges = await _subs_for_primes(session, query, primes[:12], subs_per_prime=subs_per_prime)
+    for e in sub_edges:
+        prime_id = _office_node_id("prime", e["prime"])
+        if prime_id not in nodes:
+            continue
+        sub_label = e["sub"]
+        sub_id = _office_node_id("sub", sub_label)
+        sm = e["millions"]
+        tier = "high" if sm >= 10 else "medium" if sm >= 1 else "low"
+        nodes.setdefault(
+            sub_id,
+            {
+                "id": sub_id,
+                "label": sub_label,
+                "kind": "sub",
+                "hop": 3,
+                "millions_in": sm,
+                "millions_out": 0.0,
+                "millions_total": sm,
+                "actions": e["links"],
+                "magnitude_tier": tier,
+            },
+        )
+        edges.append({
+            "source": prime_id,
+            "target": sub_id,
+            "kind": "teaming",
+            "family": "teaming",
+            "millions": sm,
+            "actions": e["links"],
+            "hop": 3,
+        })
+    summary = graph.get("summary") or {}
+    if sub_edges:
+        summary["max_hop"] = max(int(summary.get("max_hop") or 0), 3)
+    graph["nodes"] = list(nodes.values())[:56]
+    graph["edges"] = edges[:112]
+    graph["summary"] = summary
+    trace["relations_graph"] = graph
+
+
+async def entity_obligation_flow(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    *,
+    entity_scope: str,
+    limit: int = 14,
+    subs_per_prime: int = 2,
+) -> dict[str, Any]:
+    """Drill-scoped obligation paths — no upstream agency hop."""
+    facet_sql, facet_params = build_facet_sql(query)
+    if entity_scope == "office":
+        source_expr = (
+            "COALESCE(NULLIF(TRIM(funding_office_name), ''), '(Unspecified funding)')"
+        )
+        title = "Obligation paths — funding office → prime"
+        method = "Funding office → prime within awarding-office drill."
+    else:
+        source_expr = (
+            "COALESCE(NULLIF(TRIM(awarding_office_name), ''), '(Unspecified office)')"
+        )
+        title = "Obligation paths — contracting office → prime"
+        method = "Contracting office → prime within buyer drill."
+
+    sql = f"""
+        SELECT
+            {source_expr} AS source,
+            recipient_name AS target,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE recipient_name IS NOT NULL
+          {facet_sql}
+        GROUP BY source, target
+        ORDER BY millions DESC NULLS LAST
+        LIMIT :limit
+    """
+    rows = (await session.execute(text(sql), {**facet_params, "limit": limit})).all()
+    flows = [
+        {
+            "source": str(r.source),
+            "target": str(r.target),
+            "millions": float(r.millions or 0),
+            "actions": int(r.actions),
+        }
+        for r in rows
+    ]
+    top_primes = list(dict.fromkeys(f["target"] for f in flows))[:8]
+    for e in await _subs_for_primes(session, query, top_primes, subs_per_prime=subs_per_prime):
+        flows.append({
+            "source": e["prime"],
+            "target": e["sub"],
+            "millions": e["millions"],
+            "actions": e["links"],
+        })
+    return {
+        "mode": "entity_obligation_flow",
+        "method": method,
+        "title": title,
+        "flows": flows,
+        "summary": f"{len(flows)} obligation hops in buyer drill",
+    }
+
+
+async def entity_award_spine(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    *,
+    entity_scope: str,
+    limit: int = 20,
+    trace_buyer_office: str | None = None,
+    trace_recipient: str | None = None,
+) -> dict[str, Any]:
+    """Top base awards in drill — contract hop linking buyer offices to recipients."""
+    if not query.has_filters():
+        return {"mode": "entity_award_spine", "rows": [], "summary": "Run slice first."}
+    facet_sql, facet_params = build_facet_sql(query)
+    show_funding = entity_scope == "office"
+    buyer_expr = (
+        "COALESCE(NULLIF(TRIM(funding_office_name), ''), '(Unspecified funding)')"
+        if show_funding
+        else "COALESCE(NULLIF(TRIM(awarding_office_name), ''), '(Unspecified office)')"
+    )
+    trace_sql = ""
+    trace_params: dict[str, Any] = {}
+    buyer_filter = (trace_buyer_office or "").strip()
+    recipient_filter = (trace_recipient or "").strip()
+    if buyer_filter:
+        trace_sql += f" AND {buyer_expr} = :trace_buyer_office"
+        trace_params["trace_buyer_office"] = buyer_filter
+    if recipient_filter:
+        trace_sql += " AND recipient_name = :trace_recipient"
+        trace_params["trace_recipient"] = recipient_filter
+    count_sql = f"""
+        SELECT
+            COUNT(*) AS total_contracts,
+            COUNT(DISTINCT recipient_name) AS total_recipients
+        FROM {PRIME_TABLE}
+        WHERE recipient_name IS NOT NULL
+          AND contract_award_unique_key IS NOT NULL
+          {BASE_AWARD_WHERE}
+          {facet_sql}
+          {trace_sql}
+    """
+    count_row = (
+        await session.execute(text(count_sql), {**facet_params, **trace_params})
+    ).first()
+    total_contracts = int(count_row.total_contracts or 0) if count_row else 0
+    total_recipients = int(count_row.total_recipients or 0) if count_row else 0
+    sql = f"""
+        SELECT
+            contract_award_unique_key AS award_key,
+            COALESCE(
+                NULLIF(TRIM(award_id_piid), ''),
+                NULLIF(TRIM(parent_award_id_piid), '')
+            ) AS piid,
+            recipient_name AS recipient,
+            COALESCE(NULLIF(TRIM(funding_office_name), ''), '(Unspecified funding)') AS funding_office,
+            COALESCE(NULLIF(TRIM(awarding_office_name), ''), '(Unspecified office)') AS awarding_office,
+            {round_numeric(f"{EXPIRING_CONTRACT_VALUE_EXPR} / 1000000.0")} AS millions,
+            period_of_performance_current_end_date::text AS end_date,
+            COALESCE(NULLIF(TRIM(type_of_contract_pricing), ''), 'Unknown') AS pricing
+        FROM {PRIME_TABLE}
+        WHERE recipient_name IS NOT NULL
+          AND contract_award_unique_key IS NOT NULL
+          {BASE_AWARD_WHERE}
+          {facet_sql}
+          {trace_sql}
+        ORDER BY {EXPIRING_CONTRACT_VALUE_EXPR} DESC NULLS LAST
+        LIMIT :limit
+    """
+    raw = (
+        await session.execute(text(sql), {**facet_params, **trace_params, "limit": limit})
+    ).all()
+    rows = [
+        {
+            "award_key": str(r.award_key),
+            "piid": str(r.piid or "").strip() or None,
+            "recipient": str(r.recipient),
+            "funding_office": str(r.funding_office),
+            "awarding_office": str(r.awarding_office),
+            "millions": float(r.millions or 0),
+            "end_date": str(r.end_date) if r.end_date else None,
+            "pricing": str(r.pricing),
+            "buyer_office": str(r.funding_office if show_funding else r.awarding_office),
+        }
+        for r in raw
+        if r.award_key
+    ]
+    # Same row shape as expiring list → insights_recompete_rows.html (drawer holds actions)
+    recompete_rows = []
+    for row in rows:
+        months_to_end = 0
+        if row["end_date"]:
+            try:
+                from datetime import date, datetime
+
+                end = datetime.fromisoformat(str(row["end_date"])[:10]).date()
+                today = date.today()
+                months_to_end = max(0, (end.year - today.year) * 12 + (end.month - today.month))
+            except ValueError:
+                months_to_end = 0
+        recompete_rows.append({
+            "award_key": row["award_key"],
+            "recipient": row["recipient"],
+            "agency": row["buyer_office"],
+            "funding_office": row["funding_office"],
+            "piid": row["piid"],
+            "end_date": row["end_date"],
+            "months_to_end": months_to_end,
+            "obligation": row["millions"] * 1_000_000.0,
+        })
+    total_m = round(sum(row["millions"] for row in rows), 1)
+    shown = len(rows)
+    if buyer_filter or recipient_filter:
+        label_parts = [p for p in (buyer_filter, recipient_filter) if p]
+        summary = f"{shown} contract{'s' if shown != 1 else ''}"
+        if total_contracts > shown:
+            summary += f" of {total_contracts}"
+        if label_parts:
+            summary += " · " + " × ".join(label_parts)
+        if total_m:
+            summary += f" · ${total_m:.1f}M shown"
+    elif total_contracts > shown:
+        summary = f"Top {shown} of {total_contracts} contracts"
+    else:
+        summary = f"{shown} contract{'s' if shown != 1 else ''}"
+    if not (buyer_filter or recipient_filter):
+        if total_recipients:
+            summary += f" · {total_recipients} contractor{'s' if total_recipients != 1 else ''}"
+        if total_m:
+            summary += f" · ${total_m:.1f}M shown"
+    return {
+        "mode": "entity_award_spine",
+        "rows": rows,
+        "summary": summary,
+        "total_contracts": total_contracts,
+        "total_recipients": total_recipients,
+        "shown": shown,
+        "recompete_rows": recompete_rows,
+        "trace_filtered": bool(buyer_filter or recipient_filter),
+    }
+
+
+async def entity_recipient_matrix(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    *,
+    entity_scope: str,
+    limit: int = 100,
+) -> dict[str, Any]:
+    """Heatmap rows scoped to drill depth — funding×prime or office×prime."""
+    facet_sql, facet_params = build_facet_sql(query)
+    if entity_scope == "office":
+        row_expr = (
+            "COALESCE(NULLIF(TRIM(funding_office_name), ''), '(Unspecified funding)')"
+        )
+        row_axis = "funding_office"
+        summary = "Funding office × prime ties in drill"
+    elif entity_scope in {"sub_agency", "agency"}:
+        row_expr = (
+            "COALESCE(NULLIF(TRIM(awarding_office_name), ''), '(Unspecified office)')"
+        )
+        row_axis = "awarding_office"
+        summary = "Contracting office × prime ties in drill"
+    else:
+        return await agency_recipient_matrix(session, query, limit=limit)
+
+    sql = f"""
+        SELECT
+            {row_expr} AS agency,
+            recipient_name AS recipient,
+            COUNT(*) AS actions,
+            {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE recipient_name IS NOT NULL
+          {facet_sql}
+        GROUP BY agency, recipient_name
+        ORDER BY actions DESC, millions DESC NULLS LAST
+        LIMIT :limit
+    """
+    rows = (await session.execute(text(sql), {**facet_params, "limit": limit})).all()
+    cells = [
+        {
+            "agency": r.agency,
+            "recipient": r.recipient,
+            "actions": int(r.actions),
+            "millions": float(r.millions or 0),
+        }
+        for r in rows
+    ]
+    agencies = list(dict.fromkeys(c["agency"] for c in cells))[:12]
+    recipients = list(dict.fromkeys(c["recipient"] for c in cells))[:12]
+    return {
+        "mode": "agency_recipient_matrix",
+        "cells": cells,
+        "agencies": agencies,
+        "recipients": recipients,
+        "row_axis": row_axis,
+        "summary": summary,
+    }
 
 
 async def set_aside_breakdown(
@@ -1624,6 +2476,129 @@ async def adjacent_competitors(
         key=lambda c: (
             fit_order.get(c["fit"], 9),
             -(c["shared_agencies"] or 0),
+            c["market_share_pct"] or 999,
+        )
+    )
+    return candidates[:limit]
+
+
+async def agency_adjacent_competitors(
+    session: AsyncSession,
+    query: InsightFacetQuery,
+    *,
+    entity_scope: str,
+    limit: int = 8,
+    exclude_top_n: int = 8,
+    max_share_pct: float = 12.0,
+) -> list[dict[str, Any]]:
+    """Niche primes at shared buyer units within entity drill — not top share holders."""
+    facet_sql, facet_params = build_facet_sql(query)
+    if entity_scope == "office":
+        buyer_expr = (
+            "COALESCE(NULLIF(TRIM(funding_office_name), ''), '(Unspecified funding)')"
+        )
+    else:
+        buyer_expr = (
+            "COALESCE(NULLIF(TRIM(awarding_office_name), ''), '(Unspecified office)')"
+        )
+
+    market_sql = f"""
+        SELECT recipient_name,
+               {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS millions
+        FROM {PRIME_TABLE}
+        WHERE recipient_name IS NOT NULL
+          {facet_sql}
+        GROUP BY recipient_name
+        ORDER BY millions DESC NULLS LAST
+    """
+    market_rows = (await session.execute(text(market_sql), facet_params)).all()
+    drill_total = sum(float(r.millions or 0) for r in market_rows) or 1.0
+    top_names = {r.recipient_name for r in market_rows[:exclude_top_n]}
+
+    overlap_sql = f"""
+        WITH drill_buyers AS (
+            SELECT DISTINCT {buyer_expr} AS buyer
+            FROM {PRIME_TABLE}
+            WHERE 1=1
+              {facet_sql}
+        ),
+        recipient_totals AS (
+            SELECT recipient_name,
+                   {round_numeric("SUM(COALESCE(federal_action_obligation, 0)) / 1000000.0")} AS drill_millions
+            FROM {PRIME_TABLE}
+            WHERE recipient_name IS NOT NULL
+              {facet_sql}
+            GROUP BY recipient_name
+        ),
+        overlap AS (
+            SELECT
+                p.recipient_name,
+                {buyer_expr} AS buyer,
+                COUNT(*) AS actions,
+                {round_numeric("SUM(COALESCE(p.federal_action_obligation, 0)) / 1000000.0")} AS millions
+            FROM {PRIME_TABLE} p
+            WHERE p.recipient_name IS NOT NULL
+              {facet_sql}
+              AND {buyer_expr} IN (SELECT buyer FROM drill_buyers)
+            GROUP BY p.recipient_name, {buyer_expr}
+        )
+        SELECT
+            o.recipient_name,
+            COUNT(DISTINCT o.buyer) AS shared_buyers,
+            SUM(o.actions) AS total_actions,
+            {round_numeric("SUM(o.millions)")} AS shared_millions,
+            MAX(o.buyer) AS sample_buyer,
+            MAX(rt.drill_millions) AS drill_millions
+        FROM overlap o
+        LEFT JOIN recipient_totals rt ON rt.recipient_name = o.recipient_name
+        GROUP BY o.recipient_name
+        ORDER BY shared_buyers DESC, shared_millions ASC
+        LIMIT :scan_limit
+    """
+    rows = (
+        await session.execute(
+            text(overlap_sql),
+            {**facet_params, "scan_limit": max(limit * 3, 24)},
+        )
+    ).all()
+
+    candidates: list[dict[str, Any]] = []
+    for r in rows:
+        name = r.recipient_name or "Unknown"
+        if name in top_names:
+            continue
+        drill_m = float(r.drill_millions or 0)
+        share_pct = round((drill_m / drill_total) * 100, 2)
+        if share_pct > max_share_pct:
+            continue
+        shared_n = int(r.shared_buyers or 0)
+        shared_m = float(r.shared_millions or 0)
+        if shared_n >= 2 and share_pct <= 5.0:
+            fit = "promising"
+            fit_reason = "Adjacent at shared buyer units — flank or teammate candidate"
+        elif shared_n >= 1:
+            fit = "research"
+            fit_reason = "Thin overlap in drill — validate capability before outreach"
+        else:
+            continue
+        candidates.append({
+            "recipient": name,
+            "shared_agencies": shared_n,
+            "shared_buyers": shared_n,
+            "total_actions": int(r.total_actions or 0),
+            "shared_millions": shared_m,
+            "market_millions": drill_m,
+            "market_share_pct": share_pct,
+            "sample_agency": r.sample_buyer,
+            "fit": fit,
+            "fit_reason": fit_reason,
+        })
+
+    fit_order = {"promising": 0, "research": 1}
+    candidates.sort(
+        key=lambda c: (
+            fit_order.get(c["fit"], 9),
+            -(c["shared_buyers"] or 0),
             c["market_share_pct"] or 999,
         )
     )

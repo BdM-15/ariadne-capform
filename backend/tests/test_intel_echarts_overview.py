@@ -39,6 +39,24 @@ def test_attach_overview_echarts_builds_intensity_and_kpi_charts():
     assert "idv_split" in charts
 
 
+def test_attach_overview_echarts_builds_ffp_and_vehicle_charts():
+    overview = {
+        "vehicle_breakdown": [
+            {"pricing": "FFP", "vehicle": "IDIQ", "millions": 2.0, "actions": 4},
+            {"pricing": "T&M", "vehicle": "BPA", "millions": 1.0, "actions": 2},
+        ],
+        "ffp_shaping": {
+            "agency_pressure": [
+                {"agency": "DEPT A", "non_fixed_pct": 55.0, "pressure_tier": "high"},
+            ],
+        },
+    }
+    out = attach_overview_echarts(overview)
+    charts = out.get("charts") or {}
+    assert charts["vehicle_breakdown"]["series"]
+    assert charts["ffp_pressure"]["series"][0]["type"] == "bar"
+
+
 def test_intensity_scatter_uses_log_scale_when_spread_is_wide():
     overview = {
         "agency_intensity": {

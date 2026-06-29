@@ -130,11 +130,11 @@
     </div>
   </section>
   {% endif %}
-  {% if charts.pricing_buckets or charts.top_recipients %}
+  {% if charts.pricing_buckets or charts.top_recipients or charts.vehicle_breakdown or charts.ffp_pressure %}
   <section class="insights-overview-section" aria-label="Competitive landscape">
     <div class="insights-overview-section-head">
       <h4 class="insights-overview-section-title">Competitive landscape</h4>
-      <p class="insights-overview-section-hint">Pricing mix and incumbent concentration — who holds share today.</p>
+      <p class="insights-overview-section-hint">Pricing mix, vehicle lanes, FFP shaping pressure, and incumbent concentration.</p>
     </div>
     <div class="insights-overview-two-up">
       {% if charts.pricing_buckets %}
@@ -148,6 +148,34 @@
       {% endwith %}
       {% endif %}
     </div>
+    <div class="insights-overview-two-up">
+      {% if charts.vehicle_breakdown %}
+      {% with chart_key='vehicle_breakdown', chart_option=charts.vehicle_breakdown %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+      {% if charts.ffp_pressure %}
+      {% with chart_key='ffp_pressure', chart_option=charts.ffp_pressure %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+    </div>
+    {% set ffp = overview.ffp_shaping or {} %}
+    {% set shape_targets = ffp.shape_targets or [] %}
+    {% if shape_targets %}
+    <div class="insights-ffp-shape-targets mt-3 text-[10px] font-mono text-slate-500">
+      <p class="text-[10px] uppercase tracking-wide text-slate-600 mb-2">Shape-now targets — flexible pricing expiring in slice</p>
+      {% for row in shape_targets[:8] %}
+      <div class="flex flex-wrap items-center gap-2 py-1 border-b border-edge/40">
+        <span class="pill pill-compact border border-neon-magenta/40 text-neon-magenta text-[9px]">{{ row.shape_gate or 'shape' }}</span>
+        <span class="text-slate-300">{{ row.recipient or 'Unknown' }}</span>
+        <span class="text-neon-cyan">{{ row.agency or '' }}</span>
+        <span>${{ "%.2f"|format(row.obligation_millions or 0) }}M · ends {{ row.end_date or '—' }}</span>
+        <span class="text-slate-600">{{ row.shape_reason or '' }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </section>
   {% endif %}
   {% if overview.top_recipients %}

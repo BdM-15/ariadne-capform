@@ -97,6 +97,16 @@ OVERVIEW_CHART_GUIDES: dict[str, dict[str, str]] = {
         "read": "Largest prime contractors in the slice by obligated dollars.",
         "use": "Click a bar to open a Competitor profile — incumbents, agencies, and expiring awards for that prime.",
     },
+    "vehicle_breakdown": {
+        "label": "Vehicle × pricing",
+        "read": "Obligations grouped by contract vehicle type and pricing method — IDIQ/BPA lanes vs standalone.",
+        "use": "IDV-heavy × non-fixed pricing → shaping and vehicle position both matter before you prime.",
+    },
+    "ffp_pressure": {
+        "label": "FFP shaping radar",
+        "read": "Agencies ranked by non-fixed pricing share — cost/T&M/performance pressure in the slice.",
+        "use": "High non-fixed % + expiring flex-priced awards → qualify shaping lane; pair with shape badges in expiring rows.",
+    },
     "expiring_timeline": {
         "label": "Expiring timeline",
         "read": (

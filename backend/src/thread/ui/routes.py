@@ -356,6 +356,27 @@ async def _render_insights_body(
     )
 
 
+def _lens_entity_kwargs(
+    *,
+    entity_kind: str = "",
+    entity_value: str = "",
+    entity_scope: str = "",
+    agency_entity_value: str = "",
+    agency_entity_scope: str = "",
+    competitor_entity_value: str = "",
+    competitor_entity_scope: str = "",
+) -> dict[str, str]:
+    return {
+        "entity_kind": entity_kind,
+        "entity_value": entity_value,
+        "entity_scope": entity_scope,
+        "agency_entity_value": agency_entity_value,
+        "agency_entity_scope": agency_entity_scope,
+        "competitor_entity_value": competitor_entity_value,
+        "competitor_entity_scope": competitor_entity_scope,
+    }
+
+
 def _slice_template_ctx(
     panel,
     *,
@@ -378,10 +399,15 @@ def _slice_template_ctx(
         "sam_explore": panel.sam_explore,
         "sam_form": panel.sam_form,
         "entity": panel.entity,
+        "agency_entity": panel.agency_entity,
+        "competitor_entity": panel.competitor_entity,
+        "agency_overview": panel.agency_overview,
         "entity_profile": panel.entity_profile,
         "entity_ready": panel.entity_ready,
         "entity_idle": panel.entity_idle,
         "entity_error": panel.entity_error,
+        "agency_sam_forward": panel.agency_sam_forward,
+        "sam_match_naics": panel.sam_match_naics,
         "cache_hit": panel.cache_hit,
         "cache_age_seconds": panel.cache_age_seconds,
         "slice_flash": slice_flash,
@@ -421,6 +447,10 @@ async def insights_page(
     )
 
 
+def _sam_match_naics_flag(value: str | int = "") -> bool:
+    return str(value).strip().lower() in {"1", "true", "on", "yes"}
+
+
 async def _insights_slice_partial_response(
     request: Request,
     db: AsyncSession,
@@ -428,19 +458,17 @@ async def _insights_slice_partial_response(
     *,
     lens: str,
     run: int,
-    entity_kind: str,
-    entity_value: str,
-    entity_scope: str,
     facet_kwargs: dict[str, str],
+    entity_kwargs: dict[str, str],
+    sam_match_naics: bool = False,
 ) -> HTMLResponse:
     panel = await build_slice_panel(
         db,
         settings,
         lens=lens,
         run=bool(run),
-        entity_kind=entity_kind,
-        entity_value=entity_value,
-        entity_scope=entity_scope,
+        sam_match_naics=sam_match_naics,
+        **entity_kwargs,
         **facet_kwargs,
     )
     return templates.TemplateResponse(
@@ -472,6 +500,11 @@ async def insights_slice_partial(
     entity_kind: str = Query(""),
     entity_value: str = Query(""),
     entity_scope: str = Query(""),
+    agency_entity_value: str = Query(""),
+    agency_entity_scope: str = Query(""),
+    competitor_entity_value: str = Query(""),
+    competitor_entity_scope: str = Query(""),
+    sam_match_naics: int = Query(0, ge=0, le=1),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
@@ -481,9 +514,16 @@ async def insights_slice_partial(
         settings,
         lens=lens,
         run=run,
-        entity_kind=entity_kind,
-        entity_value=entity_value,
-        entity_scope=entity_scope,
+        sam_match_naics=_sam_match_naics_flag(sam_match_naics),
+        entity_kwargs=_lens_entity_kwargs(
+            entity_kind=entity_kind,
+            entity_value=entity_value,
+            entity_scope=entity_scope,
+            agency_entity_value=agency_entity_value,
+            agency_entity_scope=agency_entity_scope,
+            competitor_entity_value=competitor_entity_value,
+            competitor_entity_scope=competitor_entity_scope,
+        ),
         facet_kwargs=_advanced_facet_kwargs(
             agency=agency,
             sub_agency=sub_agency,
@@ -525,6 +565,11 @@ async def insights_slice_partial_post(
     entity_kind: str = Form(""),
     entity_value: str = Form(""),
     entity_scope: str = Form(""),
+    agency_entity_value: str = Form(""),
+    agency_entity_scope: str = Form(""),
+    competitor_entity_value: str = Form(""),
+    competitor_entity_scope: str = Form(""),
+    sam_match_naics: str = Form(""),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
@@ -536,9 +581,16 @@ async def insights_slice_partial_post(
         settings,
         lens=lens,
         run=run_flag,
-        entity_kind=entity_kind,
-        entity_value=entity_value,
-        entity_scope=entity_scope,
+        sam_match_naics=_sam_match_naics_flag(sam_match_naics),
+        entity_kwargs=_lens_entity_kwargs(
+            entity_kind=entity_kind,
+            entity_value=entity_value,
+            entity_scope=entity_scope,
+            agency_entity_value=agency_entity_value,
+            agency_entity_scope=agency_entity_scope,
+            competitor_entity_value=competitor_entity_value,
+            competitor_entity_scope=competitor_entity_scope,
+        ),
         facet_kwargs=_advanced_facet_kwargs(
             agency=agency,
             sub_agency=sub_agency,
@@ -595,9 +647,11 @@ async def insights_explain_slice_partial(
         settings,
         lens=lens or "overview",
         run=bool(run),
-        entity_kind=entity_kind,
-        entity_value=entity_value,
-        entity_scope=entity_scope,
+        **_lens_entity_kwargs(
+            entity_kind=entity_kind,
+            entity_value=entity_value,
+            entity_scope=entity_scope,
+        ),
         **_advanced_facet_kwargs(
             agency=agency,
             sub_agency=sub_agency,
@@ -723,6 +777,100 @@ async def insights_award_partial(
         {
             "award": award,
             "award_error": award_error,
+        },
+    )
+
+
+@router.post("/partials/insights/award-spine-focus", response_class=HTMLResponse)
+async def insights_award_spine_focus_partial(
+    request: Request,
+    lens: str = Form("agency"),
+    agency: str = Form(""),
+    sub_agency: str = Form(""),
+    recipient: str = Form(""),
+    naics_codes: str = Form(""),
+    psc_codes: str = Form(""),
+    awarding_office: str = Form(""),
+    funding_office: str = Form(""),
+    recipient_uei: str = Form(""),
+    pop_state: str = Form(""),
+    extent_competed: str = Form(""),
+    type_of_set_aside: str = Form(""),
+    min_contract_value: str = Form(""),
+    min_value_basis: str = Form("potential"),
+    exclude_agencies: str = Form(""),
+    entity_kind: str = Form(""),
+    entity_value: str = Form(""),
+    entity_scope: str = Form(""),
+    agency_entity_value: str = Form(""),
+    agency_entity_scope: str = Form(""),
+    competitor_entity_value: str = Form(""),
+    competitor_entity_scope: str = Form(""),
+    trace_buyer_office: str = Form(""),
+    trace_recipient: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    from thread.services.insights_entity import fetch_trace_award_spine, resolve_lens_entities
+    from thread.services.insights_explore import _facet_from_params
+
+    slice_query = _facet_from_params(
+        agency=agency,
+        sub_agency=sub_agency,
+        recipient=recipient,
+        naics_codes=naics_codes,
+        psc_codes=psc_codes,
+        awarding_office=awarding_office,
+        funding_office=funding_office,
+        recipient_uei=recipient_uei,
+        pop_state=pop_state,
+        extent_competed=extent_competed,
+        type_of_set_aside=type_of_set_aside,
+        min_contract_value=min_contract_value,
+        min_value_basis=min_value_basis,
+        exclude_agencies=exclude_agencies,
+    )
+    if slice_query is None or not slice_query.has_filters():
+        return HTMLResponse(
+            '<p class="insights-idle-hint m-0">Run slice first.</p>',
+            status_code=400,
+        )
+    active, _, _ = resolve_lens_entities(
+        lens=lens,
+        **_lens_entity_kwargs(
+            entity_kind=entity_kind,
+            entity_value=entity_value,
+            entity_scope=entity_scope,
+            agency_entity_value=agency_entity_value,
+            agency_entity_scope=agency_entity_scope,
+            competitor_entity_value=competitor_entity_value,
+            competitor_entity_scope=competitor_entity_scope,
+        ),
+    )
+    if active is None or not active.is_active():
+        return HTMLResponse(
+            '<p class="insights-idle-hint m-0">Open an Agency profile first.</p>',
+            status_code=400,
+        )
+    buyer = trace_buyer_office.strip()
+    recip = trace_recipient.strip()
+    if not buyer and not recip:
+        return HTMLResponse(
+            '<p class="insights-idle-hint m-0">Trace focus required.</p>',
+            status_code=400,
+        )
+    award_spine = await fetch_trace_award_spine(
+        db,
+        slice_query,
+        active,
+        trace_buyer_office=buyer,
+        trace_recipient=recip,
+    )
+    return templates.TemplateResponse(
+        request,
+        "partials/insights_award_spine_focus.html",
+        {
+            "award_spine": award_spine,
+            "active_lens": lens,
         },
     )
 
@@ -3038,9 +3186,11 @@ async def watchlist_add_recompete(
             settings,
             lens=lens,
             run=True,
-            entity_kind=entity_kind,
-            entity_value=entity_value,
-            entity_scope=entity_scope,
+            **_lens_entity_kwargs(
+                entity_kind=entity_kind,
+                entity_value=entity_value,
+                entity_scope=entity_scope,
+            ),
             **_advanced_facet_kwargs(
                 agency=agency,
                 sub_agency=sub_agency,
@@ -3054,7 +3204,7 @@ async def watchlist_add_recompete(
                 extent_competed=extent_competed,
                 type_of_set_aside=type_of_set_aside,
                 min_contract_value=min_contract_value,
-            min_value_basis=min_value_basis,
+                min_value_basis=min_value_basis,
                 exclude_agencies=exclude_agencies,
             ),
         )

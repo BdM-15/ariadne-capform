@@ -1,0 +1,31 @@
+{# Same slim row list as expiring/recompete — click row → award drawer for actions #}
+{% set spine_rows = (award_spine.recompete_rows if award_spine else []) or [] %}
+<div class="insights-chart-panel insights-award-spine-panel">
+  <div class="insights-chart-panel-head">
+    <span class="insights-chart-panel-label">Award spine</span>
+    <button
+      type="button"
+      id="insights-trace-focus-clear"
+      class="insights-trace-focus-clear insights-chart-guide-link hidden"
+      title="Clear graph/heatmap filter"
+    >Show all</button>
+  </div>
+  <p
+    id="insights-award-spine-caption"
+    class="insights-chart-caption"
+    data-base-summary="{{ award_spine.summary if award_spine else '' }}"
+    data-focus-hint=" · click trace node; Shift+click heatmap cell"
+  >
+    {% if award_spine and award_spine.summary %}{{ award_spine.summary }}{% else %}Top contracts in drill{% endif %}
+    <span class="insights-trace-focus-hint text-slate-600"> · click trace node; Shift+click heatmap cell</span>
+  </p>
+  {% if spine_rows|length > 0 %}
+  <div id="insights-award-spine-scroll" class="insights-award-spine-scroll">
+    {% with rows=spine_rows, active_lens=active_lens %}
+    {% include "partials/insights_recompete_rows.html" %}
+    {% endwith %}
+  </div>
+  {% else %}
+  <p class="insights-idle-hint m-0">No base awards in this drill scope.</p>
+  {% endif %}
+</div>

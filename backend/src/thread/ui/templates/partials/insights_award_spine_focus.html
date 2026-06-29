@@ -1,0 +1,16 @@
+{# HTMX/fetch fragment — inner HTML for #insights-award-spine-scroll #}
+<span
+  id="insights-spine-focus-meta"
+  hidden
+  data-summary="{{ award_spine.summary|e }}"
+  data-shown="{{ award_spine.shown }}"
+  data-total="{{ award_spine.total_contracts }}"
+></span>
+{% set spine_rows = award_spine.recompete_rows or [] %}
+{% if spine_rows|length > 0 %}
+{% with rows=spine_rows, active_lens=active_lens %}
+{% include "partials/insights_recompete_rows.html" %}
+{% endwith %}
+{% else %}
+<p class="insights-idle-hint m-0">No contracts in this drill for that trace selection.</p>
+{% endif %}

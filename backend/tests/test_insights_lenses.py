@@ -300,8 +300,9 @@ def test_expiring_rows_use_award_drawer_htmx():
         params={"run": 1, "lens": "overview", "naics_codes": "561210"},
     )
     assert res.status_code == 200
-    assert 'class="insights-award-open' in res.text
+    assert "insights-award-open" in res.text
     assert 'data-award-key="' in res.text
+    assert "insights-result-actions" not in res.text
 
 
 def test_insights_page_renders_live_explore():

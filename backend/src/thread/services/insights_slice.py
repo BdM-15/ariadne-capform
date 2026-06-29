@@ -11,7 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from thread.config import Settings
 from thread.intel.facet_query import ADVANCED_FACET_FIELDS, InsightFacetQuery
 from thread.intel.pg_parallel import run_pg
-from thread.services.insights_entity import EntityContext, EntityProfileResult, build_entity_profile, entity_from_params
+from thread.services.insights_entity import (
+    EntityContext,
+    EntityProfileResult,
+    agency_overview_brief,
+    build_entity_profile,
+    fetch_agency_sam_forward,
+    resolve_lens_entities,
+)
 from thread.services.insights_explore import (
     RadarExploreResult,
     SamExploreResult,
@@ -51,10 +58,15 @@ class SlicePanelContext:
     sam_explore: SamExploreResult
     sam_form: dict[str, str]
     entity: EntityContext | None
+    agency_entity: EntityContext | None
+    competitor_entity: EntityContext | None
+    agency_overview: dict[str, Any]
     entity_profile: dict[str, Any]
     entity_ready: bool
     entity_idle: bool
     entity_error: str | None
+    agency_sam_forward: SamExploreResult
+    sam_match_naics: bool
     cache_hit: bool
     cache_age_seconds: float | None
     slice_explain: SliceExplainAvailability | None = None
@@ -120,6 +132,11 @@ async def build_slice_panel(
     entity_kind: str = "",
     entity_value: str = "",
     entity_scope: str = "",
+    agency_entity_value: str = "",
+    agency_entity_scope: str = "",
+    competitor_entity_value: str = "",
+    competitor_entity_scope: str = "",
+    sam_match_naics: bool = False,
 ) -> SlicePanelContext:
     if lens in _LEGACY_LENS_IDS:
         lens = "overview"
@@ -159,7 +176,12 @@ async def build_slice_panel(
         "exclude_agencies": exclude_agencies,
     }
 
-    entity = entity_from_params(
+    entity, agency_entity, competitor_entity = resolve_lens_entities(
+        lens=lens,
+        agency_entity_value=agency_entity_value,
+        agency_entity_scope=agency_entity_scope,
+        competitor_entity_value=competitor_entity_value,
+        competitor_entity_scope=competitor_entity_scope,
         entity_kind=entity_kind,
         entity_value=entity_value,
         entity_scope=entity_scope,
@@ -281,6 +303,33 @@ async def build_slice_panel(
         else {"cards": (), "shipley": ()}
     )
 
+    agency_overview: dict[str, Any] = {}
+    agency_sam = SamExploreResult(
+        query=None,
+        summary="",
+        notices=(),
+        status="idle",
+        error=None,
+        configured=False,
+    )
+    if (
+        lens == "agency"
+        and entity_result.status == "ready"
+        and entity_result.entity
+        and entity_result.entity.is_active()
+    ):
+        agency_overview = agency_overview_brief(
+            entity_result.entity,
+            entity_result.profile,
+            recompete_rows=entity_result.profile.get("recompete_rows"),
+        )
+        agency_sam = await fetch_agency_sam_forward(
+            settings,
+            entity_result.entity,
+            slice_query,
+            match_naics=sam_match_naics,
+        )
+
     return SlicePanelContext(
         facet_form=facet_form,
         active_lens=lens,
@@ -304,10 +353,15 @@ async def build_slice_panel(
         ),
         sam_form={},
         entity=entity_result.entity if entity_result.entity and entity_result.entity.is_active() else entity,
+        agency_entity=agency_entity,
+        competitor_entity=competitor_entity,
+        agency_overview=agency_overview,
         entity_profile=entity_result.profile,
         entity_ready=entity_result.status == "ready",
         entity_idle=entity_result.status == "idle",
         entity_error=entity_result.error,
+        agency_sam_forward=agency_sam,
+        sam_match_naics=sam_match_naics,
         cache_hit=cache_hit,
         cache_age_seconds=cache_age_seconds,
         slice_explain=explain_avail,

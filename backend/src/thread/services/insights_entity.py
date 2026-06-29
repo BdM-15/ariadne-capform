@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -11,14 +12,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from thread.config import Settings
 from thread.intel.charts import (
     adjacent_competitors,
-    agency_recipient_matrix,
+    agency_adjacent_competitors,
     agency_sub_flow,
+    buyer_customer_trace,
+    entity_award_spine,
+    entity_obligation_flow,
+    entity_recipient_matrix,
+    expiring_timeline,
     extent_competed_breakdown,
     money_flow,
     pricing_bucket_breakdown,
     set_aside_breakdown,
     spend_trend,
     teaming,
+    teaming_targets,
     top_recipients,
 )
 from thread.intel.slice_cache import get_cached_entity_profile, store_cached_entity_profile
@@ -29,7 +36,9 @@ from thread.intel import pg_queries as intel_queries
 from thread.intel.charts import enrich_expiring_rows_shape_gates
 from thread.intel.pg_parallel import gather_pg
 from thread.intel.pg_queries import table_exists
+from thread.intel.sam_query import SamMonitorQuery, describe_sam_query
 from thread.intel.sql_expressions import AGENCY_EXPR, PRIME_TABLE, round_numeric
+from thread.services.sam_monitor import build_sam_explore_results
 
 
 ENTITY_SCOPES = frozenset({"agency", "sub_agency", "office", "recipient"})
@@ -50,6 +59,46 @@ class EntityContext:
         if self.label:
             return self.label
         return self.value
+
+
+def resolve_lens_entities(
+    *,
+    lens: str,
+    agency_entity_value: str = "",
+    agency_entity_scope: str = "",
+    competitor_entity_value: str = "",
+    competitor_entity_scope: str = "",
+    entity_kind: str = "",
+    entity_value: str = "",
+    entity_scope: str = "",
+) -> tuple[EntityContext | None, EntityContext | None, EntityContext | None]:
+    """Per-lens entity memory — legacy entity_* merges into matching slot on drill."""
+    agency = entity_from_params(
+        entity_kind="agency",
+        entity_value=agency_entity_value,
+        entity_scope=agency_entity_scope or "agency",
+    )
+    competitor = entity_from_params(
+        entity_kind="competitor",
+        entity_value=competitor_entity_value,
+        entity_scope=competitor_entity_scope or "recipient",
+    )
+    legacy = entity_from_params(
+        entity_kind=entity_kind,
+        entity_value=entity_value,
+        entity_scope=entity_scope,
+    )
+    if legacy:
+        if legacy.kind == "competitor":
+            competitor = legacy
+        else:
+            agency = legacy
+    active: EntityContext | None = None
+    if lens == "agency":
+        active = agency
+    elif lens == "competitor":
+        active = competitor
+    return active, agency, competitor
 
 
 def entity_from_params(
@@ -210,6 +259,27 @@ def explore_query_for_entity(
     return scoped_slice_query(slice_query, entity)
 
 
+async def fetch_trace_award_spine(
+    session: AsyncSession,
+    slice_query: InsightFacetQuery,
+    entity: EntityContext,
+    *,
+    trace_buyer_office: str = "",
+    trace_recipient: str = "",
+    limit: int = 20,
+) -> dict[str, Any]:
+    """Award spine rows scoped to graph/heatmap trace focus (not just global top-N)."""
+    scoped = scoped_slice_query(slice_query, entity)
+    return await entity_award_spine(
+        session,
+        scoped,
+        entity_scope=entity.scope,
+        limit=limit,
+        trace_buyer_office=trace_buyer_office.strip() or None,
+        trace_recipient=trace_recipient.strip() or None,
+    )
+
+
 async def _competition_mix(
     session: AsyncSession,
     scoped: InsightFacetQuery,
@@ -247,6 +317,12 @@ async def _agency_profile(
         pricing,
         matrix,
         flow,
+        customer_trace,
+        award_spine,
+        hierarchy,
+        teaming,
+        adjacent,
+        expiring_tl,
     ) = await gather_pg(
         lambda s: _entity_kpis(s, scoped),
         lambda s: top_recipients(s, scoped, limit=12),
@@ -256,11 +332,22 @@ async def _agency_profile(
         lambda s: set_aside_breakdown(s, facet_sql, facet_params),
         lambda s: extent_competed_breakdown(s, facet_sql, facet_params),
         lambda s: pricing_bucket_breakdown(s, facet_sql, facet_params),
-        lambda s: agency_recipient_matrix(s, scoped, limit=100),
-        lambda s: money_flow(s, scoped, limit=14),
+        lambda s: entity_recipient_matrix(s, scoped, entity_scope=entity.scope, limit=100),
+        lambda s: entity_obligation_flow(s, scoped, entity_scope=entity.scope, limit=14),
+        lambda s: buyer_customer_trace(
+            s, scoped, root_label=entity.value, root_scope=entity.scope,
+        ),
+        lambda s: entity_award_spine(s, scoped, entity_scope=entity.scope, limit=20),
+        lambda s: _agency_hierarchy(s, scoped, entity),
+        lambda s: teaming_targets(s, facet_sql, facet_params),
+        lambda s: agency_adjacent_competitors(s, scoped, entity_scope=entity.scope, limit=8),
+        lambda s: expiring_timeline(s, facet_sql, facet_params),
     )
 
-    return {
+    total_m = float(kpis.get("millions") or 0)
+    contractors = _contractors_with_share(contractors, total_m)
+
+    profile: dict[str, Any] = {
         "status": "ready",
         "mode": "agency_profile",
         "entity": {
@@ -276,12 +363,22 @@ async def _agency_profile(
         "agency_sub_flow_group": sub_flow.get("group"),
         "top_agencies": agencies_for_matrix,
         "agency_recipient_matrix": matrix,
-        "money_flow": flow.get("flows") or [],
+        "money_flow": flow,
         "slice_summary": _slice_hint(slice_query),
         "set_aside": set_aside,
         "extent_competed": extent,
         "pricing_buckets": pricing,
+        "hierarchy": hierarchy,
+        "teaming_targets": teaming,
+        "adjacent_competitors": adjacent,
+        "expiring_timeline": expiring_tl,
+        "award_spine": award_spine,
     }
+    if customer_trace.get("flows"):
+        profile["customer_trace"] = customer_trace
+        if entity.scope == "office":
+            profile["office_customer_trace"] = customer_trace
+    return profile
 
 
 async def _competitor_profile(
@@ -440,6 +537,193 @@ async def _top_naics_in_scope(
     ]
 
 
+_OPEN_SET_ASIDE = frozenset({"(Not Applicable)", "NO SET ASIDE USED", "No Set-Aside Used"})
+
+
+def agency_overview_brief(
+    entity: EntityContext,
+    profile: dict[str, Any],
+    *,
+    recompete_rows: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Agency tab overview row — metric cards + hierarchy line + one posture sentence."""
+    kpis = profile.get("kpis") or {}
+    hierarchy = profile.get("hierarchy") or {}
+    office_trace = profile.get("customer_trace") or profile.get("office_customer_trace") or {}
+    sub_flow = profile.get("agency_sub_flow") or []
+    contractors = profile.get("top_contractors") or []
+    set_aside = profile.get("set_aside") or []
+    recompete = list(recompete_rows or profile.get("recompete_rows") or [])
+
+    millions = float(kpis.get("millions") or 0)
+    shape_now = sum(1 for r in recompete if r.get("shape_gate") == "shape_now")
+    expiring_m = sum(float(r.get("obligation_millions") or 0) for r in recompete)
+
+    set_total = sum(float(r.get("millions") or 0) for r in set_aside) or 0.0
+    restricted_m = sum(
+        float(r.get("millions") or 0)
+        for r in set_aside
+        if str(r.get("bucket") or "") not in _OPEN_SET_ASIDE
+    )
+    set_aside_pct = round(100.0 * restricted_m / set_total, 1) if set_total > 0 else 0.0
+
+    top_share = 0.0
+    if contractors and millions > 0:
+        top_share = round(100.0 * float(contractors[0].get("millions") or 0) / millions, 1)
+
+    hierarchy_line = _hierarchy_line(entity, hierarchy, sub_flow)
+
+    cards: list[dict[str, str]] = [
+        {
+            "id": "obligated",
+            "label": "Obligated",
+            "value": f"${millions:.1f}M",
+            "hint": "In active slice",
+        },
+    ]
+    if entity.scope == "office":
+        fund_n = int(office_trace.get("funding_office_count") or 0)
+        cards.extend([
+            {
+                "id": "funding_offices",
+                "label": "Funding offices",
+                "value": str(fund_n),
+                "hint": "Requirements owners served",
+            },
+            {
+                "id": "contractors",
+                "label": "Contractors",
+                "value": str(kpis.get("recipient_count") or 0),
+                "hint": "Primes in slice",
+            },
+            {
+                "id": "recompete",
+                "label": "Shape-now",
+                "value": str(shape_now),
+                "hint": f"{len(recompete)} expiring · ${expiring_m:.1f}M",
+            },
+        ])
+    elif entity.scope == "sub_agency":
+        cards.extend([
+            {
+                "id": "offices",
+                "label": "Offices",
+                "value": str(hierarchy.get("office_count") or 0),
+                "hint": "Awarding offices in slice",
+            },
+            {
+                "id": "concentration",
+                "label": "Top prime share",
+                "value": f"{top_share:.0f}%" if top_share else "—",
+                "hint": "Largest contractor",
+            },
+            {
+                "id": "recompete",
+                "label": "Expiring",
+                "value": str(len(recompete)),
+                "hint": f"${expiring_m:.1f}M pipeline",
+            },
+        ])
+    else:
+        cards.extend([
+            {
+                "id": "subs",
+                "label": "Sub-agencies",
+                "value": str(len(sub_flow)),
+                "hint": "Active in slice",
+            },
+            {
+                "id": "concentration",
+                "label": "Top prime share",
+                "value": f"{top_share:.0f}%" if top_share else "—",
+                "hint": "Largest contractor",
+            },
+            {
+                "id": "set_aside",
+                "label": "Set-aside mix",
+                "value": f"{set_aside_pct:.0f}%" if set_total > 0 else "—",
+                "hint": "Restricted obligations",
+            },
+        ])
+
+    posture_parts: list[str] = []
+    if set_aside_pct >= 25:
+        posture_parts.append(f"{set_aside_pct:.0f}% set-aside — teammate lane likely")
+    if entity.scope == "office" and int(office_trace.get("funding_office_count") or 0) >= 4:
+        posture_parts.append("multi-customer shop — map funding offices before capture")
+    if shape_now >= 1:
+        posture_parts.append(f"{shape_now} shape-now expirations in slice")
+    if top_share >= 40:
+        posture_parts.append(f"concentrated ({top_share:.0f}% top prime)")
+    posture = " · ".join(posture_parts) if posture_parts else "Open slice — drill charts below for lane mix."
+
+    return {
+        "hierarchy_line": hierarchy_line,
+        "cards": cards,
+        "posture": posture,
+    }
+
+
+def _contractors_with_share(
+    contractors: list[dict[str, Any]],
+    total_millions: float,
+) -> list[dict[str, Any]]:
+    total = float(total_millions or 0) or 1.0
+    return [
+        {
+            **row,
+            "share_pct": round(100.0 * float(row.get("millions") or 0) / total, 1),
+        }
+        for row in contractors
+    ]
+
+
+def _hierarchy_line(
+    entity: EntityContext,
+    hierarchy: dict[str, Any],
+    sub_flow: list[dict[str, Any]],
+) -> str:
+    if entity.scope == "office":
+        parts = [
+            hierarchy.get("parent_agency"),
+            hierarchy.get("parent_sub"),
+            entity.value,
+        ]
+        return " → ".join(str(p).strip() for p in parts if p and str(p).strip())
+    if entity.scope == "sub_agency":
+        parent = hierarchy.get("parent_agency") or ""
+        if parent:
+            return f"{parent} → {entity.value}"
+        return entity.value
+    top_subs = [r.get("label") for r in sub_flow[:3] if r.get("label")]
+    if top_subs:
+        return f"{entity.value} → {', '.join(top_subs)}"
+    return entity.value
+
+
+async def _agency_hierarchy(
+    session: AsyncSession,
+    scoped: InsightFacetQuery,
+    entity: EntityContext,
+) -> dict[str, Any]:
+    facet_sql, facet_params = build_facet_sql(scoped)
+    sql = f"""
+        SELECT
+            MAX(NULLIF(TRIM(({AGENCY_EXPR})), '')) AS parent_agency,
+            MAX(NULLIF(TRIM(awarding_sub_agency_name), '')) AS parent_sub,
+            COUNT(DISTINCT NULLIF(TRIM(awarding_office_name), '')) AS office_count
+        FROM {PRIME_TABLE}
+        WHERE 1=1
+          {facet_sql}
+    """
+    row = (await session.execute(text(sql), facet_params)).one()
+    return {
+        "parent_agency": (row.parent_agency or "").strip() or None,
+        "parent_sub": (row.parent_sub or "").strip() or None,
+        "office_count": int(row.office_count or 0),
+    }
+
+
 def _slice_hint(slice_query: InsightFacetQuery) -> str:
     parts: list[str] = []
     if slice_query.naics_codes:
@@ -449,3 +733,66 @@ def _slice_hint(slice_query: InsightFacetQuery) -> str:
     if slice_query.recipient:
         parts.append(slice_query.recipient)
     return " · ".join(parts) if parts else "active slice"
+
+
+def agency_sam_forward_query(
+    entity: EntityContext,
+    slice_query: InsightFacetQuery | None,
+    *,
+    match_naics: bool = False,
+) -> SamMonitorQuery:
+    """Buyer-scoped SAM search — broad by default; optional slice NAICS chip."""
+    keyword = entity.value.strip()
+    naics: str | None = None
+    if match_naics and slice_query and slice_query.naics_codes:
+        naics = slice_query.naics_codes[0]
+    digest = hashlib.sha256(
+        f"{entity.scope}:{keyword}:{naics or ''}".encode(),
+    ).hexdigest()[:12]
+    return SamMonitorQuery(
+        id=f"agency-fwd-{digest}",
+        name=f"SAM forward · {entity.display_label[:48]}",
+        agency_keyword=keyword,
+        naics_code=naics,
+        days_back=90,
+        limit=15,
+        description="Agency drill — buyer-scoped forward notices",
+    )
+
+
+async def fetch_agency_sam_forward(
+    settings: Settings,
+    entity: EntityContext,
+    slice_query: InsightFacetQuery | None,
+    *,
+    match_naics: bool = False,
+):
+    from thread.services.insights_explore import SamExploreResult
+
+    query = agency_sam_forward_query(entity, slice_query, match_naics=match_naics)
+    widget = await build_sam_explore_results(settings, query)
+    notices = tuple(
+        {
+            "notice_id": n.notice_id,
+            "title": n.title,
+            "agency": n.agency,
+            "solicitation_number": n.solicitation_number,
+            "notice_type": n.notice_type,
+            "set_aside": n.set_aside,
+            "naics_code": n.naics_code,
+            "posted_date": n.posted_date,
+            "response_deadline": n.response_deadline,
+        }
+        for n in widget.notices
+    )
+    summary = describe_sam_query(query)
+    if match_naics and query.naics_code:
+        summary = f"{summary} · NAICS filter on"
+    return SamExploreResult(
+        query=query,
+        summary=summary,
+        notices=notices,
+        status=widget.status,
+        error=widget.error,
+        configured=widget.configured,
+    )

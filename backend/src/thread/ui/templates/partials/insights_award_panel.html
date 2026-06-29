@@ -87,7 +87,9 @@
     {% endif %}
   </div>
 
-  <div class="task-drawer-section px-4 py-3 flex flex-wrap gap-2">
+  <div class="task-drawer-section px-4 py-3 border-b border-edge" aria-label="Next steps">
+    <p class="text-[10px] uppercase tracking-wide text-slate-600 m-0 mb-2">Next steps</p>
+    <div class="flex flex-wrap gap-2">
     {% if award.recipient %}
     {% with entity_kind='competitor', entity_scope='recipient', value=award.recipient, label='Competitor profile →', extra_class='text-neon-lime' %}
     {% include "partials/insights_drill_profile_btn.html" %}
@@ -116,6 +118,7 @@
     {% if award.usaspending_permalink %}
     <a href="{{ award.usaspending_permalink }}" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-compact text-[10px] no-underline border border-edge text-slate-400">USAspending ↗</a>
     {% endif %}
+    </div>
   </div>
   {% else %}
   <div class="task-drawer-section px-4 py-4">

@@ -46,12 +46,19 @@
   }
 
   function syncEntityState(kind, scope, value) {
+    if (window.setLensEntity) {
+      var lens = kind === "competitor" ? "competitor" : "agency";
+      window.setLensEntity(lens, scope, value);
+      return;
+    }
     var root = document.getElementById("insights-entity-state");
     if (!root) return;
-    var kindInput = root.querySelector('input[name="entity_kind"]');
-    var valueInput = root.querySelector('input[name="entity_value"]');
-    var scopeInput = root.querySelector('input[name="entity_scope"]');
-    if (kindInput) kindInput.value = kind || "";
+    var field =
+      kind === "competitor" ? "competitor_entity_value" : "agency_entity_value";
+    var scopeField =
+      kind === "competitor" ? "competitor_entity_scope" : "agency_entity_scope";
+    var valueInput = root.querySelector('[name="' + field + '"]');
+    var scopeInput = root.querySelector('[name="' + scopeField + '"]');
     if (valueInput) valueInput.value = value || "";
     if (scopeInput) scopeInput.value = scope || "";
   }
@@ -220,6 +227,45 @@
       .catch(function () {});
   }
 
+  function graphNodeLabel(params) {
+    var d = params.data || {};
+    var id = String(d.id || "");
+    var sep = id.indexOf("::");
+    if (sep >= 0) return id.slice(sep + 2);
+    return String(d.name || params.name || "").trim();
+  }
+
+  function graphNodeHop(params) {
+    var hop = params.data && params.data.hop;
+    return hop == null ? null : Number(hop);
+  }
+
+  function focusTraceFromCustomerGraph(host, params, ev) {
+    if (host.getAttribute("data-chart-key") !== "office_customer_graph") return false;
+    if (!params.data || !window.setTraceAwardFocus) return false;
+    if (ev && ev.shiftKey && params.data.id) {
+      expandGraphNode(host, params.data.id);
+      return true;
+    }
+    var kind = params.data.kind || "";
+    var hop = graphNodeHop(params);
+    var label = graphNodeLabel(params);
+    if (!label) return false;
+    if (kind === "funding_office" || (kind === "awarding_office" && hop != null && hop > 0)) {
+      window.setTraceAwardFocus({ fundingOffice: label }, { resetRecipient: true });
+      return true;
+    }
+    if (kind === "prime" || kind === "sub") {
+      window.setTraceAwardFocus({ recipient: label });
+      return true;
+    }
+    if (kind === "awarding_office" || kind === "agency" || kind === "sub_agency") {
+      window.clearTraceAwardFocus();
+      return true;
+    }
+    return false;
+  }
+
   function drillFromChart(host, params, ev) {
     var raw = host.getAttribute("data-chart-option");
     if (!raw) return;
@@ -235,6 +281,7 @@
       return;
     }
     if (meta.mode === "relations_graph" || meta.mode === "expose_graph") {
+      if (focusTraceFromCustomerGraph(host, params, ev)) return;
       if (ev && ev.shiftKey && params.data && params.data.id) {
         expandGraphNode(host, params.data.id);
         return;
@@ -251,8 +298,14 @@
       return;
     }
     if (meta.mode === "relationship_heatmap" && params.data && meta.recipients) {
+      var xi = params.data[0];
       var yi = params.data[1];
+      var buyer = meta.agencies && meta.agencies[xi];
       var recipient = meta.recipients[yi];
+      if (ev && ev.shiftKey && buyer && recipient && window.setTraceAwardFocus) {
+        window.setTraceAwardFocus({ fundingOffice: buyer, recipient: recipient }, { resetRecipient: false });
+        return;
+      }
       if (recipient) {
         requestSliceDrill("recipient", recipient, { drillLens: "competitor", entityScope: "recipient" });
       }
@@ -277,6 +330,11 @@
       if (host.getAttribute("data-chart-key") === "intensity") return;
       var chart = window.echarts.getInstanceByDom(host);
       if (!chart) return;
+      if (host._insightsDrillChart && host._insightsDrillChart !== chart) {
+        try {
+          host._insightsDrillChart.off("click");
+        } catch (_) {}
+      }
       if (host._insightsDrillChart === chart) return;
       host._insightsDrillChart = chart;
       chart.off("click");

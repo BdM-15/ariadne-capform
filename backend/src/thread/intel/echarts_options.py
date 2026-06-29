@@ -58,9 +58,18 @@ def attach_entity_echarts(profile: dict[str, Any], kind: str) -> dict[str, Any]:
     matrix = _agency_recipient_heatmap(profile.get("agency_recipient_matrix") or {})
     if matrix:
         charts["relationship_heatmap"] = matrix
-    money = _money_flow_sankey({"flows": profile.get("money_flow") or [], "mode": "money_flow"})
-    if money:
-        charts["money_flow"] = money
+    customer_trace = profile.get("customer_trace") or profile.get("office_customer_trace") or {}
+    entity_scope = (profile.get("entity") or {}).get("scope") or ""
+    office_trace_hero = entity_scope == "office" and bool(customer_trace.get("flows"))
+    money_raw = profile.get("money_flow")
+    if not office_trace_hero:
+        if kind == "agency" and isinstance(money_raw, dict) and money_raw.get("mode") == "entity_obligation_flow":
+            money = _flow_paths_sankey(money_raw)
+        else:
+            flows = money_raw if isinstance(money_raw, list) else (money_raw or {}).get("flows") or []
+            money = _money_flow_sankey({"flows": flows, "mode": "money_flow"})
+        if money:
+            charts["money_flow"] = money
     team_edges = profile.get("teaming") or []
     if team_edges and not profile.get("teaming_error"):
         team = _teaming_sankey({"edges": team_edges, "mode": "teaming"})
@@ -70,20 +79,35 @@ def attach_entity_echarts(profile: dict[str, Any], kind: str) -> dict[str, Any]:
     rel_chart = _relations_force_graph(relations)
     if rel_chart:
         charts["relations_graph"] = rel_chart
+    if not office_trace_hero:
+        office_sankey = _office_customer_sankey(customer_trace)
+        if office_sankey:
+            charts["office_customer_flow"] = office_sankey
+    trace_graph = customer_trace.get("relations_graph") or {}
+    graph_title = customer_trace.get("graph_title") or (
+        "Customer trace — awarding → funding → primes"
+    )
+    office_rel = _relations_force_graph(
+        trace_graph,
+        title=graph_title,
+        show_legend=bool(trace_graph.get("nodes")),
+    )
+    if office_rel:
+        charts["office_customer_graph"] = office_rel
     browse = _browse_funnel_sankey(profile.get("browse_funnel") or {})
     if browse:
         charts["browse_funnel"] = browse
     if kind == "agency":
-        sub_flow = _agency_sub_flow_chart(profile.get("agency_sub_flow") or [], profile)
-        if sub_flow:
-            charts["sub_flow"] = sub_flow
-        contractors = _horizontal_bar_chart(
-            profile.get("top_contractors") or [],
-            title="Top contractors in slice",
-            name_key="recipient",
-        )
-        if contractors:
-            charts["top_contractors"] = contractors
+        if not customer_trace.get("flows"):
+            sub_flow = _agency_sub_flow_chart(profile.get("agency_sub_flow") or [], profile)
+            if sub_flow:
+                charts["sub_flow"] = sub_flow
+        share = _prime_share_bar_chart(profile.get("top_contractors") or [])
+        if share:
+            charts["prime_share"] = share
+        exp_tl = _expiring_timeline_chart(profile.get("expiring_timeline") or {})
+        if exp_tl:
+            charts["entity_expiring_timeline"] = exp_tl
     else:
         agencies = _horizontal_bar_chart(
             profile.get("top_agencies") or [],
@@ -275,6 +299,13 @@ def attach_overview_echarts(overview: dict[str, Any]) -> dict[str, Any]:
     expiring_tl = _expiring_timeline_chart(overview.get("expiring_timeline") or {})
     if expiring_tl:
         charts["expiring_timeline"] = _overview_chart(expiring_tl)
+    vehicles = _vehicle_combo_chart(overview.get("vehicle_breakdown") or [])
+    if vehicles:
+        charts["vehicle_breakdown"] = _overview_chart(vehicles)
+    ffp = overview.get("ffp_shaping") or {}
+    ffp_pressure = _ffp_pressure_chart(ffp.get("agency_pressure") or [])
+    if ffp_pressure:
+        charts["ffp_pressure"] = _overview_chart(ffp_pressure)
     if charts:
         overview["charts"] = charts
     return overview
@@ -555,6 +586,65 @@ def _donut_chart(
             }
         ],
         "_intel": {"mode": "donut"},
+    }
+
+
+def _prime_share_bar_chart(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not rows:
+        return None
+    names = [_truncate(str(r.get("recipient") or "?"), 32) for r in rows[:10]]
+    shares = [float(r.get("share_pct") or 0) for r in rows[:10]]
+    millions = [float(r.get("millions") or 0) for r in rows[:10]]
+    return {
+        "backgroundColor": "transparent",
+        "textStyle": {"color": TEXT},
+        "title": _title("Prime market share — buyer drill"),
+        "tooltip": {
+            **_tooltip("axis"),
+            "axisPointer": {"type": "shadow"},
+            "formatter": None,
+        },
+        "grid": {**_grid(), "left": "30%"},
+        "xAxis": {
+            "type": "value",
+            "name": "%",
+            "max": min(100, max(shares) * 1.15 if shares else 100),
+            "splitLine": {"lineStyle": {"color": GRID, "type": "dashed"}},
+            "axisLabel": {"color": AXIS, "formatter": "{value}%"},
+        },
+        "yAxis": {
+            "type": "category",
+            "data": list(reversed(names)),
+            "axisLabel": {"color": TEXT_BRIGHT, "fontSize": 10},
+        },
+        "series": [
+            {
+                "type": "bar",
+                "data": [
+                    {
+                        "value": shares[len(shares) - 1 - i],
+                        "label": names[len(names) - 1 - i],
+                        "millions": millions[len(millions) - 1 - i],
+                    }
+                    for i in range(len(shares))
+                ][::-1],
+                "itemStyle": {"color": CYAN},
+                "barMaxWidth": 16,
+                "label": {
+                    "show": True,
+                    "position": "right",
+                    "color": TEXT_BRIGHT,
+                    "fontSize": 9,
+                    "formatter": "{c}%",
+                },
+            }
+        ],
+        "_intel": {
+            "mode": "prime_share",
+            "honeField": "recipient",
+            "drillLens": "competitor",
+            "entityScope": "recipient",
+        },
     }
 
 
@@ -1120,6 +1210,10 @@ def _sankey_option(
 
 def _money_flow_sankey(analysis: dict[str, Any]) -> dict[str, Any] | None:
     flows = analysis.get("flows") or []
+    if not flows:
+        return None
+    if flows[0].get("source") and flows[0].get("target"):
+        return _flow_paths_sankey(analysis)
     links = [{"source": f["recipient"], "target": f["agency"], "value": f["millions"]} for f in flows]
     return _sankey_option(
         title="Money flow — recipient → agency",
@@ -1128,6 +1222,29 @@ def _money_flow_sankey(analysis: dict[str, Any]) -> dict[str, Any] | None:
         target_label="agency",
         mode="money_flow",
     )
+
+
+def _flow_paths_sankey(analysis: dict[str, Any]) -> dict[str, Any] | None:
+    flows = analysis.get("flows") or []
+    if not flows:
+        return None
+    links = [
+        {"source": f["source"], "target": f["target"], "value": f["millions"]}
+        for f in flows
+        if f.get("source") and f.get("target")
+    ]
+    if not links:
+        return None
+    chart = _sankey_option(
+        title=analysis.get("title") or "Obligation paths",
+        links=links,
+        source_label="from",
+        target_label="to",
+        mode=analysis.get("mode") or "entity_obligation_flow",
+    )
+    if chart:
+        chart["_intel"] = {"mode": analysis.get("mode"), "expandable": False}
+    return chart
 
 
 def _teaming_sankey(analysis: dict[str, Any]) -> dict[str, Any] | None:
@@ -1150,12 +1267,18 @@ def _recipient_landscape_chart(analysis: dict[str, Any]) -> dict[str, Any] | Non
     )
 
 
+def _heatmap_grid_left(row_labels: list[str]) -> str:
+    max_len = max((len(s) for s in row_labels), default=12)
+    pct = min(46, max(20, int(max_len * 0.52)))
+    return f"{pct}%"
+
+
 def _agency_recipient_heatmap(matrix: dict[str, Any]) -> dict[str, Any] | None:
     cells = matrix.get("cells") or []
     if not cells:
         return None
-    agencies = matrix.get("agencies") or list(dict.fromkeys(c["agency"] for c in cells))[:10]
-    recipients = matrix.get("recipients") or list(dict.fromkeys(c["recipient"] for c in cells))[:10]
+    agencies = matrix.get("agencies") or list(dict.fromkeys(c["agency"] for c in cells))[:12]
+    recipients = matrix.get("recipients") or list(dict.fromkeys(c["recipient"] for c in cells))[:12]
     if not agencies or not recipients:
         return None
     agency_idx = {a: i for i, a in enumerate(agencies)}
@@ -1175,24 +1298,65 @@ def _agency_recipient_heatmap(matrix: dict[str, Any]) -> dict[str, Any] | None:
         ])
     if not data:
         return None
+    row_axis = matrix.get("row_axis") or ""
+    heatmap_titles = {
+        "funding_office": "Funding office × prime",
+        "awarding_office": "Contracting office × prime",
+    }
+    row_label = "Prime" if row_axis in {"funding_office", "awarding_office"} else "Contractor"
+    col_label = "Funding office" if row_axis == "funding_office" else (
+        "Contracting office" if row_axis == "awarding_office" else "Buyer"
+    )
+    grid_bottom = "18%" if len(recipients) > 8 else "14%"
+    data_zoom: list[dict[str, Any]] = []
+    if len(recipients) > 8:
+        end_pct = max(18, int(8 / len(recipients) * 100))
+        data_zoom.append({
+            "type": "slider",
+            "yAxisIndex": 0,
+            "right": 6,
+            "width": 14,
+            "start": 0,
+            "end": end_pct,
+            "brushSelect": False,
+            "showDetail": False,
+        })
     return {
         "backgroundColor": "transparent",
         "textStyle": {"color": TEXT},
-        "title": _title("Agency × contractor relationships"),
+        "title": _title(heatmap_titles.get(row_axis, "Agency × contractor relationships")),
         "tooltip": {**_tooltip("item"), "position": "top"},
-        "grid": {"left": "22%", "right": "6%", "top": 56, "bottom": "14%"},
+        "grid": {
+            "left": _heatmap_grid_left(recipients),
+            "right": "8%" if data_zoom else "6%",
+            "top": 56,
+            "bottom": grid_bottom,
+            "containLabel": False,
+        },
         "xAxis": {
             "type": "category",
-            "data": [_truncate(a, 24) for a in agencies],
+            "data": agencies,
             "splitArea": {"show": True},
-            "axisLabel": {"color": AXIS, "rotate": 35, "fontSize": 9},
+            "axisLabel": {
+                "color": AXIS,
+                "rotate": 35,
+                "fontSize": 9,
+                "width": 96,
+                "overflow": "truncate",
+            },
         },
         "yAxis": {
             "type": "category",
-            "data": [_truncate(r, 28) for r in recipients],
+            "data": recipients,
             "splitArea": {"show": True},
-            "axisLabel": {"color": TEXT_BRIGHT, "fontSize": 9},
+            "axisLabel": {
+                "color": TEXT_BRIGHT,
+                "fontSize": 9,
+                "width": 148,
+                "overflow": "truncate",
+            },
         },
+        "dataZoom": data_zoom,
         "visualMap": {
             "min": 0,
             "max": max_actions,
@@ -1213,8 +1377,11 @@ def _agency_recipient_heatmap(matrix: dict[str, Any]) -> dict[str, Any] | None:
         ],
         "_intel": {
             "mode": "relationship_heatmap",
+            "tooltipTemplate": "relationship_heatmap",
             "agencies": agencies,
             "recipients": recipients,
+            "rowLabel": row_label,
+            "colLabel": col_label,
             "drillField": "recipient",
             "drillLens": "competitor",
             "entityScope": "recipient",
@@ -1324,7 +1491,43 @@ def _browse_funnel_sankey(funnel: dict[str, Any]) -> dict[str, Any] | None:
     return chart
 
 
-def _relations_force_graph(graph: dict[str, Any]) -> dict[str, Any] | None:
+def _office_customer_sankey(trace: dict[str, Any]) -> dict[str, Any] | None:
+    flows = trace.get("flows") or []
+    if not flows:
+        return None
+    links = [
+        {"source": f["source"], "target": f["target"], "value": f["millions"]}
+        for f in flows
+    ]
+    trace_mode = trace.get("mode") or "office_customer_trace"
+    chart = _sankey_option(
+        title=trace.get("sankey_title") or "Customer map — awarding → funding office",
+        links=links,
+        source_label="from",
+        target_label="to",
+        mode=trace_mode,
+    )
+    if chart:
+        chart["_intel"] = {"mode": trace_mode, "expandable": False}
+    return chart
+
+
+_GRAPH_LEGEND: dict[str, str] = {
+    "awarding_office": "Awarding office",
+    "funding_office": "Funding office",
+    "agency": "Agency",
+    "sub_agency": "Sub-agency",
+    "prime": "Prime",
+    "sub": "Subcontractor",
+}
+
+
+def _relations_force_graph(
+    graph: dict[str, Any],
+    *,
+    title: str = "Relations trace — multi-hop graph",
+    show_legend: bool = False,
+) -> dict[str, Any] | None:
     """DR expose/relations — multi-hop force graph; people is one node kind among several."""
     nodes = graph.get("nodes") or []
     edges = graph.get("edges") or []
@@ -1333,6 +1536,8 @@ def _relations_force_graph(graph: dict[str, Any]) -> dict[str, Any] | None:
 
     kind_symbols = {
         "agency": "roundRect",
+        "awarding_office": "roundRect",
+        "funding_office": "rect",
         "prime": "circle",
         "sub": "diamond",
         "vehicle": "rect",
@@ -1353,6 +1558,7 @@ def _relations_force_graph(graph: dict[str, Any]) -> dict[str, Any] | None:
     ]
     edge_colors = {
         "obligation": CYAN,
+        "customer_trace": LIME,
         "teaming": LIME,
         "teaming_network": "#86efac",
         "vehicle_member": AMBER,
@@ -1373,10 +1579,12 @@ def _relations_force_graph(graph: dict[str, Any]) -> dict[str, Any] | None:
         }
         for e in edges
     ]
-    return {
+    kinds_present = {n.get("kind") for n in nodes if n.get("kind")}
+    legend_data = [_GRAPH_LEGEND[k] for k in _GRAPH_LEGEND if k in kinds_present]
+    chart: dict[str, Any] = {
         "backgroundColor": "transparent",
         "textStyle": {"color": TEXT},
-        "title": _title("Relations trace — multi-hop graph"),
+        "title": _title(title),
         "tooltip": _tooltip(),
         "series": [
             {
@@ -1404,6 +1612,16 @@ def _relations_force_graph(graph: dict[str, Any]) -> dict[str, Any] | None:
             "maxHop": (graph.get("summary") or {}).get("max_hop"),
         },
     }
+    if show_legend and legend_data:
+        chart["legend"] = {
+            "data": legend_data,
+            "bottom": 4,
+            "textStyle": {"color": AXIS, "fontSize": 9},
+            "itemWidth": 10,
+            "itemHeight": 10,
+        }
+        chart["grid"] = {"bottom": 36}
+    return chart
 
 
 def graph_option_from_payload(graph: dict[str, Any]) -> dict[str, Any] | None:

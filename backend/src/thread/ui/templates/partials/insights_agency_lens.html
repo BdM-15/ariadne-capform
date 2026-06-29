@@ -1,125 +1,247 @@
 <div class="insights-agency-lens">
-  {% if entity_idle and overview_ready %} {% set intensity =
-  overview.agency_intensity or {} %} {% set points = intensity.points or [] %}
-  <p class="text-[11px] text-slate-500 mb-3">
-    Top contracting offices in the active slice — open a profile without
-    changing facets.
-  </p>
+  {% if entity_idle and overview_ready %}
+  {% set intensity = overview.agency_intensity or {} %}
+  {% set points = intensity.points or [] %}
+  <p class="text-[11px] text-slate-500 mb-3">Top contracting offices in the active slice — open a profile without changing facets.</p>
   {% if points|length > 0 %}
   <div class="insights-entity-list text-[10px] font-mono text-slate-500">
     {% for row in points[:12] %}
     <div class="flex flex-wrap items-center gap-2 py-1 border-b border-edge/40">
       <span class="text-slate-300">{{ row.label or row.agency }}</span>
-      {% if row.hot %}<span
-        class="pill pill-compact border border-neon-lime/30 text-neon-lime text-[9px]"
-        >hot</span
-      >{% endif %}
-      <span
-        >${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span
-      >
-      {% with entity_kind='agency', entity_scope='office', value=(row.label or
-      row.agency), extra_class='text-neon-cyan' %} {% include
-      "partials/insights_drill_profile_btn.html" %} {% endwith %}
+      {% if row.hot %}<span class="pill pill-compact border border-neon-lime/30 text-neon-lime text-[9px]">hot</span>{% endif %}
+      <span>${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span>
+      {% with entity_kind='agency', entity_scope='office', value=(row.label or row.agency), extra_class='text-neon-cyan' %}
+      {% include "partials/insights_drill_profile_btn.html" %}
+      {% endwith %}
     </div>
     {% endfor %}
   </div>
   {% else %}
   <p class="insights-idle-hint">No agency breakdown for this slice.</p>
-  {% endif %} {% elif entity_idle %}
-  <p class="insights-idle-hint">
-    Run a facet slice on <strong>Overview</strong>, then pick an agency here or
-    from the capture intensity chart.
-  </p>
+  {% endif %}
+  {% elif entity_idle %}
+  <p class="insights-idle-hint">Run a facet slice on <strong>Overview</strong>, then pick an agency here or from the capture intensity chart.</p>
   {% elif entity_error %}
-  <p class="insights-explore-msg insights-explore-msg-warn">
-    {{ entity_error }}
-  </p>
-  {% elif entity_ready and entity_profile %} {% set kpis = entity_profile.kpis
-  or {} %} {% set charts = entity_profile.charts or {} %}
-  <div class="insights-entity-header mb-3">
-    <h3 class="text-sm font-semibold text-neon-cyan m-0">
-      {{ entity.display_label }}
-    </h3>
-    <p class="text-[10px] text-slate-500 font-mono mt-1">
-      Within {{ entity_profile.slice_summary or 'active slice' }}
-    </p>
-  </div>
-  <div class="insights-kpi-strip flex flex-wrap gap-2 mb-4">
-    <span
-      class="pill pill-compact border border-neon-magenta/40 text-neon-magenta"
-      >${{ "%.1f"|format(kpis.millions or 0) }}M obligated</span
-    >
-    <span class="pill pill-compact border border-edge text-slate-400"
-      >{{ "{:,}".format(kpis.award_count or 0) }} actions</span
-    >
-    <span class="pill pill-compact border border-edge text-slate-400"
-      >{{ kpis.recipient_count or 0 }} contractors</span
-    >
-  </div>
-  <div class="insights-overview-grid">
-    {% if charts.relationship_heatmap %}
-    <div
-      class="clew-echarts-host insights-echarts-sub"
-      data-chart-key="relationship_heatmap"
-      data-chart-option="{{ charts.relationship_heatmap | tojson }}"
-    ></div>
-    {% endif %} {% if charts.money_flow %}
-    <div
-      class="clew-echarts-host insights-echarts-sub"
-      data-chart-key="money_flow"
-      data-chart-option="{{ charts.money_flow | tojson }}"
-    ></div>
-    {% endif %} {% if charts.sub_flow %}
-    <div
-      class="clew-echarts-host insights-echarts-sub"
-      data-chart-key="sub_flow"
-      data-chart-option="{{ charts.sub_flow | tojson }}"
-    ></div>
-    {% endif %} {% if charts.spend_trend %}
-    <div
-      class="clew-echarts-host insights-echarts-sub"
-      data-chart-key="spend_trend"
-      data-chart-option="{{ charts.spend_trend | tojson }}"
-    ></div>
-    {% endif %} {% if charts.top_contractors %}
-    <div
-      class="clew-echarts-host insights-echarts-compact"
-      data-chart-key="top_contractors"
-      data-chart-option="{{ charts.top_contractors | tojson }}"
-    ></div>
-    {% endif %} {% if charts.pricing_buckets %}
-    <div
-      class="clew-echarts-host insights-echarts-compact"
-      data-chart-key="pricing_buckets"
-      data-chart-option="{{ charts.pricing_buckets | tojson }}"
-    ></div>
-    {% endif %}
-  </div>
-  {% if entity_profile.top_contractors %}
-  <div class="insights-entity-list mt-3 text-[10px] font-mono text-slate-500">
-    <p class="text-[10px] uppercase tracking-wide text-slate-600 mb-2">
-      Top contractors — click to open competitor profile
-    </p>
-    {% for row in entity_profile.top_contractors[:8] %}
-    <div class="flex flex-wrap items-center gap-2 py-1 border-b border-edge/40">
-      <span class="text-slate-300">{{ row.recipient }}</span>
-      {% if row.recipient_uei %}<span class="text-neon-cyan"
-        >UEI {{ row.recipient_uei }}</span
-      >{% endif %}
-      <span
-        >${{ "%.2f"|format(row.millions) }}M · {{ row.actions }} actions</span
-      >
-      {% with entity_kind='competitor', entity_scope='recipient',
-      value=row.recipient, label='Competitor →', extra_class='text-neon-lime' %}
-      {% include "partials/insights_drill_profile_btn.html" %} {% endwith %}
+  <p class="insights-explore-msg insights-explore-msg-warn">{{ entity_error }}</p>
+  {% elif entity_ready and entity_profile %}
+  {% set kpis = entity_profile.kpis or {} %}
+  {% set charts = entity_profile.charts or {} %}
+  {% set ao = agency_overview or {} %}
+  {% set chart_guides = {} %}
+  {% set sam_match_naics = sam_match_naics or false %}
+
+  <section class="insights-agency-overview mb-4" aria-label="Agency overview">
+    <div class="insights-entity-header mb-2">
+      <h3 class="text-sm font-semibold text-neon-cyan m-0">{{ entity.display_label }}</h3>
+      {% if ao.hierarchy_line %}
+      <p class="text-[10px] text-slate-400 font-mono mt-1">{{ ao.hierarchy_line }}</p>
+      {% endif %}
+      <p class="text-[10px] text-slate-500 font-mono mt-1">Within {{ entity_profile.slice_summary or 'active slice' }}</p>
     </div>
-    {% endfor %}
-  </div>
-  {% endif %} {% with recompete_rows=entity_profile.recompete_rows or [],
-  active_lens=active_lens %} {% include
-  "partials/insights_entity_recompete.html" %} {% endwith %} {% else %}
-  <p class="insights-idle-hint">
-    Run slice on Overview, then drill into an agency.
-  </p>
+    {% if ao.cards %}
+    <div class="insights-metric-cards">
+      {% for card in ao.cards %}
+      <div class="insights-metric-card" data-metric="{{ card.id }}">
+        <span class="insights-metric-label">{{ card.label }}</span>
+        <span class="insights-metric-value">{{ card.value }}</span>
+        <span class="insights-metric-hint">{{ card.hint }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if ao.posture %}
+    <p class="text-[11px] text-slate-500 font-mono mt-2 mb-0">{{ ao.posture }}</p>
+    {% endif %}
+  </section>
+
+  {% set award_spine = entity_profile.award_spine or {} %}
+  {% set spine_rows = award_spine.recompete_rows or award_spine.rows or [] %}
+  {% if charts.office_customer_flow or charts.office_customer_graph or charts.sub_flow or charts.money_flow or charts.relationship_heatmap or spine_rows|length > 0 %}
+  <section class="insights-overview-section" aria-label="Customer trace and obligation paths">
+    <div class="insights-overview-section-head">
+      <h4 class="insights-overview-section-title">Customer trace &amp; obligation paths</h4>
+      <p class="insights-overview-section-hint">
+        {% if entity.scope == 'office' %}
+        Graph · matrix · contracts — trace buyers to primes, then open PIID for pursuit detail.
+        {% else %}
+        Buyer hierarchy (graph), buyer×contractor matrix, and top contracts in drill.
+        {% endif %}
+      </p>
+    </div>
+    {% if entity.scope != 'office' and charts.office_customer_flow %}
+    {% with chart_key='office_customer_flow', chart_option=charts.office_customer_flow, host_class='insights-echarts-sankey' %}
+    {% include "partials/insights_chart_panel.html" %}
+    {% endwith %}
+    {% endif %}
+    <div class="insights-trace-obligation-row{% if spine_rows|length > 0 %} insights-trace-obligation-row--triple{% endif %}">
+      {% if charts.office_customer_graph %}
+      {% with chart_key='office_customer_graph', chart_option=charts.office_customer_graph, host_class='insights-echarts-trace-hero', panel_class='insights-chart-panel-hero' %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+      {% if spine_rows|length > 0 %}
+      {% with award_spine=award_spine, active_lens=active_lens %}
+      {% include "partials/insights_award_spine.html" %}
+      {% endwith %}
+      {% endif %}
+      {% if charts.relationship_heatmap %}
+      {% with chart_key='relationship_heatmap', chart_option=charts.relationship_heatmap, host_class='insights-echarts-heatmap' %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+      {% if charts.money_flow %}
+      {% with chart_key='money_flow', chart_option=charts.money_flow, host_class='insights-echarts-sankey' %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+    </div>
+    {% if charts.sub_flow %}
+    {% with chart_key='sub_flow', chart_option=charts.sub_flow %}
+    {% include "partials/insights_chart_panel.html" %}
+    {% endwith %}
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if charts.set_aside or charts.extent_competed or charts.pricing_buckets or charts.spend_trend %}
+  <section class="insights-overview-section" aria-label="How they buy">
+    <div class="insights-overview-section-head">
+      <h4 class="insights-overview-section-title">How they buy</h4>
+      <p class="insights-overview-section-hint">Set-aside, competition extent, and pricing mix — entity-scoped entry lanes.</p>
+    </div>
+    <div class="insights-overview-three-up">
+      {% if charts.set_aside %}
+      {% with chart_key='set_aside', chart_option=charts.set_aside, host_class='insights-echarts-compact' %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+      {% if charts.extent_competed %}
+      {% with chart_key='extent_competed', chart_option=charts.extent_competed, host_class='insights-echarts-compact' %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+      {% if charts.pricing_buckets %}
+      {% with chart_key='pricing_buckets', chart_option=charts.pricing_buckets, host_class='insights-echarts-compact' %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+    </div>
+    {% if charts.spend_trend %}
+    {% with chart_key='spend_trend', chart_option=charts.spend_trend %}
+    {% include "partials/insights_chart_panel.html" %}
+    {% endwith %}
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if charts.prime_share or entity_profile.teaming_targets or entity_profile.adjacent_competitors or entity_profile.top_contractors %}
+  <section class="insights-overview-section" aria-label="Competitive landscape">
+    <div class="insights-overview-section-head">
+      <h4 class="insights-overview-section-title">Competitive landscape</h4>
+      <p class="insights-overview-section-hint">Market share, set-aside teaming lanes, and adjacent primes at shared buyer units in this drill.</p>
+    </div>
+    <div class="insights-overview-two-up">
+      {% if charts.prime_share %}
+      {% with chart_key='prime_share', chart_option=charts.prime_share %}
+      {% include "partials/insights_chart_panel.html" %}
+      {% endwith %}
+      {% endif %}
+      {% if entity_profile.top_contractors %}
+      <div class="insights-motion-teaming">
+        <p class="insights-motion-teaming-title">Top primes — drill to competitor dossier</p>
+        <ul class="insights-motion-teaming-primes">
+          {% for row in entity_profile.top_contractors[:8] %}
+          <li>
+            <span class="insights-motion-teaming-prime-name">{{ row.recipient }}</span>
+            <span class="insights-motion-teaming-prime-meta">{{ row.share_pct or 0 }}% · ${{ "%.2f"|format(row.millions) }}M</span>
+            {% with entity_kind='competitor', entity_scope='recipient', value=row.recipient, label='Competitor →', extra_class='text-neon-lime' %}
+            {% include "partials/insights_drill_profile_btn.html" %}
+            {% endwith %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+    {% if entity_profile.teaming_targets %}
+    <div class="insights-motion-teaming mt-2">
+      <p class="insights-motion-teaming-title">Teaming targets — set-aside primes in this drill</p>
+      <div class="insights-motion-teaming-grid">
+        {% for bucket in entity_profile.teaming_targets %}
+        <div class="insights-motion-teaming-bucket">
+          <p class="insights-motion-teaming-bucket-label">{{ bucket.bucket }} · ${{ "%.1f"|format(bucket.millions) }}M</p>
+          <ul class="insights-motion-teaming-primes">
+            {% for prime in bucket.primes or [] %}
+            <li>
+              <span class="insights-motion-teaming-prime-name">{{ prime.recipient }}</span>
+              <span class="insights-motion-teaming-prime-meta">${{ "%.2f"|format(prime.millions) }}M · {{ prime.actions }} actions</span>
+              {% with entity_kind='competitor', entity_scope='recipient', value=prime.recipient %}
+              {% include "partials/insights_drill_profile_btn.html" %}
+              {% endwith %}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% if entity_profile.adjacent_competitors %}
+    <div class="insights-motion-teaming mt-2">
+      <p class="insights-motion-teaming-title">Adjacent competitors — shared buyer units, not market leaders</p>
+      <ul class="insights-motion-teaming-primes">
+        {% for row in entity_profile.adjacent_competitors[:6] %}
+        <li>
+          <span class="insights-motion-teaming-prime-name">{{ row.recipient }}</span>
+          <span class="pill pill-compact text-[9px] border-edge text-slate-500">{{ row.fit }}</span>
+          <span class="insights-motion-teaming-prime-meta">{{ row.shared_buyers or row.shared_agencies }} shared · ${{ "%.2f"|format(row.shared_millions or 0) }}M · {{ row.market_share_pct or 0 }}% drill share</span>
+          {% with entity_kind='competitor', entity_scope='recipient', value=row.recipient, extra_class='text-neon-lime' %}
+          {% include "partials/insights_drill_profile_btn.html" %}
+          {% endwith %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="insights-overview-section" aria-label="Pipeline and forward">
+    {% set recompete_rows = entity_profile.recompete_rows or [] %}
+    {% set thin_recompete = recompete_rows|length < 3 %}
+    <div class="insights-overview-section-head">
+      <h4 class="insights-overview-section-title">Pipeline &amp; forward</h4>
+      <p class="insights-overview-section-hint">
+        {% if thin_recompete %}
+        Thin recompete pipe — SAM forward leads; use historical rows when present.
+        {% else %}
+        Recompete cluster + SAM forward notices for emerging buyer interest.
+        {% endif %}
+      </p>
+    </div>
+    {% if thin_recompete %}
+    {% include "partials/insights_agency_sam_forward.html" %}
+    {% endif %}
+    {% if charts.entity_expiring_timeline %}
+    {% set expiring_insight = (entity_profile.expiring_timeline or {}).get('insight', '') %}
+    {% with chart_key='entity_expiring_timeline', chart_option=charts.entity_expiring_timeline, caption_override=expiring_insight %}
+    {% include "partials/insights_chart_panel.html" %}
+    {% endwith %}
+    {% endif %}
+    {% if recompete_rows|length > 0 %}
+    <p class="insights-explore-meta text-[10px] mb-2 mt-2">{{ recompete_rows|length }} expiring row{{ 's' if recompete_rows|length != 1 else '' }} · 24 mo</p>
+    {% with rows=recompete_rows, active_lens=active_lens %}
+    {% include "partials/insights_recompete_rows.html" %}
+    {% endwith %}
+    {% else %}
+    <p class="insights-idle-hint text-[10px] mt-2">No expiring contracts for this entity in the next 24 months.</p>
+    {% endif %}
+    {% if not thin_recompete %}
+    {% include "partials/insights_agency_sam_forward.html" %}
+    {% endif %}
+  </section>
+
+  {% else %}
+  <p class="insights-idle-hint">Run slice on Overview, then drill into an agency.</p>
   {% endif %}
 </div>

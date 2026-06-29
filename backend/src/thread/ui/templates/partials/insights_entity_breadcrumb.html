@@ -14,17 +14,26 @@
   <span class="pill pill-compact border {% if entity.kind == 'competitor' %}border-neon-lime/40 text-neon-lime{% else %}border-neon-cyan/40 text-neon-cyan{% endif %}">
     {% if entity.kind == 'competitor' %}Competitor{% else %}Agency{% endif %}: {{ entity.display_label }}
   </span>
+  {% if active_lens == 'competitor' and agency_entity and agency_entity.value %}
+  <button
+    type="button"
+    class="btn btn-ghost btn-compact text-neon-cyan insights-drill-chip"
+    data-insights-drill="1"
+    data-lens="agency"
+    data-entity-kind="agency"
+    data-entity-scope="{{ agency_entity.scope }}"
+    data-entity-value="{{ agency_entity.value }}"
+  >← {{ agency_entity.display_label }}</button>
+  {% endif %}
   <span class="text-slate-600 hidden sm:inline">· slice unchanged</span>
 </nav>
+{% endif %}
 <div id="insights-entity-state" class="hidden" aria-hidden="true">
-  <input type="hidden" name="entity_kind" value="{{ entity.kind }}" />
-  <input type="hidden" name="entity_value" value="{{ entity.value }}" />
-  <input type="hidden" name="entity_scope" value="{{ entity.scope }}" />
-</div>
-{% else %}
-<div id="insights-entity-state" class="hidden" aria-hidden="true">
+  <input type="hidden" name="agency_entity_value" value="{{ agency_entity.value if agency_entity else '' }}" />
+  <input type="hidden" name="agency_entity_scope" value="{{ agency_entity.scope if agency_entity else '' }}" />
+  <input type="hidden" name="competitor_entity_value" value="{{ competitor_entity.value if competitor_entity else '' }}" />
+  <input type="hidden" name="competitor_entity_scope" value="{{ competitor_entity.scope if competitor_entity else '' }}" />
   <input type="hidden" name="entity_kind" value="" />
   <input type="hidden" name="entity_value" value="" />
   <input type="hidden" name="entity_scope" value="" />
 </div>
-{% endif %}
