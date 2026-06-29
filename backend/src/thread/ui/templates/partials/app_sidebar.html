@@ -112,6 +112,12 @@
           {% endwith %}
           <span class="sidebar-nav-text">Agent Skills</span>
         </a>
+        <a href="/tavern/dashboard" class="nav-item w-full no-underline {% if active_nav == 'tavern' %}nav-item-active{% endif %}">
+          {% with icon="users", tile_class="tile-cyan" %}
+          {% include "partials/nav_icon.html" %}
+          {% endwith %}
+          <span class="sidebar-nav-text">Mission Control</span>
+        </a>
       </div>
     </div>
 
