@@ -51,6 +51,8 @@
 - `[parked]` **17c-graph** — BFS expose-style force/graph canvas; `intel_relationships` + `edges.jsonl`; people/relations overlay (17e-g-e parent-vehicle peers folds in here).
 - `[parked]` **17d / 17d-agency** — SAM [Federal Hierarchy Public API](https://open.gsa.gov/api/fh-public-api/) → `intel_federal_orgs` PG; cascading dept→sub→office pickers; distinct-value facet autocomplete (quick win before semantic search).
 - `[parked]` **17k-office-trace** (17k-a FH resolve tool · 17k-b intensity→agency trace · 17k-c web-enrich fallback · 17k-d office BFS expose) — awarding-office → funding-office customer map.
+- `[parked]` **17e-g-a.3 — Agency customer-trace graph quality** (post-17e-g-a.2 layout dedup) — dagre/hierarchical layout instead of force hairball; click funding office → isolate 1-hop subgraph; left-rail entity picker (DataRepublican charity-explorer pattern); graph expand fullscreen; edge-kind legend polish. _17e-g-a.2 shipped hero trace + heatmap-only obligation paths for office drills._
+- `[parked]` **17e-g-a.4b — Award spine polish** (17e-g-a.4 ✅ table · trace focus ✅ client filter) — SAM `notice_id` on drawer; hop-3 PIID on graph expand; fetch spine rows beyond top-20 on heatmap cell if needed.
 - `[parked]` **17e-h — profile exports** — schema registry (17e-h-a) + vault promote (17e-h-b) + docx (17e-h-c) + pptx (17e-h-d) + opportunity profile reuse (17e-h-e). _Note: huashu may cover the pptx/graphics path — reconcile during M3._
 - `[ref]` **Geo / POP state map**, **parent vehicle peer roster** — post-MVP visual inventory items.
 

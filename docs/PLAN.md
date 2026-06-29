@@ -6,7 +6,7 @@
 > **This file is the MVP path.** Parked features, inspiration, and history live in
 > [`BACKLOG.md`](BACKLOG.md) and [`PLAN-archive-v4.md`](PLAN-archive-v4.md). Nothing was deleted in the v5 reorg — only re-sequenced.
 
-**Last updated:** 2026-06-24 — M0 complete: indexes verified, E2E sign-off passes, test suite stabilized (19 → 3 residual infra failures).
+**Last updated:** 2026-06-25 — Agency tab buyer-dossier spec captured (17e-g-a.2); M0 complete; M1 in progress.
 
 ---
 
@@ -134,7 +134,89 @@ references the original slice IDs so continuity with the archive is intact.
 **M1 progress:**
 
 - ✅ **17e-g-a.1** (2026-06-24) — office Agency drill upgraded lite → decision-grade: unified into one parallel `_agency_profile` so awarding-office drill now returns money-flow Sankey, agency×recipient heat map, pricing mix, top agencies, and recompete shape-gate timing (was skipped for speed). Net −7 LOC; full agency profile now parallelized.
-- ⬜ Next candidates: **17e-g-a (graph)** funding-office BFS/DR customer-trace graph · **17e-g-c** slice-wide FFP shaping radar (`ffp_shaping_radar` primitive exists, unwired) · **17e-g-b** competitor-profile depth audit.
+- ✅ **17e-g-a (graph)** (2026-06-24) — office-scope Agency profile: `office_customer_trace` primitive (awarding → funding-office Sankey + BFS expose to top primes per customer); wired into entity profile, ECharts, and agency lens template.
+- ✅ **17e-g-c** (2026-06-24) — Competition signals on Overview: `ffp_shaping_radar` + `vehicle_breakdown` wired into `run_slice_overview`; FFP pressure chart, vehicle×pricing combo, and shape-now targets table on Competitive landscape section.
+- ✅ **Agency UX** (2026-06-24) — per-lens entity memory (agency/competitor tabs don’t clobber each other); Agency overview row (hierarchy line + metric cards + posture); visuals section below.
+- ✅ **17e-g-a.2-A** (2026-06-25) — Agency tab phase A: six-section shell, `insights_chart_panel` on all charts, set-aside/extent surfaced, duplicate top-contractors chart dropped (drill list kept).
+- ✅ **17e-g-a.2-B** (2026-06-25) — `buyer_customer_trace` (agency/sub/office), subs hop on office graph, `entity_obligation_flow` + scoped heatmap (no upstream agency hop).
+- ✅ **17e-g-a.2-C** (2026-06-25) — prime share chart + drill list, `teaming_targets` grid, `agency_adjacent_competitors` at shared buyer units.
+- ✅ **17e-g-a.2-D** (2026-06-25) — SAM forward (buyer keyword, 90d, optional NAICS chip), entity expiring timeline, thin-pipe section ordering.
+- ✅ **17e-g-a.2** Agency buyer dossier — phases A–D complete.
+- ⬜ Next candidates: **17e-g-b** competitor-profile depth audit · **17e-g-d** Trace lens inline polish (2e-c Overview storytelling) · **Clew robust** (17b-interact-lite, trace handoff).
+
+#### 17e-g-a.2 · Agency tab — buyer dossier _(design spec — implement in phases)_
+
+**Doctrine — Overview vs drill (complementary, not duplicate):**
+
+| Layer | Job | Data scope | Outcome |
+| ----- | --- | ---------- | ------- |
+| **Overview** | Start big → find leads | Whole facet slice | “Where is the market moving?” → drill buttons |
+| **Agency drill** | Decide on *this buyer* | Entity-scoped slice | Actionable dossier → campaigns, bid qual, research/skills |
+
+Reuse chart *types* from Overview when the question is the same but **re-query and re-caption for the active entity** (set-aside mix *for this office*, not slice TAM). Do not copy Overview sections verbatim.
+
+**One-sentence story:** _Who owns requirements at this buyer depth, who captures spend, how concentrated is the market, how do they buy, and what is expiring or emerging?_
+
+**Six sections** (same skeleton at agency / sub-agency / office; hero adapts by `entity.scope`):
+
+1. **Overview strip** — hierarchy breadcrumb, metric cards, posture sentence (✅ shipped; extend office index at agency/sub scopes).
+2. **Customer trace** — relationship map: agency→subs→offices **or** sub→offices **or** office→funding→primes→subs. Hero Sankey + optional Clew expand; no upstream “back to agency” hops when drilled past agency.
+3. **Obligation paths** — multi-hop money flow (office→prime→sub), heatmap scoped to funding×prime or prime×sub.
+4. **How they buy** — entity-scoped set-aside, extent competed, pricing/vehicle mix + derived entry-lane bullets (SB, teaming, IDV depth).
+5. **Competitive landscape** — prime share bars, teaming-target grid, adjacent competitors (overlap on *this buyer*, not slice leaders).
+6. **Pipeline & forward** — recompete rows/timeline + **SAM forward** (below).
+
+**SAM forward block (exploration, not recompete replacement):**
+
+- **Default:** notices for the drilled buyer (awarding agency / sub-agency / office string match) — **not NAICS-locked**. Goal is *buying sentiment* and emerging requirements when USAspending has no history.
+- **Optional toggle:** “Also match slice NAICS” for tighter fit when operator wants it.
+- **Why broad:** slice NAICS may surface adjacent codes the operator also holds; KOs mislabel NAICS; RFIs/Sources Sought/CSO/special notices signal intent before obligations exist — same “start big, work small” model as Overview.
+- **Thin recompete pipe:** this section *leads* (Explain already encodes SAM pivot); historical recompete alone is insufficient for pipeline.
+
+**Build phases (one PR each):**
+
+| Phase | Deliverable | Mostly |
+| ----- | ----------- | ------ |
+| **A** | Section shell + `insights_chart_panel` + kill duplicate lists; surface `set_aside` / `extent_competed` already in `_agency_profile` | template/CSS |
+| **B** | Scope-adaptive trace + filter money_flow upstream nodes; subs hop on office trace | backend + Clew |
+| **C** | Entity-scoped share, adjacent competitors, teaming grid | backend |
+| **D** | SAM forward panel (buyer-scoped MCP, optional NAICS chip) + recompete section polish | MCP + template |
+
+**Wireframes (layout intent):**
+
+```text
+┌─ OVERVIEW STRIP ─────────────────────────────────────────────────────────┐
+│ DHS → CISA → Acquisition Division    [$42M] [4 fund offices] [shape-now 2]│
+│ posture: 28% set-aside · multi-customer shop · concentrated 41% top prime │
+└──────────────────────────────────────────────────────────────────────────┘
+
+§ CUSTOMER TRACE — office scope
+┌─ hero sankey (full width) ──────────────────────────────────────────────┐
+│  Awarding office ══► Funding office A/B/C ══► Prime1 Prime2 …  [Clew +] │
+└──────────────────────────────────────────────────────────────────────────┘
+
+§ OBLIGATION PATHS                    § HOW THEY BUY (3-up)
+┌─ office→prime→sub sankey ─┐         [set-aside] [extent] [pricing]
+└─ funding×prime heatmap ───┘         bullets: SB lane · IDV-heavy · Q4 skew
+
+§ COMPETITIVE LANDSCAPE (2-up)
+┌─ prime share bars ─────────┐  ┌─ teaming targets by set-aside bucket ─┐
+└─ adjacent competitors ─────┘  └─ drill → Competitor tab ───────────────┘
+
+§ PIPELINE & FORWARD
+┌─ recompete timeline + shape badges ────────────────────────────────────┐
+│ SAM forward · buyer-scoped · NAICS optional · RFI/SS/CSO notice chips   │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+```text
+Agency scope — hero swaps; section order unchanged:
+
+§ CUSTOMER TRACE
+┌─ agency ══► sub-agency bars / treemap ══► top offices (drill) ──────────┐
+
+§ … (sections 3–6 identical pattern, entity-scoped data)
+```
 
 ### M2 · Capture with mapped fill paths _(Living Packet · Skills wiring)_
 
@@ -221,7 +303,7 @@ Core API (`/api/health`, `/portfolio/pulse`, `/opportunities`, `/…/packet`, `/
 
 **North star:** pass the sign-off test _for real_ (find → watch → track → open packet → fill → artifact).
 
-1. **M1** — Insights entity depth (17e-g-a/b), Competition & Trace lenses (17e-g-c/d), Clew interactivity, Overview polish (2e-c).
+1. **M1** — **17e-g-b** competitor depth audit · **17e-g-d** Trace inline · **Clew robust** · **2e-c** Overview polish. (17e-g-a ✅ · 17e-g-a.2 ✅ · 17e-g-c ✅)
 2. Then **M2 → M3**, with **M4** cockpit + fun-not-boring polish running alongside.
 
 **M0 note:** completed and closed; residual test-infra debt is tracked in [BACKLOG.md](BACKLOG.md#test-isolation-debt-m0-findings-2026-06-24).
