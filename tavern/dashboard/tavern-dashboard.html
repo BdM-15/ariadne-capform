@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ariadne's Thread — Mission Control Tavern</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #15151F; --panel: rgba(31,31,43,0.55); --border: rgba(255,255,255,0.105);
+      --violet:#8B5CF6; --cyan:#7DD3FC; --mint:#5EE2B5; --amber:#F5B544;
+      --text:#F4F4F8; --muted:#8A8A9B;
+      --heading:'Inter Tight',ui-sans-serif,system-ui,sans-serif;
+      --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      --blur:34px;
+    }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:var(--heading); }
+    .top-nav {
+      position:fixed; left:0; right:0; top:0; height:72px;
+      background:linear-gradient(180deg,rgba(21,21,31,.85),rgba(21,21,31,.4));
+      backdrop-filter:blur(30px); border-bottom:1px solid var(--border);
+      display:flex; align-items:center; padding:0 40px; gap:24px; z-index:100;
+    }
+    .brand { font-weight:800; font-size:22px; letter-spacing:-0.02em; }
+    .tabs { display:flex; gap:8px; margin-left:40px; }
+    .tab-button {
+      padding:10px 20px; border-radius:999px; border:1px solid transparent;
+      background:rgba(255,255,255,0.04); color:var(--muted); font-size:13px;
+      font-weight:600; cursor:pointer;
+    }
+    .tab-button.active { background:var(--violet); color:white; border-color:var(--violet); }
+    .shell { padding:100px 40px 60px; max-width:1480px; margin:0 auto; }
+    .glass {
+      background:var(--panel); border:1px solid var(--border);
+      backdrop-filter:blur(var(--blur)) saturate(155%); border-radius:24px; padding:24px;
+    }
+    .section-title { font-size:13px; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
+    .metric { font-size:42px; font-weight:700; line-height:1; }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:20px; }
+    .stat-card { padding:20px; border-radius:20px; border-top:3px solid var(--mint); }
+    .agent-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
+    .agent-card { padding:18px; border-radius:20px; border-top:3px solid var(--cyan); }
+    .status-dot { display:inline-block; width:9px; height:9px; background:var(--mint); border-radius:50%; margin-right:6px; }
+    .loading { color:var(--muted); font-style:italic; }
+  </style>
+</head>
+<body>
+  <nav class="top-nav">
+    <div class="brand">Ariadne Tavern</div>
+    <div class="tabs">
+      <button class="tab-button active" data-tab="overview">Overview</button>
+      <button class="tab-button" data-tab="agents">Heroes</button>
+      <button class="tab-button" data-tab="tasks">Quests</button>
+      <button class="tab-button" data-tab="schedule">Schedule</button>
+      <button class="tab-button" data-tab="content">Content</button>
+    </div>
+    <div style="margin-left:auto; color:var(--muted); font-size:13px;">
+      Party Level <strong style="color:white">3</strong> • pWin <strong style="color:#5EE2B5" id="nav-pwin">58%</strong>
+    </div>
+  </nav>
+
+  <div class="shell">
+
+    <!-- OVERVIEW -->
+    <section id="overview" class="tab-panel active">
+      <div class="glass" style="margin-bottom:24px">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div class="section-title">LIVE OPS</div>
+            <div style="font-size:32px; font-weight:700;">Mission Control Tavern</div>
+          </div>
+          <div style="text-align:right; font-family:var(--mono); font-size:13px;">
+            Last updated: <span id="last-updated">loading...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="glass stat-card" style="border-top-color:#5EE2B5">
+          <div class="section-title">Active Quests</div>
+          <div class="metric" id="active-quests">—</div>
+        </div>
+        <div class="glass stat-card" style="border-top-color:#7DD3FC">
+          <div class="section-title">pWin</div>
+          <div class="metric" id="current-pwin">—</div>
+        </div>
+        <div class="glass stat-card" style="border-top-color:#F5B544">
+          <div class="section-title">Total XP</div>
+          <div class="metric" id="total-xp">—</div>
+        </div>
+        <div class="glass stat-card" style="border-top-color:#8B5CF6">
+          <div class="section-title">Heroes Active</div>
+          <div class="metric" id="active-heroes">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HEROES -->
+    <section id="agents" class="tab-panel" style="display:none">
+      <div class="glass">
+        <div class="section-title">THE PARTY</div>
+        <div class="agent-grid" id="agent-grid"></div>
+      </div>
+    </section>
+
+    <!-- QUESTS -->
+    <section id="tasks" class="tab-panel" style="display:none">
+      <div class="glass">
+        <div class="section-title">CURRENT QUESTS</div>
+        <div id="quest-list"></div>
+      </div>
+    </section>
+
+    <section id="schedule" class="tab-panel" style="display:none">
+      <div class="glass"><div class="section-title">Schedule</div><p style="color:var(--muted)">Coming soon</p></div>
+    </section>
+    <section id="content" class="tab-panel" style="display:none">
+      <div class="glass"><div class="section-title">Content Library</div><p style="color:var(--muted)">Coming soon</p></div>
+    </section>
+
+  </div>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:9622/tavern"; // Change if your FastAPI runs on different port
+
+    async function fetchMetrics() {
+      try {
+        const res = await fetch(`${API_BASE}/metrics`);
+        if (!res.ok) throw new Error("Failed to fetch metrics");
+        const data = await res.json();
+
+        document.getElementById("active-quests").innerText = data.active_quests;
+        document.getElementById("current-pwin").innerText = data.current_pwin + "%";
+        document.getElementById("total-xp").innerText = data.total_xp_earned || "—";
+        document.getElementById("active-heroes").innerText = data.active_heroes;
+        document.getElementById("nav-pwin").innerText = data.current_pwin + "%";
+        document.getElementById("last-updated").innerText = new Date().toLocaleTimeString();
+      } catch (e) {
+        console.error(e);
+        document.getElementById("last-updated").innerText = "Error loading data";
+      }
+    }
+
+    async function fetchQuests() {
+      try {
+        const res = await fetch(`${API_BASE}/quests`);
+        const quests = await res.json();
+        const container = document.getElementById("quest-list");
+        container.innerHTML = "";
+
+        quests.forEach(q => {
+          const div = document.createElement("div");
+          div.className = "glass";
+          div.style.padding = "16px";
+          div.style.marginBottom = "12px";
+          div.innerHTML = `
+            <div style="display:flex; justify-content:space-between;">
+              <div><strong>${q.quest_id}</strong> — ${q.objective}</div>
+              <div style="color:#F5B544">${q.status} → ${q.target_hero}</div>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderHeroes() {
+      const container = document.getElementById("agent-grid");
+      const heroes = [
+        {name:"Guild Master", role:"Coordinator", status:"Active"},
+        {name:"Healer", role:"Dev / Route Fixer", status:"In Progress"},
+        {name:"Artificer", role:"Meta-Coder", status:"Ready"},
+        {name:"Rogue", role:"Risk / Clew", status:"Ready"},
+        {name:"Mage", role:"Research", status:"Ready"},
+        {name:"Knight", role:"Writer / Themes", status:"Ready"},
+        {name:"Bard", role:"Visuals / Decks", status:"Pending"}
+      ];
+      container.innerHTML = "";
+      heroes.forEach(h => {
+        const div = document.createElement("div");
+        div.className = "glass agent-card";
+        div.innerHTML = `
+          <div style="font-weight:700">${h.name}</div>
+          <div style="color:var(--muted); font-size:13px;">${h.role}</div>
+          <div style="margin-top:12px; font-size:12px;">
+            <span class="status-dot"></span> ${h.status}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // Tab switching
+    document.querySelectorAll(".tab-button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        document.querySelectorAll(".tab-panel").forEach(p => p.style.display = "none");
+        document.getElementById(btn.dataset.tab).style.display = "block";
+      });
+    });
+
+    // Initialize
+    function init() {
+      fetchMetrics();
+      fetchQuests();
+      renderHeroes();
+      setInterval(fetchMetrics, 30000); // Refresh metrics every 30s
+    }
+
+    init();
+  </script>
+</body>
+</html>

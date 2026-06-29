@@ -30,6 +30,7 @@ python app.py
 Re-run `run-intel-migration.ps1` to resume after interrupt. Build indexes only: `.\scripts\run-intel-migration.ps1 -IndexesOnly`
 
 - Command center (HTMX): http://127.0.0.1:9622
+- Mission Control Tavern: http://127.0.0.1:9622/tavern/dashboard (Hermes party ops — see [`party/README.md`](party/README.md))
 - API health: http://127.0.0.1:9622/api/health
 - Archived Next.js (dev only): `python app.py --legacy-frontend` → http://127.0.0.1:3000
 - PostgreSQL: `127.0.0.1:55432` (Thread-dedicated — not 5432)
@@ -47,6 +48,17 @@ Domain dictionaries live in [`docs/reference/`](docs/reference/README.md):
 - **Shipley Capture Guide** — `docs/reference/shipley/`
 
 Packet field seeds: [`backend/src/thread/domain/packet_field_seed.py`](backend/src/thread/domain/packet_field_seed.py)
+
+## Hermes party & Tavern
+
+Hermes agent profiles live in [`party/profiles/`](party/README.md) (guildmaster, healer, artificer, rogue, mage, knight, bard). The **Mission Control Tavern** (`tavern/`) tracks quests, pWin, and hero activity in PostgreSQL.
+
+```powershell
+.venv\Scripts\python.exe tavern\run_tavern_schema.py   # once
+.venv\Scripts\python.exe tavern\seed_tavern.py           # optional demo data
+```
+
+Tavern API: `http://127.0.0.1:9622/tavern` (metrics, quests, activity logs).
 
 ## Architecture
 
