@@ -437,7 +437,7 @@
   </main>
 
   <script>
-    // === TAVERN DASHBOARD - MODULE 2: Overview Tab (fully functional) ===
+    // === TAVERN DASHBOARD - MODULE 2 + 3: Overview + Heroes (fully functional) ===
     const $ = id => document.getElementById(id);
 
     function tickClock() {
@@ -460,7 +460,7 @@
       });
     });
 
-    // Tavern-themed static data (will be replaced with live data in later modules)
+    // Tavern-themed static data
     const tavernData = {
       heroes: [
         { name: 'Mage', total: 28, completed: 27, last_task: 'scried new packet intel', last_seen: new Date(Date.now() - 1000*60*4).toISOString() },
@@ -481,7 +481,7 @@
       questsActive: 7
     };
 
-    // Render radar dots
+    // ===== OVERVIEW =====
     function renderRadar() {
       const g = $('heroDots');
       if (!g) return;
@@ -496,7 +496,6 @@
       }).join('');
     }
 
-    // Cycling directive
     let dirIndex = 0;
     function renderDirective() {
       const el = $('directiveText');
@@ -510,7 +509,6 @@
       dirIndex++;
     }
 
-    // Context window
     let ctxIndex = 0;
     function renderContext() {
       const box = $('contextBox');
@@ -526,7 +524,6 @@
       ctxIndex++;
     }
 
-    // Health bars (simulated healthy Tavern server)
     function renderHealth() {
       $('cpuPct').textContent = '12%';
       $('ramPct').textContent = '34%';
@@ -539,7 +536,6 @@
       $('dbSize').textContent = '4.8 MB';
     }
 
-    // Footer stats
     function renderFooter() {
       $('footQuests').textContent = tavernData.questsActive;
       $('footHeroes').textContent = tavernData.heroes.length;
@@ -548,7 +544,6 @@
       $('footUptime').textContent = '9d 14h';
     }
 
-    // Stats strip
     function renderStats() {
       $('pwinInt').textContent = Math.floor(tavernData.pwin);
       $('pwinDec').textContent = '.' + (tavernData.pwin % 1).toFixed(2).slice(2);
@@ -558,7 +553,6 @@
       $('cacheStat').textContent = '4.2k';
     }
 
-    // Sparkline
     function drawSparkline() {
       const canvas = $('sparkline');
       if (!canvas) return;
@@ -583,7 +577,6 @@
       ctx.stroke();
     }
 
-    // Activity feed
     let feedOffset = 0;
     function renderFeed() {
       const feed = $('activityFeed');
@@ -600,7 +593,6 @@
       feedOffset = (feedOffset + 1) % Math.max(1, tavernData.activity.length - 4);
     }
 
-    // Initialize Overview
     function initOverview() {
       renderRadar();
       renderDirective();
@@ -611,15 +603,85 @@
       drawSparkline();
       renderFeed();
 
-      // Cycling
       setInterval(() => { renderDirective(); renderContext(); }, 2600);
       setInterval(renderFeed, 2200);
       setInterval(drawSparkline, 900);
     }
 
+    // ===== HEROES TAB =====
+    function renderHeroes() {
+      const wrap = $('heroCards');
+      if (!wrap) return;
+
+      let active = 0, idle = 0, dormant = 0;
+      const now = Date.now();
+
+      wrap.innerHTML = tavernData.heroes.map(h => {
+        const ageHrs = (now - Date.parse(h.last_seen)) / 3600000;
+        const state = ageHrs <= 0.25 ? 'active' : ageHrs <= 6 ? 'idle' : 'dormant';
+        if (state === 'active') active++;
+        else if (state === 'idle') idle++;
+        else dormant++;
+
+        const succ = Math.round(h.completed / h.total * 100);
+        const c = '#7DD3FC';
+
+        return `
+          <article class="glass hero-card" style="--hero-color:${c}">
+            <div class="hero-top">
+              <span class="code-badge">${h.name.slice(0,4).toUpperCase()}</span>
+              <span class="hero-status">
+                <span class="hero-dot ${state}"></span>
+              </span>
+            </div>
+            <h2 class="hero-name">${h.name}</h2>
+            <div class="hero-role">Specialist operator — ${h.name.toLowerCase()} class</div>
+            
+            <div>
+              <div class="label">7-Day Activity</div>
+              <div class="mini-bars">${Array.from({length:7}).map((_,i) => 
+                `<span class="mini-bar has" style="height:${10 + (i*3)}px"></span>`
+              ).join('')}</div>
+            </div>
+
+            <div class="hero-stats">
+              <div class="hero-stat">
+                <div class="big">${h.total}</div>
+                <div class="small">Responses</div>
+              </div>
+              <div class="hero-stat">
+                <div class="big ${succ >= 100 ? 'success-mint' : succ >= 80 ? 'success-amber' : 'success-red'}">${succ}%</div>
+                <div class="small">Success</div>
+              </div>
+              <div class="hero-stat">
+                <div class="big small">openai</div>
+                <div class="small">Model</div>
+              </div>
+            </div>
+
+            <div class="load-track"><div class="load-fill" style="width:${Math.round(h.total/34*100)}%"></div></div>
+            
+            <div class="last-task">
+              <div class="task">↳ ${h.last_task}</div>
+              <div class="when">${Math.floor(ageHrs)}h ago</div>
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      $('heroesActive').textContent = active;
+      $('heroesIdle').textContent = idle;
+      $('heroesDormant').textContent = dormant;
+    }
+
+    function initHeroes() {
+      renderHeroes();
+    }
+
     // Boot
     initOverview();
-    console.log('%c[Ariadne Tavern] Module 2 — Overview fully functional', 'color:#5EE2B5');
+    initHeroes();
+    console.log('%c[Ariadne Tavern] Module 3 — Heroes tab fully functional', 'color:#5EE2B5');
   </script>
 </body>
 </html>
