@@ -437,7 +437,7 @@
   </main>
 
   <script>
-    // === TAVERN DASHBOARD - MODULE 2 + 3: Overview + Heroes (fully functional) ===
+    // === TAVERN DASHBOARD - MODULES 2-4: Overview + Heroes + Quests (fully functional) ===
     const $ = id => document.getElementById(id);
 
     function tickClock() {
@@ -460,8 +460,8 @@
       });
     });
 
-    // Tavern-themed static data
-    const tavernData = {
+    // Tavern data
+    let tavernData = {
       heroes: [
         { name: 'Mage', total: 28, completed: 27, last_task: 'scried new packet intel', last_seen: new Date(Date.now() - 1000*60*4).toISOString() },
         { name: 'Knight', total: 19, completed: 19, last_task: 'drafted call plan themes', last_seen: new Date(Date.now() - 1000*60*18).toISOString() },
@@ -478,10 +478,16 @@
       ],
       pwin: 61.4,
       totalXP: 12480,
-      questsActive: 7
+      questsActive: 7,
+      quests: [
+        { id: 'q1', title: 'Capture 17e-g-a.4 packet', status: 'in_progress', priority: 'high', created_at: new Date(Date.now() - 1000*60*60*3).toISOString() },
+        { id: 'q2', title: 'Research competitor pricing', status: 'pending', priority: 'medium', created_at: new Date(Date.now() - 1000*60*60*8).toISOString() },
+        { id: 'q3', title: 'Design new deck template', status: 'done', priority: 'medium', created_at: new Date(Date.now() - 1000*60*60*26).toISOString() },
+        { id: 'q4', title: 'Fix Ornith-1.0 prompt', status: 'done', priority: 'high', created_at: new Date(Date.now() - 1000*60*60*30).toISOString() }
+      ]
     };
 
-    // ===== OVERVIEW =====
+    // ===== OVERVIEW (from Module 2) =====
     function renderRadar() {
       const g = $('heroDots');
       if (!g) return;
@@ -608,7 +614,7 @@
       setInterval(drawSparkline, 900);
     }
 
-    // ===== HEROES TAB =====
+    // ===== HEROES (from Module 3) =====
     function renderHeroes() {
       const wrap = $('heroCards');
       if (!wrap) return;
@@ -678,10 +684,148 @@
       renderHeroes();
     }
 
-    // Boot
+    // ===== QUESTS (Module 4) =====
+    function renderQuestPills() {
+      const host = $('questStatusPills');
+      if (!host) return;
+      const pending = tavernData.quests.filter(q => q.status === 'pending').length;
+      const inProgress = tavernData.quests.filter(q => q.status === 'in_progress').length;
+      const done = tavernData.quests.filter(q => q.status === 'done').length;
+
+      host.innerHTML = `
+        <span class="quest-status-pill" style="--col-color:#FBBF24" data-count="${pending}">Pending <strong>${pending}</strong></span>
+        <span class="quest-status-pill" style="--col-color:#7DD3FC" data-count="${inProgress}">In Progress <strong>${inProgress}</strong></span>
+        <span class="quest-status-pill" style="--col-color:#5EE2B5" data-count="${done}">Done <strong>${done}</strong></span>
+      `;
+    }
+
+    function renderQuestStats() {
+      const total = tavernData.quests.length;
+      const done = tavernData.quests.filter(q => q.status === 'done').length;
+      const prog = tavernData.quests.filter(q => q.status === 'in_progress').length;
+
+      $('boardTotalStat').textContent = total;
+      $('cronTotalStat').textContent = '4';
+      $('doneTotalStat').textContent = done;
+      $('progressSub').textContent = `${prog} in progress`;
+      $('nextCronStat').textContent = 'in 4h';
+      $('nextCronName').textContent = 'Daily pWin brief';
+    }
+
+    function renderBoard() {
+      const grid = $('boardGrid');
+      if (!grid) return;
+
+      renderQuestPills();
+      renderQuestStats();
+
+      const cols = [
+        { key: 'pending', label: 'Pending', color: '#FBBF24' },
+        { key: 'in_progress', label: 'In Progress', color: '#7DD3FC' },
+        { key: 'done', label: 'Done', color: '#5EE2B5' }
+      ];
+
+      grid.innerHTML = cols.map(col => {
+        const tasks = tavernData.quests.filter(q => q.status === col.key);
+        return `
+          <section class="glass board-column" data-board-col="${col.key}" style="--col-color:${col.color}">
+            <div class="board-col-head">
+              <span class="board-col-title">${col.label}</span>
+              <span class="board-col-count">${tasks.length}</span>
+            </div>
+            ${tasks.length ? tasks.map(renderQuestCard).join('') : `<div class="quest-drop-empty">Drop here</div>`}
+          </section>
+        `;
+      }).join('');
+
+      bindQuestDnD();
+    }
+
+    function renderQuestCard(q) {
+      const pColor = q.priority === 'high' ? '#F87171' : q.priority === 'low' ? '#5EE2B5' : '#FBBF24';
+      const ago = Math.floor((Date.now() - Date.parse(q.created_at)) / 3600000);
+      return `
+        <article class="board-card" draggable="true" data-quest-id="${q.id}">
+          <button class="delete-quest" type="button" data-delete-quest="${q.id}">×</button>
+          <div class="board-card-title">${q.title}</div>
+          <div class="priority-line">
+            <span class="priority-dot" style="background:${pColor}"></span>
+            <span class="board-time">${ago}h ago</span>
+          </div>
+        </article>
+      `;
+    }
+
+    function bindQuestDnD() {
+      document.querySelectorAll('.board-card').forEach(card => {
+        card.addEventListener('dragstart', e => {
+          card.dataset.dragging = 'true';
+          e.dataTransfer.setData('text/plain', card.dataset.questId);
+        });
+        card.addEventListener('dragend', () => card.dataset.dragging = '');
+      });
+
+      document.querySelectorAll('.board-column').forEach(col => {
+        col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drag-over'); });
+        col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+        col.addEventListener('drop', e => {
+          e.preventDefault();
+          col.classList.remove('drag-over');
+          const id = e.dataTransfer.getData('text/plain');
+          const newStatus = col.dataset.boardCol;
+          const q = tavernData.quests.find(x => x.id === id);
+          if (q) {
+            q.status = newStatus;
+            renderBoard();
+          }
+        });
+      });
+
+      document.querySelectorAll('.delete-quest').forEach(btn => {
+        btn.addEventListener('click', () => {
+          tavernData.quests = tavernData.quests.filter(q => q.id !== btn.dataset.deleteQuest);
+          renderBoard();
+        });
+      });
+    }
+
+    function initQuests() {
+      renderBoard();
+
+      $('addQuestToggle').addEventListener('click', () => {
+        $('addQuestPanel').classList.toggle('open');
+        $('questTitleInput').focus();
+      });
+
+      $('cancelQuestBtn').addEventListener('click', () => {
+        $('addQuestPanel').classList.remove('open');
+      });
+
+      $('addQuestPanel').addEventListener('submit', e => {
+        e.preventDefault();
+        const title = $('questTitleInput').value.trim();
+        if (!title) return;
+
+        tavernData.quests.unshift({
+          id: 'q' + Date.now(),
+          title,
+          status: $('questStatusInput').value,
+          priority: $('questPriorityInput').value,
+          created_at: new Date().toISOString()
+        });
+
+        $('questTitleInput').value = '';
+        $('addQuestPanel').classList.remove('open');
+        renderBoard();
+      });
+    }
+
+    // Boot everything
     initOverview();
     initHeroes();
-    console.log('%c[Ariadne Tavern] Module 3 — Heroes tab fully functional', 'color:#5EE2B5');
+    initQuests();
+
+    console.log('%c[Ariadne Tavern] Modules 2-4 complete — Overview + Heroes + Quests fully functional', 'color:#5EE2B5');
   </script>
 </body>
 </html>
